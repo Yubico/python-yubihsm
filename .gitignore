@@ -1,0 +1,10 @@
+build/
+dist/
+venv/
+.DS_Store
+.idea/
+.ropeproject/
+*.egg-info/
+*.pyc
+.eggs/
+**/_build

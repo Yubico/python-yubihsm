@@ -1,0 +1,7 @@
+* Version 2.0.0 (released 2018-11-26)
+ ** Published under the Apache v2.0 software license.
+ ** Reworked most library APIs to align with SDK 2.0 changes.
+ ** Added documentation to all public APIs, with Sphinx generated docs.
+
+* Version 1.0.0 (released 2017-10-27)
+ ** First version

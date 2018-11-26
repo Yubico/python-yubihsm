@@ -1,0 +1,17 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[dev-packages]
+"ed25519" = "*"
+sphinx = "*"
+sphinx-rtd-theme = "*"
+mock = "*"
+
+[packages]
+yubihsm = {editable = true, extras = ["http", "usb"], path = "."}
+
+[scripts]
+test = "python setup.py test"
+docs = "make -C docs/ html"

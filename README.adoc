@@ -1,0 +1,120 @@
+== python-yubihsm
+
+Python library and tests for the YubiHSM 2.
+This library is compatible with both Python 2 and 3.
+
+This libary communicates with the YubiHSM 2 connector daemon, which must already be running.
+It can also communicate directly with the YubiHSM 2 via USB.
+
+=== License
+
+....
+Copyright 2018 Yubico AB
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+....
+
+=== Installation
+
+From PyPI:
+
+ $ pip install yubihsm[http,usb]
+
+From a source .tar.gz:
+
+ $ pip install yubihsm-<version>.tar.gz[http,usb]
+
+
+Omitting a tag from the brackets will install the library without support for
+that backend, and will avoid installing unneeded dependencies.
+
+=== Quick reference commands:
+[source,python]
+----
+from yubihsm import YubiHsm
+from yubihsm.defs import CAPABILITY, ALGORITHM
+from yubihsm.objects import AsymmetricKey
+
+# Connect to the YubiHSM via the connector using the default password:
+hsm = YubiHsm.connect('http://localhost:12345')
+session = hsm.create_session_derived(1, 'password')
+
+# Generate a private key on the YubiHSM for creating signatures:
+key = AsymmetricKey.generate(  # Generate a new key object in the YubiHSM.
+    session,                   # Secure YubiHsm session to use.
+    0,                         # Object ID, 0 to get one assigned.
+    'My key',                  # Label for the object.
+    1,                         # Domain(s) for the object.
+    CAPABILITY.SIGN_ECDSA,     # Capabilities for the ojbect.
+    ALGORITHM.EC_P256          # Algorithm for the key.
+)
+
+# pub_key is a cryptography.io ec.PublicKey, see https://cryptography.io
+pub_key = key.get_public_key()
+
+# Write the public key to a file:
+with open('public_key.pem', 'w') as f:
+    f.write(pub_key.public_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PublicFormat.SubjectPublicKeyInfo
+    ))
+
+# Sign some data:
+signature = key.sign_ecdsa(b'Hello world!')  # Create a signature.
+
+# Clean up
+session.close()
+hsm.close()
+----
+
+=== Development
+For development of the library, we recommend using `pipenv`. To set up the dev
+environment, run this command in the root directory of the repository:
+
+ $ pipenv install --dev
+
+==== Running tests
+Running the tests require a YubiHSM2 to run against, with the default
+authentication key set.
+
+WARNING: The YubiHSM under test will be factory reset by the tests!
+
+ $ pipenv run test
+
+You can specify a specific module or test to run by using the -s flag:
+
+ $ pipenv run test -s test.device.test_ec
+
+By default the tests will connect to a yubihsm-connector running with the
+default settings on http://localhost:12345. To change this, use the `BACKEND`
+variable, eg:
+
+ $ BACKEND="yhusb://" pipenv run python setup.py test
+
+Access to the device requires proper permissions, so either use sudo or setup a
+udev rule.
+
+==== Generating HTML documentation
+
+To build the HTML documentation, run:
+
+ $ pipenv run docs
+
+The resulting output will be in docs/_build/html/.
+
+==== Source releases for distribution
+Build a source release:
+
+ $ pipenv run python setup.py sdist
+
+The resulting .tar.gz will be created in `dist/`.

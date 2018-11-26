@@ -1,0 +1,3 @@
+include README.adoc
+include COPYING
+recursive-include test *.py

@@ -1,0 +1,82 @@
+# Copyright 2016-2018 Yubico AB
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+from __future__ import absolute_import
+
+from ..exceptions import YubiHsmConnectionError, YubiHsmInvalidResponseError
+import usb.core
+import usb.util
+
+
+YUBIHSM_VID = 0x1050
+YUBIHSM_PID = 0x0030
+
+
+class UsbBackend(object):
+    """A backend for communicating with a YubiHSM directly over USB."""
+
+    def __init__(self, serial=None):
+        """Construct a UsbBackend, connected to a YubiHSM via USB.
+
+        :param int serial: (optional) The serial number of the YubiHSM to
+            connect to.
+        """
+        for device in usb.core.find(find_all=True, idVendor=YUBIHSM_VID,
+                                    idProduct=YUBIHSM_PID):
+            if serial is None or int(device.serial_number) == serial:
+                break
+        else:
+            raise YubiHsmConnectionError('No YubiHSM found.')
+
+        try:
+            device.set_configuration()
+        except usb.core.USBError as e:
+            raise YubiHsmConnectionError(e)
+
+        # Flush any data waiting to be read
+        try:
+            device.read(0x81, 0xffff, 10)
+        except usb.core.USBError:
+            pass  # Errors here are expected, and ignored
+
+        self._device = device
+        self.timeout = 300
+
+    def transceive(self, msg):
+        """Send a verbatim message."""
+        if len(msg) > 2048:
+            raise YubiHsmInvalidResponseError('Message too long.')
+
+        try:
+            sent = self._device.write(0x01, msg, self.timeout * 1000)
+            if sent != len(msg):
+                raise YubiHsmConnectionError('Error sending data over USB.')
+            if sent % 64 == 0:
+                if self._device.write(0x01, b'', self.timeout * 1000) != 0:
+                    raise YubiHsmConnectionError('Error sending data over USB.')
+            return bytes(bytearray(self._device.read(0x81, 0xffff,
+                                                     self.timeout * 1000)))
+        except usb.core.USBError as e:
+            raise YubiHsmConnectionError(e)
+
+    def close(self):
+        usb.util.dispose_resources(self._device)
+
+    def __repr__(self):
+        v_int = self._device.bcdDevice
+        version = '{}.{}.{}'.format(
+            (v_int >> 8) & 0xf, (v_int >> 4) & 0xf, v_int & 0xf)
+        return ('{0.__class__.__name__}('
+                'version={1}, '
+                'serial={0._device.serial_number})').format(self, version)
