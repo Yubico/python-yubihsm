@@ -892,7 +892,7 @@ class OtpAeadKey(YhsmObject):
         :param int domains: The set of domains to assign the object to.
         :param int capabilities: The set of capabilities to give the object.
         :param ALGORITHM algorithm: The algorithm to use for the key.
-        :param bytes nonce_id: The 4 byte nonce ID used for AEADs.
+        :param int nonce_id: The nonce ID used for AEADs.
         :param bytes key: The key to import, corresponding to the algorithm.
         :return: A reference to the newly created object.
         :rtype: AsymmetricKey
