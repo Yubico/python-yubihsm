@@ -44,6 +44,11 @@ class TestWrap(YubiHsmTestCase):
             self.session, a_id, 'Generate Wrap 0x%04x' % a_id, 0xffff,
             CAPABILITY.SIGN_ECDSA | CAPABILITY.EXPORTABLE_UNDER_WRAP,
             ALGORITHM.EC_P256)
+        origin = asymkey.get_info().origin
+        self.assertEqual(origin, 0x01)
+        self.assertTrue(origin.generated)
+        self.assertFalse(origin.imported)
+        self.assertFalse(origin.wrapped)
 
         pub = asymkey.get_public_key()
 
@@ -63,6 +68,11 @@ class TestWrap(YubiHsmTestCase):
         self.assertRaises(YubiHsmDeviceError, asymkey.get_public_key)
 
         asymkey = wrapkey.import_wrapped(wrapped)
+        origin = asymkey.get_info().origin
+        self.assertEqual(origin, 0x11)
+        self.assertTrue(origin.generated)
+        self.assertFalse(origin.imported)
+        self.assertTrue(origin.wrapped)
 
         data = os.urandom(64)
         resp = asymkey.sign_ecdsa(data)
@@ -94,6 +104,11 @@ class TestWrap(YubiHsmTestCase):
             self.session, a_id, 'Test Export Wrap 0x%04x' % a_id, 0xffff,
             CAPABILITY.SIGN_ECDSA | CAPABILITY.EXPORTABLE_UNDER_WRAP,
             eckey)
+        origin = asymkey.get_info().origin
+        self.assertEqual(origin, 0x02)
+        self.assertFalse(origin.generated)
+        self.assertTrue(origin.imported)
+        self.assertFalse(origin.wrapped)
 
         data = os.urandom(64)
         resp = asymkey.sign_ecdsa(data, hash=hashes.SHA384())
@@ -128,6 +143,12 @@ class TestWrap(YubiHsmTestCase):
         resp = asymkey.sign_ecdsa(data, hash=hashes.SHA384())
 
         eckey.public_key().verify(resp, data, ec.ECDSA(hashes.SHA384()))
+
+        origin = asymkey.get_info().origin
+        self.assertEqual(origin, 0x12)
+        self.assertFalse(origin.generated)
+        self.assertTrue(origin.imported)
+        self.assertTrue(origin.wrapped)
 
         asymkey.delete()
 

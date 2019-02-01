@@ -324,8 +324,19 @@ CAPABILITY.ALL = sum(CAPABILITY)
 CAPABILITY.NONE = 0x00
 
 
-@unique
-class ORIGIN(IntEnum):
+class ORIGIN(int):
     GENERATED = 0x01
     IMPORTED = 0x02
     IMPORTED_WRAPPED = 0x10  # Used in combination with GENERATED/IMPORTED
+
+    @property
+    def generated(self):
+        return ORIGIN.GENERATED & self != 0
+
+    @property
+    def imported(self):
+        return ORIGIN.IMPORTED & self != 0
+
+    @property
+    def wrapped(self):
+        return ORIGIN.IMPORTED_WRAPPED & self != 0
