@@ -291,6 +291,14 @@ class AuthSession(object):
         rmac = _calculate_mac(
             self._key_rmac, next_mac_chain, raw_resp[:-8])[1]
         if not constant_time.bytes_eq(raw_resp[-8:], rmac):
+            # We've failed the MAC check. This could be because our session's
+            # timed out and that kind of error is sent in the clear so check
+            # that first.
+            if len(raw_resp) >= 3:
+                rcmd, length = struct.unpack("!BH", raw_resp[:3])
+                if rcmd == COMMAND.ERROR and len(raw_resp) >= length + 3:
+                    raise YubiHsmDeviceError(six.indexbytes(raw_resp, 3))
+
             raise YubiHsmInvalidResponseError('Incorrect MAC')
 
         data = _unpad_resp(raw_resp, COMMAND.SESSION_MESSAGE)
