@@ -169,6 +169,13 @@ class _UnknownAlgorithm(_UnknownIntEnum):
     name = 'ALGORITHM.UNKNOWN'
 
 
+def _algorithm(val):
+    try:
+        return ALGORITHM(val)
+    except ValueError:
+        return _UnknownAlgorithm(val)
+
+
 class _UnknownCommand(_UnknownIntEnum):
     """Wrapper for unknown COMMAND values.
 
@@ -207,8 +214,7 @@ class DeviceInfo(namedtuple('DeviceInfo', [
         unpacked = struct.unpack_from(cls.FORMAT, data)
         version = unpacked[:3]
         serial, log_size, log_used = unpacked[3:]
-        algorithms = {ALGORITHM(a) if a in ALGORITHM else _UnknownAlgorithm(a)
-                      for a in six.iterbytes(data[cls.LENGTH:])}
+        algorithms = {_algorithm(a) for a in six.iterbytes(data[cls.LENGTH:])}
 
         return cls(version, serial, log_size, log_used, algorithms)
 
