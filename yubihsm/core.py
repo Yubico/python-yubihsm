@@ -294,15 +294,15 @@ class AuthSession(object):
         wrapped += mac
         raw_resp = self._hsm._backend.transceive(wrapped)
 
-        rmac = _calculate_mac(
-            self._key_rmac, next_mac_chain, raw_resp[:-8])[1]
-        if not constant_time.bytes_eq(raw_resp[-8:], rmac):
-            raise YubiHsmInvalidResponseError('Incorrect MAC')
-
         data = _unpad_resp(raw_resp, COMMAND.SESSION_MESSAGE)
 
         if six.indexbytes(data, 0) != self._sid:
             raise YubiHsmInvalidResponseError('Incorrect SID')
+
+        rmac = _calculate_mac(
+            self._key_rmac, next_mac_chain, raw_resp[:-8])[1]
+        if not constant_time.bytes_eq(raw_resp[-8:], rmac):
+            raise YubiHsmInvalidResponseError('Incorrect MAC')
 
         self._ctr += 1
         self._mac_chain = next_mac_chain
