@@ -15,9 +15,9 @@
 from __future__ import absolute_import, division
 
 from .utils import YubiHsmTestCase
-from yubihsm.defs import CAPABILITY, ALGORITHM
+from yubihsm.defs import CAPABILITY, ALGORITHM, ERROR
 from yubihsm.objects import Opaque
-from yubihsm.exceptions import YubiHsmInvalidResponseError
+from yubihsm.exceptions import YubiHsmDeviceError
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
@@ -60,17 +60,18 @@ class TestOpaque(YubiHsmTestCase):
             opaque.delete()
 
     def test_put_too_big(self):
-        for size in (1969, 2048, 4096, 8192):
-            with self.assertRaises(YubiHsmInvalidResponseError):
-                Opaque.put(
-                    self.session,
-                    0,
-                    'Test large Opaque',
-                    1,
-                    CAPABILITY.NONE,
-                    ALGORITHM.OPAQUE_DATA,
-                    os.urandom(size)
-                )
+        with self.assertRaises(YubiHsmDeviceError) as cm:
+            Opaque.put(
+                self.session,
+                0,
+                'Test large Opaque',
+                1,
+                CAPABILITY.NONE,
+                ALGORITHM.OPAQUE_DATA,
+                os.urandom(1969)
+            )
+
+        self.assertEqual(cm.exception.code, ERROR.WRONG_LENGTH)
 
         # Make sure our session is still working
         self.assertEqual(len(self.session.get_pseudo_random(123)), 123)

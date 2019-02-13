@@ -21,7 +21,8 @@ from . import utils
 from .defs import COMMAND, ALGORITHM, LIST_FILTER, OPTION, AUDIT
 from .backends import get_backend
 from .objects import YhsmObject, _label_pack, LABEL_LENGTH
-from .exceptions import (YubiHsmDeviceError, YubiHsmInvalidResponseError,
+from .exceptions import (YubiHsmDeviceError, YubiHsmInvalidRequestError,
+                         YubiHsmInvalidResponseError,
                          YubiHsmAuthenticationError, YubiHsmConnectionError)
 
 from cryptography.hazmat.backends import default_backend
@@ -40,6 +41,8 @@ KEY_MAC = 0x06
 KEY_RMAC = 0x07
 CARD_CRYPTOGRAM = 0x00
 HOST_CRYPTOGRAM = 0x01
+
+MAX_MSG_SIZE = 2048 - 1
 
 
 def _derive(key, t, context, L=0x80):
@@ -82,6 +85,11 @@ class YubiHsm(object):
         self._backend.close()
         self._backend = None
 
+    def _transceive(self, msg):
+        if len(msg) > MAX_MSG_SIZE:
+            raise YubiHsmInvalidRequestError('Message too long.')
+        return self._backend.transceive(msg)
+
     def send_cmd(self, cmd, data=b''):
         """Encode and send a command byte and its associated data.
 
@@ -91,7 +99,7 @@ class YubiHsm(object):
         :rtype: bytes
         """
         msg = struct.pack('!BH', cmd, len(data)) + data
-        return _unpad_resp(self._backend.transceive(msg), cmd)
+        return _unpad_resp(self._transceive(msg), cmd)
 
     def get_device_info(self):
         """Get general device information from the YubiHSM.
@@ -274,7 +282,7 @@ class AuthSession(object):
         self._ctr = 1
         self._mac_chain, mac = _calculate_mac(self._key_mac, b'\0' * 16, msg)
         msg += mac
-        data = _unpad_resp(self._hsm._backend.transceive(msg),
+        data = _unpad_resp(self._hsm._transceive(msg),
                            COMMAND.AUTHENTICATE_SESSION)
 
     def _secure_transceive(self, msg):
@@ -292,7 +300,7 @@ class AuthSession(object):
         next_mac_chain, mac = _calculate_mac(
             self._key_mac, self._mac_chain, wrapped)
         wrapped += mac
-        raw_resp = self._hsm._backend.transceive(wrapped)
+        raw_resp = self._hsm._transceive(wrapped)
 
         data = _unpad_resp(raw_resp, COMMAND.SESSION_MESSAGE)
 

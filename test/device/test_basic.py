@@ -15,8 +15,10 @@
 from __future__ import absolute_import, division
 
 from .utils import YubiHsmTestCase
+from yubihsm.core import MAX_MSG_SIZE
 from yubihsm.defs import ALGORITHM, CAPABILITY, OBJECT, COMMAND, ORIGIN
 from yubihsm.objects import AsymmetricKey, HmacKey, WrapKey, AuthenticationKey
+from yubihsm.exceptions import YubiHsmInvalidRequestError
 import uuid
 import os
 
@@ -120,6 +122,11 @@ class TestVarious(YubiHsmTestCase):
         self.assertEqual(len(data2), 10)
         self.assertNotEqual(data, data2)
 
+    def test_send_too_big(self):
+        buf = os.urandom(MAX_MSG_SIZE - 3 + 1)  # Message 1 byte too large
+        with self.assertRaises(YubiHsmInvalidRequestError):
+            self.hsm.send_cmd(COMMAND.ECHO, buf)
+
 
 class TestEcho(YubiHsmTestCase):
 
@@ -146,3 +153,7 @@ class TestEcho(YubiHsmTestCase):
     def test_plain_echo_many(self):
         for i in range(1, 256):
             self.plain_echo(i)
+
+    def test_echo_max_size(self):
+        self.plain_echo(2021)
+        self.secure_echo(2021)

@@ -14,7 +14,7 @@
 
 from __future__ import absolute_import
 
-from ..exceptions import YubiHsmConnectionError, YubiHsmInvalidResponseError
+from ..exceptions import YubiHsmConnectionError
 import usb.core
 import usb.util
 
@@ -55,9 +55,6 @@ class UsbBackend(object):
 
     def transceive(self, msg):
         """Send a verbatim message."""
-        if len(msg) > 2048:
-            raise YubiHsmInvalidResponseError('Message too long.')
-
         try:
             sent = self._device.write(0x01, msg, self.timeout * 1000)
             if sent != len(msg):

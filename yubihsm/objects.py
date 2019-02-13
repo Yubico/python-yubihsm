@@ -18,8 +18,8 @@
 from __future__ import absolute_import, division
 
 from . import utils
-from .defs import ALGORITHM, COMMAND, OBJECT, ERROR, ORIGIN
-from .exceptions import YubiHsmInvalidResponseError, YubiHsmDeviceError
+from .defs import ALGORITHM, COMMAND, OBJECT, ORIGIN
+from .exceptions import YubiHsmInvalidResponseError
 from .eddsa import _Ed25519PrivateKey, _Ed25519PublicKey
 
 from cryptography.hazmat.backends import default_backend
@@ -198,13 +198,7 @@ class Opaque(YhsmObject):
                           _label_pack(label), domains, capabilities,
                           algorithm)
         msg += data
-        try:
-            return cls._from_command(session, COMMAND.PUT_OPAQUE, msg)
-        except YubiHsmDeviceError as e:
-            if e.code == ERROR.WRONG_LENGTH:
-                # Data is too big
-                raise YubiHsmInvalidResponseError('Wrong length')
-            raise
+        return cls._from_command(session, COMMAND.PUT_OPAQUE, msg)
 
     def get(self):
         """Read the data of an Opaque object from the YubiHSM.

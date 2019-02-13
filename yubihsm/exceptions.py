@@ -40,6 +40,10 @@ class YubiHsmDeviceError(YubiHsmError):
         )
 
 
+class YubiHsmInvalidRequestError(YubiHsmError):
+    """The request was not able to be sent to the YubiHSM."""
+
+
 class YubiHsmInvalidResponseError(YubiHsmError):
     """The YubiHSM returned an unexpected response."""
 
