@@ -35,7 +35,7 @@ class HttpBackend(object):
             values to use as connection timeout and request timeout.
         :type timeout: int or tuple[int, int]
         """
-        self._url = parse.urljoin(url, '/connector/api')
+        self._url = parse.urljoin(url, 'connector/api')
         self._timeout = timeout
 
         self._session = requests.Session()

@@ -82,8 +82,9 @@ class YubiHsm(object):
 
     def close(self):
         """Disconnect from the backend, freeing any resources in use by it."""
-        self._backend.close()
-        self._backend = None
+        if self._backend:
+            self._backend.close()
+            self._backend = None
 
     def _transceive(self, msg):
         if len(msg) > MAX_MSG_SIZE:
@@ -429,6 +430,9 @@ class AuthSession(object):
                 raise YubiHsmInvalidResponseError('Non-empty response')
         except YubiHsmConnectionError:
             pass  # Assume reset went well, it may interrupt the connection.
+        self._sid = None
+        self._key_enc = self._key_mac = self._key_rmac = None
+        self._hsm.close()
 
     def get_log_entries(self, previous_entry=None):
         """Get logs from the YubiHSM.

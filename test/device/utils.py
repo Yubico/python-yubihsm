@@ -19,6 +19,7 @@ from yubihsm.defs import BRAINPOOLP256R1, BRAINPOOLP384R1, BRAINPOOLP512R1
 from cryptography.hazmat.primitives.asymmetric import ec
 
 import unittest
+import time
 import os
 
 # Register Brainpool curves
@@ -30,7 +31,10 @@ ec._CURVE_TYPES['brainpoolP512r1'] = BRAINPOOLP512R1
 DEFAULT_KEY = 'password'
 
 
+@unittest.skipIf(os.environ.get('BACKEND', None) == 'NONE',
+                 'Skipping device tests.')
 class YubiHsmTestCase(unittest.TestCase):
+    _HAS_RESET = False
 
     def connect_hsm(self):
         self.hsm = YubiHsm.connect(os.environ.get('BACKEND', None))
@@ -46,6 +50,12 @@ class YubiHsmTestCase(unittest.TestCase):
     def setUp(self):
         self.connect_hsm()
         self.session = self.hsm.create_session_derived(1, DEFAULT_KEY)
+        if not YubiHsmTestCase._HAS_RESET:
+            print('RESETTING DEVICE!!!!')
+            self.session.reset_device()
+            YubiHsmTestCase._HAS_RESET = True
+            time.sleep(3)
+            self.setUp()
 
     def tearDown(self):
         self.session.close()

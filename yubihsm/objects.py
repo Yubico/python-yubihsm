@@ -26,7 +26,7 @@ from cryptography.hazmat.backends import default_backend
 from cryptography import x509
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import rsa, ec
-from cryptography.hazmat.primitives.serialization import Encoding
+from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 from cryptography.utils import int_to_bytes, int_from_bytes
 from collections import namedtuple
 import six
@@ -508,8 +508,14 @@ class AsymmetricKey(YhsmObject):
         :return: The resulting shared key.
         :rtype: bytes
         """
-        numbers = public_key.public_numbers()
-        msg = struct.pack('!H', self.id) + numbers.encode_point()
+        try:
+            point = public_key.public_bytes(
+                Encoding.X962,
+                PublicFormat.UncompressedPoint
+            )
+        except AttributeError:  # Cryptography <2.5
+            point = public_key.public_numbers().encode_point()
+        msg = struct.pack('!H', self.id) + point
         return self.session.send_secure_cmd(COMMAND.DERIVE_ECDH, msg)
 
     def sign_pkcs1v1_5(self, data, hash=hashes.SHA256()):
