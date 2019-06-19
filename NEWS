@@ -1,3 +1,8 @@
+* Version 2.0.1 (released 2019-06-19)
+ ** Bugfix: ORIGIN representation was broken, causing get_info() to fail.
+ ** Bugfix: Algorithm parsing in DeviceInfo fixed.
+ ** Handing of too large messages improved.
+
 * Version 2.0.0 (released 2018-11-26)
  ** Published under the Apache v2.0 software license.
  ** Reworked most library APIs to align with SDK 2.0 changes.
