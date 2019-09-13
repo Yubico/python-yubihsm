@@ -25,13 +25,13 @@ from yubihsm.exceptions import YubiHsmDeviceError
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes, serialization
-from cryptography.hazmat.primitives.asymmetric import ec, utils as crypto_utils
+from cryptography.hazmat.primitives.asymmetric import (
+    ec, ed25519, utils as crypto_utils
+)
 from cryptography.utils import int_from_bytes
 from binascii import a2b_hex
 import os
 import struct
-
-import ed25519
 
 
 class TestSecpEcdsa(YubiHsmTestCase):
@@ -362,25 +362,28 @@ class TestEd25519(YubiHsmTestCase):
             self.session, 0, 'Test Ed25519', 0xffff,
             CAPABILITY.SIGN_EDDSA,
             ALGORITHM.EC_ED25519)
-        public_bytes = serialize_ed25519_public_key(key.get_public_key())
+        pubkey = key.get_public_key()
         data = os.urandom(128)
         sig = key.sign_eddsa(data)
-        v_key = ed25519.VerifyingKey(public_bytes)
-        v_key.verify(sig, data)
+        pubkey.verify(sig, data)
         key.delete()
 
     def test_import_sign(self):
-        s_key, v_key = ed25519.create_keypair()
+        s_key = ed25519.Ed25519PrivateKey.generate()
+        v_key = s_key.public_key()
         key = AsymmetricKey.put(
             self.session, 0, 'Test Ed25519', 0xffff,
             CAPABILITY.SIGN_EDDSA,
-            load_ed25519_private_key(s_key.to_seed()))
+            s_key)
         data = os.urandom(129)
         sig = key.sign_eddsa(data)
         v_key.verify(sig, data)
         self.assertEqual(sig, s_key.sign(data))
         pub = key.get_public_key()
-        self.assertEqual(v_key.to_bytes(), serialize_ed25519_public_key(pub))
+        self.assertEqual(v_key.public_bytes(
+            serialization.Encoding.Raw,
+            serialization.PublicFormat.Raw
+        ), serialize_ed25519_public_key(pub))
         key.delete()
 
     def test_generate_sign_long(self):
@@ -391,6 +394,5 @@ class TestEd25519(YubiHsmTestCase):
         pubkey = key.get_public_key()
         data = os.urandom(2019)
         sig = key.sign_eddsa(data)
-        v_key = ed25519.VerifyingKey(serialize_ed25519_public_key(pubkey))
-        v_key.verify(sig, data)
+        pubkey.verify(sig, data)
         key.delete()

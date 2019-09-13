@@ -51,5 +51,5 @@ setup(
         'http': ['requests'],
         'usb': ['pyusb']
     },
-    tests_require=['ed25519', 'mock']
+    tests_require=['mock', 'cryptography>=2.6']
 )
