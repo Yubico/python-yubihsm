@@ -898,13 +898,13 @@ class OtpAeadKey(YhsmObject):
         :rtype: AsymmetricKey
 
         """
-        msg = struct.pack('!H%dsHQBL' % LABEL_LENGTH,
+        msg = struct.pack('!H%dsHQB' % LABEL_LENGTH,
                           object_id,
                           _label_pack(label),
                           domains,
                           capabilities,
-                          algorithm,
-                          nonce_id)
+                          algorithm) + \
+            struct.pack('<I', nonce_id)  # nonce ID is stored in little-endian.
         msg += key
         return cls._from_command(session, COMMAND.PUT_OTP_AEAD_KEY, msg)
 

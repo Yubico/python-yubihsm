@@ -117,7 +117,7 @@ class TestOTP(YubiHsmTestCase):
         aes_ccm = AESCCM(aes_key, 8)
         nonce, ct = aead[:6], aead[6:]
         pt = aes_ccm.decrypt(
-            struct.pack('>I6sBBB', nonce_id, nonce, 0, 0, 0), ct, None)
+            struct.pack('<I6sBBB', nonce_id, nonce, 0, 0, 0), ct, None)
 
         # Construct an OTP
         otp_data = OtpData(1, 2, 3, 4)
