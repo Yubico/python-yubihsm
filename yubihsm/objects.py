@@ -20,7 +20,11 @@ from __future__ import absolute_import, division
 from . import utils
 from .defs import ALGORITHM, COMMAND, OBJECT, ORIGIN
 from .exceptions import YubiHsmInvalidResponseError
-from .eddsa import _Ed25519PrivateKey, _Ed25519PublicKey
+from .eddsa import (
+    _is_ed25519_private_key,
+    _serialize_ed25519_private_key,
+    _deserialize_ed25519_public_key
+)
 
 from cryptography.hazmat.backends import default_backend
 from cryptography import x509
@@ -354,7 +358,8 @@ class AsymmetricKey(YhsmObject):
         :class:`~cryptography.hazmat.primitives.asymmetric.ec.EllipticCurvePrivateKey`
         as `key`.
 
-        EdDSA keys can be created using
+        EdDSA keys can be created using the Cryptography APIs if available, or
+        by calling
         :func:`~yubihsm.eddsa.load_ed25519_private_key`.
 
         :param AuthSession session: The session to import via.
@@ -376,8 +381,8 @@ class AsymmetricKey(YhsmObject):
             serialized = int_to_bytes(
                 numbers.private_value, (key.curve.key_size + 7) // 8)
             algo = ALGORITHM.for_curve(key.curve)
-        elif isinstance(key, _Ed25519PrivateKey):
-            serialized = key._private_bytes
+        elif _is_ed25519_private_key(key):
+            serialized = _serialize_ed25519_private_key(key)
             algo = ALGORITHM.EC_ED25519
         else:
             raise ValueError('Unsupported key')
@@ -422,8 +427,11 @@ class AsymmetricKey(YhsmObject):
         :class:`~cryptography.hazmat.primitives.asymmetric.ec.EllipticCurvePublicKey`
         depending on the algorithm of the key.
 
-        Ed25519 keys use an internal representation which can be serialized
-        using the :func:`~yubihsm.eddsa.serialize_ed25519_public_key` function.
+        Ed25519 keys will be returned as a Cryptography
+        :class:`~cryptography.hazmat.primitives.asymmetric.ed25519.Ed25519PublicKey`
+        object if possible (requires Cryptography 2.6 or later), or an internal
+        representation if not, either which can be serialized using the
+        :func:`~yubihsm.eddsa.serialize_ed25519_public_key` function.
 
         :return: The public key of the key pair.
         """
@@ -445,7 +453,7 @@ class AsymmetricKey(YhsmObject):
             pubkey = ec.EllipticCurvePublicNumbers(
                 curve=algo.to_curve(), x=x, y=y)
         elif algo in [ALGORITHM.EC_ED25519]:
-            return _Ed25519PublicKey(raw_key)
+            return _deserialize_ed25519_public_key(raw_key)
 
         return pubkey.public_key(backend=default_backend())
 
