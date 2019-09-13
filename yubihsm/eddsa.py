@@ -14,11 +14,6 @@
 
 """Functions for serializing and deserializing Ed25519 keys."""
 
-
-# We expect cryptography to support Ed25519 in the near future and will replace
-# these classes once it does, while allowing for the two functions to remain
-# if needed.
-
 from cryptography.exceptions import UnsupportedAlgorithm
 
 try:
