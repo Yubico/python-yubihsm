@@ -30,13 +30,13 @@ def password_to_key(password):
     :rtype: tuple[bytes, bytes]
     """
     if isinstance(password, six.text_type):
-        password = password.encode('utf8')
+        password = password.encode("utf8")
     key = PBKDF2HMAC(
         algorithm=hashes.SHA256(),
         length=32,
-        salt=b'Yubico',
+        salt=b"Yubico",
         iterations=10000,
-        backend=default_backend()
+        backend=default_backend(),
     ).derive(password)
     key_enc, key_mac = key[:16], key[16:]
     return key_enc, key_mac

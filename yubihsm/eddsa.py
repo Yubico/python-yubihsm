@@ -20,7 +20,10 @@ try:
     # Requires Cryptography >= 2.6
     from cryptography.hazmat.primitives.asymmetric import ed25519
     from cryptography.hazmat.primitives.serialization import (
-        Encoding, PublicFormat, PrivateFormat, NoEncryption
+        Encoding,
+        PublicFormat,
+        PrivateFormat,
+        NoEncryption,
     )
 
     ed25519.Ed25519PrivateKey.generate()  # Check for algorithm support.
@@ -46,15 +49,14 @@ try:
         return isinstance(key, ed25519.Ed25519PrivateKey)
 
     def _serialize_ed25519_private_key(key):
-        return key.private_bytes(
-            Encoding.Raw,
-            PrivateFormat.Raw,
-            NoEncryption()
-        )
+        return key.private_bytes(Encoding.Raw, PrivateFormat.Raw, NoEncryption())
 
     def _deserialize_ed25519_public_key(raw_key):
         return ed25519.Ed25519PublicKey.from_public_bytes(raw_key)
+
+
 except (ImportError, UnsupportedAlgorithm):
+
     class _Ed25519PrivateKey(object):
         def __init__(self, private_bytes):
             self._private_bytes = private_bytes

@@ -28,24 +28,21 @@ import uuid
 
 
 class TestAttestation(YubiHsmTestCase):
-
     def create_pair(self, algorithm):
         if algorithm == ALGORITHM.RSA_2048:
-            private_key = rsa.generate_private_key(
-                0x10001, 2048, default_backend())
+            private_key = rsa.generate_private_key(0x10001, 2048, default_backend())
         elif algorithm == ALGORITHM.RSA_3072:
-            private_key = rsa.generate_private_key(
-                0x10001, 3072, default_backend())
+            private_key = rsa.generate_private_key(0x10001, 3072, default_backend())
         elif algorithm == ALGORITHM.RSA_4096:
-            private_key = rsa.generate_private_key(
-                0x10001, 4096, default_backend())
+            private_key = rsa.generate_private_key(0x10001, 4096, default_backend())
         else:
             ec_curve = ALGORITHM.to_curve(algorithm)
             private_key = ec.generate_private_key(ec_curve, default_backend())
 
         builder = x509.CertificateBuilder()
-        name = x509.Name([x509.NameAttribute(
-            NameOID.COMMON_NAME, u'Test Attestation Certificate')])
+        name = x509.Name(
+            [x509.NameAttribute(NameOID.COMMON_NAME, u"Test Attestation Certificate")]
+        )
         builder = builder.subject_name(name)
         builder = builder.issuer_name(name)
         one_day = datetime.timedelta(1, 0, 0)
@@ -53,16 +50,20 @@ class TestAttestation(YubiHsmTestCase):
         builder = builder.not_valid_after(datetime.datetime.today() + one_day)
         builder = builder.serial_number(int(uuid.uuid4()))
         builder = builder.public_key(private_key.public_key())
-        certificate = builder.sign(
-            private_key, hashes.SHA256(), default_backend())
+        certificate = builder.sign(private_key, hashes.SHA256(), default_backend())
 
         attkey = AsymmetricKey.put(
-            self.session, 0, 'Test Create Pair', 0xffff,
+            self.session,
+            0,
+            "Test Create Pair",
+            0xFFFF,
             CAPABILITY.SIGN_ATTESTATION_CERTIFICATE,
-            private_key)
+            private_key,
+        )
 
-        certobj = attkey.put_certificate('Test Create Pair', 0xffff,
-                                         CAPABILITY.NONE, certificate)
+        certobj = attkey.put_certificate(
+            "Test Create Pair", 0xFFFF, CAPABILITY.NONE, certificate
+        )
 
         self.assertEqual(certificate.public_bytes(Encoding.DER), certobj.get())
         return attkey, certobj, certificate
@@ -79,14 +80,12 @@ class TestAttestation(YubiHsmTestCase):
             ALGORITHM.EC_P224,
         ]
 
-        keys = [AsymmetricKey.generate(
-            self.session,
-            0,
-            'Test Attestation %x' % algo,
-            0xffff,
-            0,
-            algo
-        ) for algo in algs]
+        keys = [
+            AsymmetricKey.generate(
+                self.session, 0, "Test Attestation %x" % algo, 0xFFFF, 0, algo
+            )
+            for algo in algs
+        ]
 
         for algo in algs:
             attkey, attcertobj, attcert = self.create_pair(algo)
@@ -97,12 +96,15 @@ class TestAttestation(YubiHsmTestCase):
                 data = cert.tbs_certificate_bytes
                 if isinstance(pubkey, rsa.RSAPublicKey):
                     pubkey.verify(
-                        cert.signature, data, padding.PKCS1v15(),
-                        cert.signature_hash_algorithm)
+                        cert.signature,
+                        data,
+                        padding.PKCS1v15(),
+                        cert.signature_hash_algorithm,
+                    )
                 else:
                     pubkey.verify(
-                        cert.signature, data,
-                        ec.ECDSA(cert.signature_hash_algorithm))
+                        cert.signature, data, ec.ECDSA(cert.signature_hash_algorithm)
+                    )
 
             attkey.delete()
             attcertobj.delete()

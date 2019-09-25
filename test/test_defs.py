@@ -22,7 +22,6 @@ import unittest
 
 
 class TestAlgorithm(unittest.TestCase):
-
     def test_to_curve(self):
         self.assertIsInstance(ALGORITHM.EC_P224.to_curve(), ec.SECP224R1)
         self.assertIsInstance(ALGORITHM.EC_P256.to_curve(), ec.SECP256R1)
@@ -39,9 +38,6 @@ class TestAlgorithm(unittest.TestCase):
         self.assertEqual(ALGORITHM.for_curve(ec.SECP384R1()), ALGORITHM.EC_P384)
         self.assertEqual(ALGORITHM.for_curve(ec.SECP521R1()), ALGORITHM.EC_P521)
         self.assertEqual(ALGORITHM.for_curve(ec.SECP256K1()), ALGORITHM.EC_K256)
-        self.assertEqual(ALGORITHM.for_curve(BRAINPOOLP256R1()),
-                         ALGORITHM.EC_BP256)
-        self.assertEqual(ALGORITHM.for_curve(BRAINPOOLP384R1()),
-                         ALGORITHM.EC_BP384)
-        self.assertEqual(ALGORITHM.for_curve(BRAINPOOLP512R1()),
-                         ALGORITHM.EC_BP512)
+        self.assertEqual(ALGORITHM.for_curve(BRAINPOOLP256R1()), ALGORITHM.EC_BP256)
+        self.assertEqual(ALGORITHM.for_curve(BRAINPOOLP384R1()), ALGORITHM.EC_BP384)
+        self.assertEqual(ALGORITHM.for_curve(BRAINPOOLP512R1()), ALGORITHM.EC_BP512)

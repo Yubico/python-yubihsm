@@ -18,38 +18,33 @@ from setuptools import setup, find_packages
 
 
 def get_version():
-    with open('yubihsm/__init__.py', 'r') as f:
+    with open("yubihsm/__init__.py", "r") as f:
         match = re.search(r"(?m)^__version__\s*=\s*['\"](.+)['\"]$", f.read())
         return match.group(1)
 
 
-install_requires = ['six', 'cryptography>=1.8']
+install_requires = ["six", "cryptography>=1.8"]
 if sys.version_info < (3, 4):
-    install_requires.append('enum34')
+    install_requires.append("enum34")
 
 setup(
-    name='yubihsm',
+    name="yubihsm",
     version=get_version(),
-    description='Python library for the YubiHSM 2',
-    url='https://developers.yubico.com/YubiHSM2/',
-    author='Yubico',
-    author_email='yubico@yubico.com',
-
+    description="Python library for the YubiHSM 2",
+    url="https://developers.yubico.com/YubiHSM2/",
+    author="Yubico",
+    author_email="yubico@yubico.com",
     classifiers=[
-        'Operating System :: OS Independent',
-        'Programming Language :: Python',
-        'Development Status :: 5 - Production/Stable',
-        'License :: OSI Approved :: Apache Software License',
-        'Topic :: Security :: Cryptography',
-        'Topic :: Software Development :: Libraries'
+        "Operating System :: OS Independent",
+        "Programming Language :: Python",
+        "Development Status :: 5 - Production/Stable",
+        "License :: OSI Approved :: Apache Software License",
+        "Topic :: Security :: Cryptography",
+        "Topic :: Software Development :: Libraries",
     ],
-    packages=find_packages(exclude=['test', 'test.*']),
-    test_suite='test',
-
+    packages=find_packages(exclude=["test", "test.*"]),
+    test_suite="test",
     install_requires=install_requires,
-    extras_require={
-        'http': ['requests'],
-        'usb': ['pyusb']
-    },
-    tests_require=['mock', 'cryptography>=2.6']
+    extras_require={"http": ["requests"], "usb": ["pyusb"]},
+    tests_require=["mock", "cryptography>=2.6"],
 )

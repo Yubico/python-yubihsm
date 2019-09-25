@@ -23,35 +23,34 @@ import time
 import os
 
 # Register Brainpool curves
-ec._CURVE_TYPES['brainpoolP256r1'] = BRAINPOOLP256R1
-ec._CURVE_TYPES['brainpoolP384r1'] = BRAINPOOLP384R1
-ec._CURVE_TYPES['brainpoolP512r1'] = BRAINPOOLP512R1
+ec._CURVE_TYPES["brainpoolP256r1"] = BRAINPOOLP256R1
+ec._CURVE_TYPES["brainpoolP384r1"] = BRAINPOOLP384R1
+ec._CURVE_TYPES["brainpoolP512r1"] = BRAINPOOLP512R1
 
 
-DEFAULT_KEY = 'password'
+DEFAULT_KEY = "password"
 
 
-@unittest.skipIf(os.environ.get('BACKEND', None) == 'NONE',
-                 'Skipping device tests.')
+@unittest.skipIf(os.environ.get("BACKEND", None) == "NONE", "Skipping device tests.")
 class YubiHsmTestCase(unittest.TestCase):
     _HAS_RESET = False
 
     def connect_hsm(self):
-        self.hsm = YubiHsm.connect(os.environ.get('BACKEND', None))
+        self.hsm = YubiHsm.connect(os.environ.get("BACKEND", None))
         self.info = self.hsm.get_device_info()
 
     def require_version(self, version, message=None):
         if self.info.version < version:
-            m = 'Requires version ' + '.'.join(map(str, version))
+            m = "Requires version " + ".".join(map(str, version))
             if message:
-                m += ': ' + message
+                m += ": " + message
             self.skipTest(m)
 
     def setUp(self):
         self.connect_hsm()
         self.session = self.hsm.create_session_derived(1, DEFAULT_KEY)
         if not YubiHsmTestCase._HAS_RESET:
-            print('RESETTING DEVICE!!!!')
+            print("RESETTING DEVICE!!!!")
             self.session.reset_device()
             YubiHsmTestCase._HAS_RESET = True
             time.sleep(3)

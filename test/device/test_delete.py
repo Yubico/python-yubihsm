@@ -16,8 +16,14 @@ from __future__ import absolute_import, division
 
 from .utils import YubiHsmTestCase
 from yubihsm.defs import ALGORITHM, CAPABILITY, OBJECT, ERROR
-from yubihsm.objects import (AuthenticationKey, HmacKey, Opaque, AsymmetricKey,
-                             OtpAeadKey, WrapKey)
+from yubihsm.objects import (
+    AuthenticationKey,
+    HmacKey,
+    Opaque,
+    AsymmetricKey,
+    OtpAeadKey,
+    WrapKey,
+)
 from yubihsm.exceptions import YubiHsmDeviceError
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.backends import default_backend
@@ -29,9 +35,7 @@ class Delete(YubiHsmTestCase):
     def _set_up_key(self, capability):
         password = b2a_hex(self.session.get_pseudo_random(32))
         key = AuthenticationKey.put_derived(
-            self.session, 0,
-            'Test Delete authkey',
-            1, capability, 0, password
+            self.session, 0, "Test Delete authkey", 1, capability, 0, password
         )
         session = self.hsm.create_session_derived(key.id, password)
         return key, session
@@ -53,52 +57,61 @@ class Delete(YubiHsmTestCase):
 
     def test_opaque(self):
         obj = Opaque.put(
-            self.session, 0,
-            'Test opaque data',
-            1, 0, OBJECT.OPAQUE, b'data'
+            self.session, 0, "Test opaque data", 1, 0, OBJECT.OPAQUE, b"data"
         )
         self._test_delete(obj, CAPABILITY.DELETE_OPAQUE)
 
     def test_authentication_key(self):
         obj = AuthenticationKey.put_derived(
-            self.session, 0,
-            'Test delete authkey',
-            1, CAPABILITY.GET_LOG_ENTRIES, 0,
-            b2a_hex(self.session.get_pseudo_random(32))
+            self.session,
+            0,
+            "Test delete authkey",
+            1,
+            CAPABILITY.GET_LOG_ENTRIES,
+            0,
+            b2a_hex(self.session.get_pseudo_random(32)),
         )
         self._test_delete(obj, CAPABILITY.DELETE_AUTHENTICATION_KEY)
 
     def test_asymmetric_key(self):
         obj = AsymmetricKey.put(
-            self.session, 0,
-            'Test delete asym',
-            0xffff, CAPABILITY.SIGN_ECDSA,
-            ec.generate_private_key(ec.SECP384R1(), backend=default_backend())
+            self.session,
+            0,
+            "Test delete asym",
+            0xFFFF,
+            CAPABILITY.SIGN_ECDSA,
+            ec.generate_private_key(ec.SECP384R1(), backend=default_backend()),
         )
         self._test_delete(obj, CAPABILITY.DELETE_ASYMMETRIC_KEY)
 
     def test_wrap_key(self):
         obj = WrapKey.put(
-            self.session, 0,
-            'Test delete',
-            1, CAPABILITY.IMPORT_WRAPPED,
-            ALGORITHM.AES192_CCM_WRAP, 0, os.urandom(24)
+            self.session,
+            0,
+            "Test delete",
+            1,
+            CAPABILITY.IMPORT_WRAPPED,
+            ALGORITHM.AES192_CCM_WRAP,
+            0,
+            os.urandom(24),
         )
         self._test_delete(obj, CAPABILITY.DELETE_WRAP_KEY)
 
     def test_hmac_key(self):
         obj = HmacKey.put(
-            self.session, 0,
-            'Test delete HMAC',
-            1, CAPABILITY.SIGN_HMAC, b'key'
+            self.session, 0, "Test delete HMAC", 1, CAPABILITY.SIGN_HMAC, b"key"
         )
         self._test_delete(obj, CAPABILITY.DELETE_HMAC_KEY)
 
     def test_otp_aead_key(self):
         obj = OtpAeadKey.put(
-            self.session, 0,
-            'Test delete OTP AEAD',
-            1, CAPABILITY.DECRYPT_OTP, ALGORITHM.AES256_YUBICO_OTP,
-            0x00000001, os.urandom(32)
+            self.session,
+            0,
+            "Test delete OTP AEAD",
+            1,
+            CAPABILITY.DECRYPT_OTP,
+            ALGORITHM.AES256_YUBICO_OTP,
+            0x00000001,
+            os.urandom(32),
         )
         self._test_delete(obj, CAPABILITY.DELETE_OTP_AEAD_KEY)

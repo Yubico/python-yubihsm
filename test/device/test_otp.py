@@ -25,52 +25,46 @@ from collections import namedtuple
 from binascii import a2b_hex
 import os
 import struct
+
 try:
     maketrans = bytes.maketrans
 except AttributeError:  # Python 2 fallback
     from string import maketrans
 
-TestVector = namedtuple('TestVector', ['key', 'id', 'otps'])
+TestVector = namedtuple("TestVector", ["key", "id", "otps"])
 
 
 # From: https://developers.yubico.com/OTP/Specifications/Test_vectors.html
 TEST_VECTORS = [
     TestVector(
-        key=b'\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f',
-        id=b'\x01\x02\x03\x04\x05\x06',
+        key=b"\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f",
+        id=b"\x01\x02\x03\x04\x05\x06",
         otps={
-            'dvgtiblfkbgturecfllberrvkinnctnn': OtpData(1, 1, 1, 1),
-            'rnibcnfhdninbrdebccrndfhjgnhftee': OtpData(1, 2, 1, 1),
-            'iikkijbdknrrdhfdrjltvgrbkkjblcbh': OtpData(0xfff, 1, 1, 1),
-        }
+            "dvgtiblfkbgturecfllberrvkinnctnn": OtpData(1, 1, 1, 1),
+            "rnibcnfhdninbrdebccrndfhjgnhftee": OtpData(1, 2, 1, 1),
+            "iikkijbdknrrdhfdrjltvgrbkkjblcbh": OtpData(0xFFF, 1, 1, 1),
+        },
     ),
     TestVector(
-        key=b'\x88\x88\x88\x88\x88\x88\x88\x88\x88\x88\x88\x88\x88\x88\x88\x88',
-        id=b'\x88\x88\x88\x88\x88\x88',
-        otps={
-            'dcihgvrhjeucvrinhdfddbjhfjftjdei': OtpData(
-                0x8888, 0x88, 0x88, 0x8888),
-        }
+        key=b"\x88\x88\x88\x88\x88\x88\x88\x88\x88\x88\x88\x88\x88\x88\x88\x88",
+        id=b"\x88\x88\x88\x88\x88\x88",
+        otps={"dcihgvrhjeucvrinhdfddbjhfjftjdei": OtpData(0x8888, 0x88, 0x88, 0x8888)},
     ),
     TestVector(
-        key=b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00',
-        id=b'\x00\x00\x00\x00\x00\x00',
-        otps={
-            'kkkncjnvcnenkjvjgncjihljiibgbhbh': OtpData(0, 0, 0, 0),
-        }
+        key=b"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00",
+        id=b"\x00\x00\x00\x00\x00\x00",
+        otps={"kkkncjnvcnenkjvjgncjihljiibgbhbh": OtpData(0, 0, 0, 0)},
     ),
     TestVector(
-        key=b'\xc4\x42\x28\x90\x65\x30\x76\xcd\xe7\x3d\x44\x9b\x19\x1b\x41\x6a',
-        id=b'\x33\xc6\x9e\x7f\x24\x9e',
-        otps={
-            'iucvrkjiegbhidrcicvlgrcgkgurhjnj': OtpData(1, 0, 0x24, 0x13a7),
-        }
-    )
+        key=b"\xc4\x42\x28\x90\x65\x30\x76\xcd\xe7\x3d\x44\x9b\x19\x1b\x41\x6a",
+        id=b"\x33\xc6\x9e\x7f\x24\x9e",
+        otps={"iucvrkjiegbhidrcicvlgrcgkgurhjnj": OtpData(1, 0, 0x24, 0x13A7)},
+    ),
 ]
 
 
 def _crc16(data):
-    crc = 0xffff
+    crc = 0xFFFF
     for b in bytearray(data):
         crc ^= b
         for _ in range(8):
@@ -78,17 +72,17 @@ def _crc16(data):
             crc >>= 1
             if j:
                 crc ^= 0x8408
-    return struct.pack('<H', ~crc & 0xffff)
+    return struct.pack("<H", ~crc & 0xFFFF)
 
 
 def _construct_otp(aes_key, private_id, otp_data, random_number=0):
     token = private_id + struct.pack(
-        '<HHBBH',
+        "<HHBBH",
         otp_data.use_counter,
         otp_data.timestamp_low,
         otp_data.timestamp_high,
         otp_data.session_counter,
-        random_number
+        random_number,
     )
     token += _crc16(token)
     cipher = Cipher(algorithms.AES(aes_key), modes.ECB(), default_backend())
@@ -97,17 +91,18 @@ def _construct_otp(aes_key, private_id, otp_data, random_number=0):
 
 
 class TestOTP(YubiHsmTestCase):
-
     def test_randomize_aead(self):
         aes_key = os.urandom(16)
         nonce_id = 0x01234567
         key = OtpAeadKey.put(
-            self.session, 0, 'Test OTP Randomize AEAD', 1,
-            CAPABILITY.DECRYPT_OTP |
-            CAPABILITY.RANDOMIZE_OTP_AEAD,
+            self.session,
+            0,
+            "Test OTP Randomize AEAD",
+            1,
+            CAPABILITY.DECRYPT_OTP | CAPABILITY.RANDOMIZE_OTP_AEAD,
             ALGORITHM.AES128_YUBICO_OTP,
             nonce_id,
-            aes_key
+            aes_key,
         )
 
         aead = key.randomize_otp_aead()
@@ -116,8 +111,7 @@ class TestOTP(YubiHsmTestCase):
         # Decrypt generated AEAD
         aes_ccm = AESCCM(aes_key, 8)
         nonce, ct = aead[:6], aead[6:]
-        pt = aes_ccm.decrypt(
-            struct.pack('<I6sBBB', nonce_id, nonce, 0, 0, 0), ct, None)
+        pt = aes_ccm.decrypt(struct.pack("<I6sBBB", nonce_id, nonce, 0, 0, 0), ct, None)
 
         # Construct an OTP
         otp_data = OtpData(1, 2, 3, 4)
@@ -130,11 +124,13 @@ class TestOTP(YubiHsmTestCase):
 
     def test_decrypt_invalid_otp(self):
         key = OtpAeadKey.generate(
-            self.session, 0, 'Test OTP invalid', 1,
-            CAPABILITY.RANDOMIZE_OTP_AEAD |
-            CAPABILITY.DECRYPT_OTP,
+            self.session,
+            0,
+            "Test OTP invalid",
+            1,
+            CAPABILITY.RANDOMIZE_OTP_AEAD | CAPABILITY.DECRYPT_OTP,
             ALGORITHM.AES128_YUBICO_OTP,
-            0x12345678
+            0x12345678,
         )
         aead = key.randomize_otp_aead()
 
@@ -150,33 +146,42 @@ class TestOTP(YubiHsmTestCase):
 
     def test_otp_vectors(self):
         key1 = OtpAeadKey.generate(
-            self.session, 0, 'Test OTP TestVectors', 1,
-            CAPABILITY.CREATE_OTP_AEAD |
-            CAPABILITY.REWRAP_FROM_OTP_AEAD_KEY |
-            CAPABILITY.DECRYPT_OTP,
+            self.session,
+            0,
+            "Test OTP TestVectors",
+            1,
+            CAPABILITY.CREATE_OTP_AEAD
+            | CAPABILITY.REWRAP_FROM_OTP_AEAD_KEY
+            | CAPABILITY.DECRYPT_OTP,
             ALGORITHM.AES128_YUBICO_OTP,
-            0x12345678
+            0x12345678,
         )
         key2 = OtpAeadKey.generate(
-            self.session, 0, 'Test OTP TestVectors', 1,
-            CAPABILITY.REWRAP_FROM_OTP_AEAD_KEY |
-            CAPABILITY.REWRAP_TO_OTP_AEAD_KEY |
-            CAPABILITY.DECRYPT_OTP,
+            self.session,
+            0,
+            "Test OTP TestVectors",
+            1,
+            CAPABILITY.REWRAP_FROM_OTP_AEAD_KEY
+            | CAPABILITY.REWRAP_TO_OTP_AEAD_KEY
+            | CAPABILITY.DECRYPT_OTP,
             ALGORITHM.AES192_YUBICO_OTP,
-            0x87654321
+            0x87654321,
         )
         keydata = os.urandom(32)
         key3 = OtpAeadKey.put(
-            self.session, 0, 'Test OTP TestVectors', 1,
-            CAPABILITY.DECRYPT_OTP |
-            CAPABILITY.CREATE_OTP_AEAD |
-            CAPABILITY.REWRAP_TO_OTP_AEAD_KEY,
+            self.session,
+            0,
+            "Test OTP TestVectors",
+            1,
+            CAPABILITY.DECRYPT_OTP
+            | CAPABILITY.CREATE_OTP_AEAD
+            | CAPABILITY.REWRAP_TO_OTP_AEAD_KEY,
             ALGORITHM.AES256_YUBICO_OTP,
             0x00000001,
-            keydata
+            keydata,
         )
 
-        modhex = maketrans(b'cbdefghijklnrtuv', b'0123456789abcdef')
+        modhex = maketrans(b"cbdefghijklnrtuv", b"0123456789abcdef")
 
         for v in TEST_VECTORS:
             aead1 = key1.create_otp_aead(v.key, v.id)

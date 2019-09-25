@@ -23,10 +23,7 @@ import time
 class Reset(YubiHsmTestCase):
     def test_reset(self):
         Opaque.put(
-            self.session, 0,
-            'Test opaque data',
-            1, 0, OBJECT.OPAQUE,
-            b'dummyobject'
+            self.session, 0, "Test opaque data", 1, 0, OBJECT.OPAQUE, b"dummyobject"
         )
         self.session.reset_device()
         self.hsm.close()
@@ -43,10 +40,10 @@ class Reset(YubiHsmTestCase):
         self.assertEqual(info.capabilities & CAPABILITY.ALL, CAPABILITY.ALL)
         self.assertEqual(info.id, 1)
         self.assertEqual(info.size, 40)
-        self.assertEqual(info.domains, 0xffff)
+        self.assertEqual(info.domains, 0xFFFF)
         self.assertEqual(info.object_type, OBJECT.AUTHENTICATION_KEY)
         self.assertEqual(info.algorithm, ALGORITHM.AES128_YUBICO_AUTHENTICATION)
         self.assertEqual(info.sequence, 0)
         self.assertEqual(info.origin, ORIGIN.IMPORTED)
-        self.assertEqual(info.label, 'DEFAULT AUTHKEY CHANGE THIS ASAP')
+        self.assertEqual(info.label, "DEFAULT AUTHKEY CHANGE THIS ASAP")
         self.assertEqual(info.capabilities, info.delegated_capabilities)

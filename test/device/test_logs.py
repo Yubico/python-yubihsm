@@ -26,7 +26,6 @@ import struct
 
 
 class TestLogs(YubiHsmTestCase):
-
     def test_get_log_entries(self):
         boot, auth, logs = self.session.get_log_entries()
 
@@ -40,9 +39,13 @@ class TestLogs(YubiHsmTestCase):
 
     def test_full_log(self):
         hmackey = HmacKey.generate(
-            self.session, 0, 'Test Full Log', 1,
+            self.session,
+            0,
+            "Test Full Log",
+            1,
             CAPABILITY.SIGN_HMAC | CAPABILITY.VERIFY_HMAC,
-            ALGORITHM.HMAC_SHA256)
+            ALGORITHM.HMAC_SHA256,
+        )
 
         for i in range(0, 30):
             data = os.urandom(64)
@@ -62,17 +65,21 @@ class TestLogs(YubiHsmTestCase):
 
     def test_wrong_chain(self):
         hmackey = HmacKey.generate(
-            self.session, 0, 'Test Log hash chain', 1,
+            self.session,
+            0,
+            "Test Log hash chain",
+            1,
             CAPABILITY.SIGN_HMAC | CAPABILITY.VERIFY_HMAC,
-            ALGORITHM.HMAC_SHA256)
+            ALGORITHM.HMAC_SHA256,
+        )
 
         boot, auth, logs = self.session.get_log_entries()
         last_line = logs.pop()
         self.session.set_log_index(last_line.number)
 
-        hmackey.sign_hmac(b'hello')
-        hmackey.sign_hmac(b'hello')
-        hmackey.sign_hmac(b'hello')
+        hmackey.sign_hmac(b"hello")
+        hmackey.sign_hmac(b"hello")
+        hmackey.sign_hmac(b"hello")
 
         with self.assertRaises(ValueError):
             self.session.get_log_entries(logs.pop())  # Wrong number
@@ -89,9 +96,13 @@ class TestLogs(YubiHsmTestCase):
         self.assertEqual(self.session.get_force_audit(), AUDIT.ON)
 
         hmackey = HmacKey.generate(
-            self.session, 0, 'Test Force Log', 1,
+            self.session,
+            0,
+            "Test Force Log",
+            1,
             CAPABILITY.SIGN_HMAC | CAPABILITY.VERIFY_HMAC,
-            ALGORITHM.HMAC_SHA256)
+            ALGORITHM.HMAC_SHA256,
+        )
 
         error = 0
         for i in range(0, 32):
@@ -129,11 +140,12 @@ class TestLogs(YubiHsmTestCase):
         self.assertEqual(4, len(logs))
 
         # Reset line
-        self.assertEqual(logs.pop(0).data, b'\0\1' + b'\xff' * 14)
+        self.assertEqual(logs.pop(0).data, b"\0\1" + b"\xff" * 14)
 
         # Boot line
-        self.assertEqual(logs.pop(0).data,
-                         struct.pack('!HBHHHHBL', 2, 0, 0, 0xffff, 0, 0, 0, 0))
+        self.assertEqual(
+            logs.pop(0).data, struct.pack("!HBHHHHBL", 2, 0, 0, 0xFFFF, 0, 0, 0, 0)
+        )
 
         self.assertEqual(logs.pop(0).command, COMMAND.CREATE_SESSION)
         self.assertEqual(logs.pop(0).command, COMMAND.AUTHENTICATE_SESSION)

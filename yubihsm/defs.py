@@ -35,25 +35,26 @@ if six.PY2:
 
 @utils.register_interface(ec.EllipticCurve)
 class BRAINPOOLP256R1(object):
-    name = 'brainpoolP256r1'
+    name = "brainpoolP256r1"
     key_size = 256
 
 
 @utils.register_interface(ec.EllipticCurve)
 class BRAINPOOLP384R1(object):
-    name = 'brainpoolP384r1'
+    name = "brainpoolP384r1"
     key_size = 384
 
 
 @utils.register_interface(ec.EllipticCurve)
 class BRAINPOOLP512R1(object):
-    name = 'brainpoolP512r1'
+    name = "brainpoolP512r1"
     key_size = 512
 
 
 @unique
 class ERROR(IntEnum):
     """Error codes returned by the YubiHSM"""
+
     OK = 0x00
     INVALID_COMMAND = 0x01
     INVALID_DATA = 0x02
@@ -64,19 +65,20 @@ class ERROR(IntEnum):
     STORAGE_FAILED = 0x07
     WRONG_LENGTH = 0x08
     INSUFFICIENT_PERMISSIONS = 0x09
-    LOG_FULL = 0x0a
-    OBJECT_NOT_FOUND = 0x0b
-    INVALID_ID = 0x0c
-    SSH_CA_CONSTRAINT_VIOLATION = 0x0e
-    INVALID_OTP = 0x0f
+    LOG_FULL = 0x0A
+    OBJECT_NOT_FOUND = 0x0B
+    INVALID_ID = 0x0C
+    SSH_CA_CONSTRAINT_VIOLATION = 0x0E
+    INVALID_OTP = 0x0F
     DEMO_MODE = 0x10
     OBJECT_EXISTS = 0x11
-    COMMAND_UNEXECUTED = 0xff
+    COMMAND_UNEXECUTED = 0xFF
 
 
 @unique
 class COMMAND(IntEnum):
     """Commands available to send to the YubiHSM"""
+
     ECHO = 0x01
     CREATE_SESSION = 0x03
     AUTHENTICATE_SESSION = 0x04
@@ -93,12 +95,12 @@ class COMMAND(IntEnum):
     SIGN_PKCS1 = 0x47
     LIST_OBJECTS = 0x48
     DECRYPT_PKCS1 = 0x49
-    EXPORT_WRAPPED = 0x4a
-    IMPORT_WRAPPED = 0x4b
-    PUT_WRAP_KEY = 0x4c
-    GET_LOG_ENTRIES = 0x4d
-    GET_OBJECT_INFO = 0x4e
-    SET_OPTION = 0x4f
+    EXPORT_WRAPPED = 0x4A
+    IMPORT_WRAPPED = 0x4B
+    PUT_WRAP_KEY = 0x4C
+    GET_LOG_ENTRIES = 0x4D
+    GET_OBJECT_INFO = 0x4E
+    SET_OPTION = 0x4F
     GET_OPTION = 0x50
     GET_PSEUDO_RANDOM = 0x51
     PUT_HMAC_KEY = 0x52
@@ -109,12 +111,12 @@ class COMMAND(IntEnum):
     DERIVE_ECDH = 0x57
     DELETE_OBJECT = 0x58
     DECRYPT_OAEP = 0x59
-    GENERATE_HMAC_KEY = 0x5a
-    GENERATE_WRAP_KEY = 0x5b
-    VERIFY_HMAC = 0x5c
-    SIGN_SSH_CERTIFICATE = 0x5d
-    PUT_TEMPLATE = 0x5e
-    GET_TEMPLATE = 0x5f
+    GENERATE_HMAC_KEY = 0x5A
+    GENERATE_WRAP_KEY = 0x5B
+    VERIFY_HMAC = 0x5C
+    SIGN_SSH_CERTIFICATE = 0x5D
+    PUT_TEMPLATE = 0x5E
+    GET_TEMPLATE = 0x5F
     DECRYPT_OTP = 0x60
     CREATE_OTP_AEAD = 0x61
     RANDOMIZE_OTP_AEAD = 0x62
@@ -125,16 +127,17 @@ class COMMAND(IntEnum):
     SET_LOG_INDEX = 0x67
     WRAP_DATA = 0x68
     UNWRAP_DATA = 0x69
-    SIGN_EDDSA = 0x6a
-    BLINK_DEVICE = 0x6b
-    CHANGE_AUTHENTICATION_KEY = 0x6c
+    SIGN_EDDSA = 0x6A
+    BLINK_DEVICE = 0x6B
+    CHANGE_AUTHENTICATION_KEY = 0x6C
 
-    ERROR = 0x7f
+    ERROR = 0x7F
 
 
 @unique
 class ALGORITHM(IntEnum):
     """Various algorithm constants"""
+
     RSA_PKCS1_SHA1 = 1
     RSA_PKCS1_SHA256 = 2
     RSA_PKCS1_SHA384 = 3
@@ -215,7 +218,7 @@ class ALGORITHM(IntEnum):
         for key, val in _curve_table.items():
             if val == curve_type:
                 return key
-        raise ValueError('Unsupported curve type: %s' % curve.name)
+        raise ValueError("Unsupported curve type: %s" % curve.name)
 
 
 _curve_table = {
@@ -226,13 +229,14 @@ _curve_table = {
     ALGORITHM.EC_K256: ec.SECP256K1,
     ALGORITHM.EC_BP256: BRAINPOOLP256R1,
     ALGORITHM.EC_BP384: BRAINPOOLP384R1,
-    ALGORITHM.EC_BP512: BRAINPOOLP512R1
+    ALGORITHM.EC_BP512: BRAINPOOLP512R1,
 }
 
 
 @unique
 class LIST_FILTER(IntEnum):
     """Keys for use to filter on in list_objects"""
+
     ID = 0x01
     TYPE = 0x02
     DOMAINS = 0x03
@@ -244,6 +248,7 @@ class LIST_FILTER(IntEnum):
 @unique
 class OBJECT(IntEnum):
     """YubiHSM object types"""
+
     OPAQUE = 0x01
     AUTHENTICATION_KEY = 0x02
     ASYMMETRIC_KEY = 0x03
@@ -256,6 +261,7 @@ class OBJECT(IntEnum):
 @unique
 class OPTION(IntEnum):
     """YubiHSM device options"""
+
     FORCE_AUDIT = 0x01
     COMMAND_AUDIT = 0x03
 
@@ -263,6 +269,7 @@ class OPTION(IntEnum):
 @unique
 class AUDIT(IntEnum):
     """Values for audit options"""
+
     OFF = 0x00
     ON = 0x01
     FIXED = 0x02
@@ -271,6 +278,7 @@ class AUDIT(IntEnum):
 @unique
 class CAPABILITY(IntEnum):
     """YubiHSM object capability flags"""
+
     GET_OPAQUE = 1 << 0x00
     PUT_OPAQUE = 1 << 0x01
     PUT_AUTHENTICATION_KEY = 1 << 0x02
@@ -281,12 +289,12 @@ class CAPABILITY(IntEnum):
     SIGN_ECDSA = 1 << 0x07
     SIGN_EDDSA = 1 << 0x08
     DECRYPT_PKCS = 1 << 0x09
-    DECRYPT_OAEP = 1 << 0x0a
-    DERIVE_ECDH = 1 << 0x0b
-    EXPORT_WRAPPED = 1 << 0x0c
-    IMPORT_WRAPPED = 1 << 0x0d
-    PUT_WRAP_KEY = 1 << 0x0e
-    GENERATE_WRAP_KEY = 1 << 0x0f
+    DECRYPT_OAEP = 1 << 0x0A
+    DERIVE_ECDH = 1 << 0x0B
+    EXPORT_WRAPPED = 1 << 0x0C
+    IMPORT_WRAPPED = 1 << 0x0D
+    PUT_WRAP_KEY = 1 << 0x0E
+    GENERATE_WRAP_KEY = 1 << 0x0F
     EXPORTABLE_UNDER_WRAP = 1 << 0x10
     SET_OPTION = 1 << 0x11
     GET_OPTION = 1 << 0x12
@@ -297,12 +305,12 @@ class CAPABILITY(IntEnum):
     VERIFY_HMAC = 1 << 0x17
     GET_LOG_ENTRIES = 1 << 0x18
     SIGN_SSH_CERTIFICATE = 1 << 0x19
-    GET_TEMPLATE = 1 << 0x1a
-    PUT_TEMPLATE = 1 << 0x1b
-    RESET_DEVICE = 1 << 0x1c
-    DECRYPT_OTP = 1 << 0x1d
-    CREATE_OTP_AEAD = 1 << 0x1e
-    RANDOMIZE_OTP_AEAD = 1 << 0x1f
+    GET_TEMPLATE = 1 << 0x1A
+    PUT_TEMPLATE = 1 << 0x1B
+    RESET_DEVICE = 1 << 0x1C
+    DECRYPT_OTP = 1 << 0x1D
+    CREATE_OTP_AEAD = 1 << 0x1E
+    RANDOMIZE_OTP_AEAD = 1 << 0x1F
     REWRAP_FROM_OTP_AEAD_KEY = 1 << 0x20
     REWRAP_TO_OTP_AEAD_KEY = 1 << 0x21
     SIGN_ATTESTATION_CERTIFICATE = 1 << 0x22
@@ -313,11 +321,11 @@ class CAPABILITY(IntEnum):
     DELETE_OPAQUE = 1 << 0x27
     DELETE_AUTHENTICATION_KEY = 1 << 0x28
     DELETE_ASYMMETRIC_KEY = 1 << 0x29
-    DELETE_WRAP_KEY = 1 << 0x2a
-    DELETE_HMAC_KEY = 1 << 0x2b
-    DELETE_TEMPLATE = 1 << 0x2c
-    DELETE_OTP_AEAD_KEY = 1 << 0x2d
-    CHANGE_AUTHENTICATION_KEY = 1 << 0x2e
+    DELETE_WRAP_KEY = 1 << 0x2A
+    DELETE_HMAC_KEY = 1 << 0x2B
+    DELETE_TEMPLATE = 1 << 0x2C
+    DELETE_OTP_AEAD_KEY = 1 << 0x2D
+    CHANGE_AUTHENTICATION_KEY = 1 << 0x2E
 
 
 CAPABILITY.ALL = sum(CAPABILITY)

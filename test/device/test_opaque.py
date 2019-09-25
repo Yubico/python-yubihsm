@@ -28,18 +28,17 @@ import datetime
 
 
 class TestOpaque(YubiHsmTestCase):
-
     def test_put_empty(self):
         # Can't put an empty object
         with self.assertRaises(ValueError):
             Opaque.put(
                 self.session,
                 0,
-                'Test PUT empty Opaque',
+                "Test PUT empty Opaque",
                 1,
                 CAPABILITY.NONE,
                 ALGORITHM.OPAQUE_DATA,
-                b''
+                b"",
             )
 
     def test_data(self):
@@ -49,11 +48,11 @@ class TestOpaque(YubiHsmTestCase):
             opaque = Opaque.put(
                 self.session,
                 0,
-                'Test data Opaque',
+                "Test data Opaque",
                 1,
                 CAPABILITY.NONE,
                 ALGORITHM.OPAQUE_DATA,
-                data
+                data,
             )
 
             self.assertEqual(data, opaque.get())
@@ -64,11 +63,11 @@ class TestOpaque(YubiHsmTestCase):
             Opaque.put(
                 self.session,
                 0,
-                'Test large Opaque',
+                "Test large Opaque",
                 1,
                 CAPABILITY.NONE,
                 ALGORITHM.OPAQUE_DATA,
-                os.urandom(1969)
+                os.urandom(1969),
             )
 
         self.assertEqual(cm.exception.code, ERROR.WRONG_LENGTH)
@@ -78,26 +77,25 @@ class TestOpaque(YubiHsmTestCase):
 
     def test_certificate(self):
         private_key = ec.generate_private_key(
-            ALGORITHM.EC_P256.to_curve(), default_backend())
-        name = x509.Name([x509.NameAttribute(
-            x509.oid.NameOID.COMMON_NAME, u'Test Certificate')])
+            ALGORITHM.EC_P256.to_curve(), default_backend()
+        )
+        name = x509.Name(
+            [x509.NameAttribute(x509.oid.NameOID.COMMON_NAME, u"Test Certificate")]
+        )
         one_day = datetime.timedelta(1, 0, 0)
-        certificate = x509.CertificateBuilder() \
-            .subject_name(name) \
-            .issuer_name(name) \
-            .not_valid_before(datetime.datetime.today() - one_day) \
-            .not_valid_after(datetime.datetime.today() + one_day) \
-            .serial_number(int(uuid.uuid4())) \
-            .public_key(private_key.public_key()) \
+        certificate = (
+            x509.CertificateBuilder()
+            .subject_name(name)
+            .issuer_name(name)
+            .not_valid_before(datetime.datetime.today() - one_day)
+            .not_valid_after(datetime.datetime.today() + one_day)
+            .serial_number(int(uuid.uuid4()))
+            .public_key(private_key.public_key())
             .sign(private_key, hashes.SHA256(), default_backend())
+        )
 
         certobj = Opaque.put_certificate(
-            self.session,
-            0,
-            'Test certificate Opaque',
-            1,
-            CAPABILITY.NONE,
-            certificate
+            self.session, 0, "Test certificate Opaque", 1, CAPABILITY.NONE, certificate
         )
 
         self.assertEqual(certificate, certobj.get_certificate())

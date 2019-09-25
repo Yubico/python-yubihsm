@@ -22,23 +22,29 @@ from __future__ import absolute_import, division
 import struct
 import unittest
 
-from yubihsm.core import (DeviceInfo, _derive, _unpad_resp, LogEntry,
-                          get_backend, YubiHsm, AuthSession)
+from yubihsm.core import (
+    DeviceInfo,
+    _derive,
+    _unpad_resp,
+    LogEntry,
+    get_backend,
+    YubiHsm,
+    AuthSession,
+)
 from yubihsm.defs import COMMAND, CAPABILITY, ALGORITHM
 from mock import patch, MagicMock, mock, call
-from yubihsm.exceptions import (YubiHsmDeviceError,
-                                YubiHsmInvalidResponseError)
+from yubihsm.exceptions import YubiHsmDeviceError, YubiHsmInvalidResponseError
 
-_DEVICE_INFO = b'\x02\x00\x00\x00s5m>>\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0b\x0c\r\x0e\x0f\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f !"#$%&\'()*+,-./'  # noqa
-_TRANSCEIVE_DEVICE_INFO = b'\x86\x008\x02\x00\x00\x00s4\xbc>\x04\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0b\x0c\r\x0e\x0f\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f !"#$%&\'()*+,-./'  # noqa
+_DEVICE_INFO = b"\x02\x00\x00\x00s5m>>\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0b\x0c\r\x0e\x0f\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f !\"#$%&'()*+,-./"  # noqa
+_TRANSCEIVE_DEVICE_INFO = b"\x86\x008\x02\x00\x00\x00s4\xbc>\x04\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0b\x0c\r\x0e\x0f\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f !\"#$%&'()*+,-./"  # noqa
 
 
 def simple_urandom(length):
     """See https://xkcd.com/221/"""
-    return struct.pack('!%ds' % length, b'')
+    return struct.pack("!%ds" % length, b"")
 
 
-@mock.patch('os.urandom', side_effect=simple_urandom)
+@mock.patch("os.urandom", side_effect=simple_urandom)
 def get_mocked_session(patch):
     """
     Create a fake session by mocking
@@ -47,13 +53,14 @@ def get_mocked_session(patch):
     mocked_backend = get_backend()
     mocked_backend.transceive = MagicMock(get_backend().transceive)
     mocked_backend.transceive.side_effect = [
-        b'\x83\x00\x11\x00\x05MV1\xc9\x18o\x802%\xed\x8a2$\xf2\xcf',
-        b'\x84\x00\x00']
+        b"\x83\x00\x11\x00\x05MV1\xc9\x18o\x802%\xed\x8a2$\xf2\xcf",
+        b"\x84\x00\x00",
+    ]
     hsm = YubiHsm(backend=mocked_backend)
 
     auth_key_id = 1
-    key_enc = b'\t\x0bG\xdb\xedYVT\x90\x1d\xee\x1c\xc6U\xe4 '
-    key_mac = b'Y/\xd4\x83\xf7Y\xe2\x99\t\xa0LE\x05\xd2\xce\n'
+    key_enc = b"\t\x0bG\xdb\xedYVT\x90\x1d\xee\x1c\xc6U\xe4 "
+    key_mac = b"Y/\xd4\x83\xf7Y\xe2\x99\t\xa0LE\x05\xd2\xce\n"
     return hsm.create_session(auth_key_id, key_enc, key_mac)
 
 
@@ -82,19 +89,19 @@ class TestDeriveFct(unittest.TestCase):
         """
         Make sure the function works on a test case that should succeed
         """
-        context = b'\x0c\xf4\xf5L\xb9\xdfY['
+        context = b"\x0c\xf4\xf5L\xb9\xdfY["
         t = 0x04
-        key = b'0xff0xff0x120xff0xff0xff0xff0xaf'
+        key = b"0xff0xff0x120xff0xff0xff0xff0xaf"
         rval = _derive(key, t, context)
-        self.assertEqual(rval, b'W\xa0\x7f1\xb9\x13\xbc\xe5\xff\x066J\x0e9Fz')
+        self.assertEqual(rval, b"W\xa0\x7f1\xb9\x13\xbc\xe5\xff\x066J\x0e9Fz")
 
     def test_value_error(self):
         """
         Make sure the test fails when an unsupported value
         """
-        context = b'\x0c\xf4\xf5L\xb9\xdfY['
+        context = b"\x0c\xf4\xf5L\xb9\xdfY["
         t = 0x04
-        key = b'0xff0xff0x120xff0xff0xff0xff0xaf'
+        key = b"0xff0xff0x120xff0xff0xff0xff0xaf"
         self.assertRaises(ValueError, _derive, key, t, context, 0x60)
 
 
@@ -106,31 +113,31 @@ class TestUnpad(unittest.TestCase):
 
     def test_invalid_len(self):
         """Check if the response length is invalid"""
-        resp = b'\x02\x7f'
+        resp = b"\x02\x7f"
         cmd = COMMAND.SIGN_ECDSA
         self.assertRaises(YubiHsmInvalidResponseError, _unpad_resp, resp, cmd)
-        resp = b'\x14\x00\x06\x00|\x00\xff'
+        resp = b"\x14\x00\x06\x00|\x00\xff"
         self.assertRaises(YubiHsmInvalidResponseError, _unpad_resp, resp, cmd)
 
     def test_device_error(self):
         """Check if the length of the response doesn't match promised length"""
         cmd = COMMAND.ERROR
-        resp = b'\x7f\x00\x01\x00\x01\x00>'
+        resp = b"\x7f\x00\x01\x00\x01\x00>"
         self.assertRaises(YubiHsmDeviceError, _unpad_resp, resp, cmd)
 
     def test_invalid_rcommand(self):
         """Throw error if the response command doesn't match the
         command sent | 0x80"""
         cmd = COMMAND.AUTHENTICATE_SESSION
-        resp = struct.pack('!BHHH', cmd-1, 1, 1, 62)
+        resp = struct.pack("!BHHH", cmd - 1, 1, 1, 62)
         self.assertRaises(YubiHsmInvalidResponseError, _unpad_resp, resp, cmd)
 
     def test_success(self):
         """Otherwise, succeed"""
         cmd = COMMAND.AUTHENTICATE_SESSION
-        resp = b'\x84\x00\x02\x00\x01\x00\x1d\x00\x04'
+        resp = b"\x84\x00\x02\x00\x01\x00\x1d\x00\x04"
         rval = _unpad_resp(resp, cmd)
-        self.assertEqual(rval, b'\x00\x01')
+        self.assertEqual(rval, b"\x00\x01")
 
 
 class TestLogEntry(unittest.TestCase):
@@ -142,12 +149,21 @@ class TestLogEntry(unittest.TestCase):
         """Use classmethod `parse` to construct log entry from data"""
 
         # Decide on values
-        vals = 513, 250, 1020, 56, 800, 900, 20, 1023, b'abcdefghiklmnop0'
-        keys = 'number', 'command', 'length', 'session_key', 'target_key', \
-            'second_key', 'result', 'tick', 'digest'
+        vals = 513, 250, 1020, 56, 800, 900, 20, 1023, b"abcdefghiklmnop0"
+        keys = (
+            "number",
+            "command",
+            "length",
+            "session_key",
+            "target_key",
+            "second_key",
+            "result",
+            "tick",
+            "digest",
+        )
 
         # Pack it up for parsing
-        data = struct.pack('!HBHHHHBL16s', *vals)
+        data = struct.pack("!HBHHHHBL16s", *vals)
 
         # Use the `parse` alternate constructor
         log = LogEntry.parse(data)
@@ -164,19 +180,46 @@ class TestLogCorrect(unittest.TestCase):
     for errors, and validation
     """
 
-    FORMAT = '!HBHHHHBL16s'
+    FORMAT = "!HBHHHHBL16s"
 
     # The first 2 entries in the log are provided below, along with a
     # version of log 2 with a tampered hash
-    log1_vals = (2, 0, 0, 65535, 0, 0, 0, 0,
-                 b'\xf6\x96\x90n[9)\xc6<\xa6\xf1\n\x83\xd2\xa0\xcc')
+    log1_vals = (
+        2,
+        0,
+        0,
+        65535,
+        0,
+        0,
+        0,
+        0,
+        b"\xf6\x96\x90n[9)\xc6<\xa6\xf1\n\x83\xd2\xa0\xcc",
+    )
 
-    log2_vals = (3, 3, 10, 65535, 1, 65535, 131, 35,
-                 b'"d\xd4Q\xb5\xef\xf5\xdf\xa9LTO3\xb7\x87\xa9')
+    log2_vals = (
+        3,
+        3,
+        10,
+        65535,
+        1,
+        65535,
+        131,
+        35,
+        b'"d\xd4Q\xb5\xef\xf5\xdf\xa9LTO3\xb7\x87\xa9',
+    )
 
     # Log 2 is valid, aside from its hash, which doesn't match
-    log2_badvals = (3, 3, 10, 65535, 1, 65535, 131, 35,
-                    b'"d\xd4Q\xb5\xef\xf5\xdf\xa9LTO3\xb7\x87\xa8')
+    log2_badvals = (
+        3,
+        3,
+        10,
+        65535,
+        1,
+        65535,
+        131,
+        35,
+        b'"d\xd4Q\xb5\xef\xf5\xdf\xa9LTO3\xb7\x87\xa8',
+    )
 
     log1 = struct.pack(FORMAT, *log1_vals)
     log2 = struct.pack(FORMAT, *log2_vals)
@@ -211,25 +254,23 @@ class TestLogCorrect(unittest.TestCase):
 
 
 class TestYubiHsm(unittest.TestCase):
-
-    @patch('yubihsm.core.YubiHsm.create_session')
+    @patch("yubihsm.core.YubiHsm.create_session")
     def test_create_session_derived(self, item):
         """
         Test if create_session_derived calls create_session correctly
         """
 
         auth_key_id = 1
-        password = 'password'
-        expect_enc = b'\t\x0bG\xdb\xedYVT\x90\x1d\xee\x1c\xc6U\xe4 '
-        expect_mac = b'Y/\xd4\x83\xf7Y\xe2\x99\t\xa0LE\x05\xd2\xce\n'
+        password = "password"
+        expect_enc = b"\t\x0bG\xdb\xedYVT\x90\x1d\xee\x1c\xc6U\xe4 "
+        expect_mac = b"Y/\xd4\x83\xf7Y\xe2\x99\t\xa0LE\x05\xd2\xce\n"
 
         # Note: backend doesn't do anything here; it's just required by the
         # function's signature
-        hsm = YubiHsm(backend='')
+        hsm = YubiHsm(backend="")
         hsm.create_session_derived(auth_key_id, password)
 
-        hsm.create_session.assert_called_once_with(auth_key_id, expect_enc,
-                                                   expect_mac)
+        hsm.create_session.assert_called_once_with(auth_key_id, expect_enc, expect_mac)
 
     def test_get_device_info_mock_transceive(self):
 
@@ -238,13 +279,14 @@ class TestYubiHsm(unittest.TestCase):
         """
 
         backend = get_backend()
-        backend.transceive = MagicMock(backend.transceive,
-                                       return_value=_TRANSCEIVE_DEVICE_INFO)
+        backend.transceive = MagicMock(
+            backend.transceive, return_value=_TRANSCEIVE_DEVICE_INFO
+        )
 
         hsm = YubiHsm(backend)
 
         info = hsm.get_device_info()
-        hsm._backend.transceive.assert_called_once_with(b'\x06\x00\x00')
+        hsm._backend.transceive.assert_called_once_with(b"\x06\x00\x00")
 
         self.assertEqual(info.version, (2, 0, 0))
         self.assertEqual(info.serial, 7550140)
@@ -254,7 +296,6 @@ class TestYubiHsm(unittest.TestCase):
 
 
 class TestAuthsession(unittest.TestCase):
-
     def test_list_objects1(self):
         """
         Test the first half of the list_objects function:
@@ -262,16 +303,24 @@ class TestAuthsession(unittest.TestCase):
         """
         # Create fake session, and mock the return from a call to side_effect
         session = MagicMock(AuthSession)
-        session.send_secure_cmd.side_effect = [b'\x00\x01\x02\x00V7\x03\x00']
+        session.send_secure_cmd.side_effect = [b"\x00\x01\x02\x00V7\x03\x00"]
 
         # Run the function, and make sure the correct call is made to secure_cmd
-        AuthSession.list_objects(session, object_id=2, object_type=1,
-                                 domains=65535, capabilities=CAPABILITY.ALL,
-                                 algorithm=ALGORITHM.HMAC_SHA384)
+        AuthSession.list_objects(
+            session,
+            object_id=2,
+            object_type=1,
+            domains=65535,
+            capabilities=CAPABILITY.ALL,
+            algorithm=ALGORITHM.HMAC_SHA384,
+        )
 
         # We care only about the value sent; we aren't checking the return value
         # from send_secure_cmd
-        session.send_secure_cmd.assert_called_with(72, b'\x01\x00\x02\x02\x01\x03\xff\xff\x04\x00\x00\x7f\xff\xff\xff\xff\xff\x05\x15')  # noqa
+        session.send_secure_cmd.assert_called_with(
+            72,
+            b"\x01\x00\x02\x02\x01\x03\xff\xff\x04\x00\x00\x7f\xff\xff\xff\xff\xff\x05\x15",  # noqa E501
+        )
 
     def test_list_objects2(self):
         """
@@ -280,7 +329,7 @@ class TestAuthsession(unittest.TestCase):
         """
         list_objects = AuthSession.list_objects
         session = MagicMock(AuthSession)
-        session.send_secure_cmd.return_value = b'\x00\x01\x02\x00d\x8f\x03\x00\x00\x01\x03\x00\x00\x04\x05\x00\x00\x05\x05\x00\x00\x05\x03\x00'  # noqa
+        session.send_secure_cmd.return_value = b"\x00\x01\x02\x00d\x8f\x03\x00\x00\x01\x03\x00\x00\x04\x05\x00\x00\x05\x05\x00\x00\x05\x03\x00"  # noqa
 
         # The input to the below function doesn't matter;
         # it's overwritten by the return value listed above
@@ -288,8 +337,10 @@ class TestAuthsession(unittest.TestCase):
 
         # Finally, make sure we decode the results correctly
         # Not the best way to check, but it is succinct
-        self.assertEqual(objlist.__repr__(),
-                         '[AuthenticationKey(id=1), AsymmetricKey(id=25743), AsymmetricKey(id=1), HmacKey(id=4), HmacKey(id=5), AsymmetricKey(id=5)]')  # noqa
+        self.assertEqual(
+            objlist.__repr__(),
+            "[AuthenticationKey(id=1), AsymmetricKey(id=25743), AsymmetricKey(id=1), HmacKey(id=4), HmacKey(id=5), AsymmetricKey(id=5)]",  # noqa E501
+        )
 
     def test__create_session_patch_transceive(self):
         """
@@ -301,9 +352,9 @@ class TestAuthsession(unittest.TestCase):
         # Create session should make two calls to transceive.
         # First call was to create session. Second was to authenticate session.
         calls = [
-            call(b'\x03\x00\n\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00'),
-            call(b'\x04\x00\x11\x00\x1c\xe7U.\x0fyv\xdb\xcc!\x98\xfd\x15\\3Z')
-            ]
+            call(b"\x03\x00\n\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00"),
+            call(b"\x04\x00\x11\x00\x1c\xe7U.\x0fyv\xdb\xcc!\x98\xfd\x15\\3Z"),
+        ]
 
         authsession._hsm._backend.transceive.assert_has_calls(calls)
 
@@ -326,7 +377,7 @@ class TestAuthsession(unittest.TestCase):
         """
         session = get_mocked_session()
         session.send_secure_cmd = MagicMock(session.send_secure_cmd)
-        session.send_secure_cmd.return_value = b''
+        session.send_secure_cmd.return_value = b""
 
         session.reset_device()
 
@@ -339,6 +390,6 @@ class TestAuthsession(unittest.TestCase):
 
         session = get_mocked_session()
         session.send_secure_cmd = MagicMock(session.send_secure_cmd)
-        session.send_secure_cmd.return_value = b'\00'
+        session.send_secure_cmd.return_value = b"\00"
 
         self.assertRaises(YubiHsmInvalidResponseError, session.reset_device)

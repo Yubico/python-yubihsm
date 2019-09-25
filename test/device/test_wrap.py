@@ -27,23 +27,28 @@ import random
 
 
 class TestWrap(YubiHsmTestCase):
-
     def generate_wrap(self):
-        w_id = random.randint(1, 0xfffe)
-        a_id = random.randint(1, 0xfffe)
+        w_id = random.randint(1, 0xFFFE)
+        a_id = random.randint(1, 0xFFFE)
 
         wrapkey = WrapKey.generate(
-            self.session, w_id,
-            'Generate Wrap 0x%04x' % w_id, 1,
+            self.session,
+            w_id,
+            "Generate Wrap 0x%04x" % w_id,
+            1,
             CAPABILITY.EXPORT_WRAPPED | CAPABILITY.IMPORT_WRAPPED,
             ALGORITHM.AES192_CCM_WRAP,
-            CAPABILITY.SIGN_ECDSA | CAPABILITY.EXPORTABLE_UNDER_WRAP
+            CAPABILITY.SIGN_ECDSA | CAPABILITY.EXPORTABLE_UNDER_WRAP,
         )
 
         asymkey = AsymmetricKey.generate(
-            self.session, a_id, 'Generate Wrap 0x%04x' % a_id, 0xffff,
+            self.session,
+            a_id,
+            "Generate Wrap 0x%04x" % a_id,
+            0xFFFF,
             CAPABILITY.SIGN_ECDSA | CAPABILITY.EXPORTABLE_UNDER_WRAP,
-            ALGORITHM.EC_P256)
+            ALGORITHM.EC_P256,
+        )
         origin = asymkey.get_info().origin
         self.assertEqual(origin, 0x01)
         self.assertTrue(origin.generated)
@@ -86,24 +91,29 @@ class TestWrap(YubiHsmTestCase):
         self.generate_wrap()
 
     def test_export_wrap(self):
-        w_id = random.randint(1, 0xfffe)
+        w_id = random.randint(1, 0xFFFE)
         wrapkey = WrapKey.put(
-            self.session, w_id,
-            'Test Export Wrap 0x%04x' % w_id, 1,
+            self.session,
+            w_id,
+            "Test Export Wrap 0x%04x" % w_id,
+            1,
             CAPABILITY.EXPORT_WRAPPED | CAPABILITY.IMPORT_WRAPPED,
             ALGORITHM.AES192_CCM_WRAP,
             CAPABILITY.SIGN_ECDSA | CAPABILITY.EXPORTABLE_UNDER_WRAP,
-            os.urandom(24)
+            os.urandom(24),
         )
 
-        eckey = ec.generate_private_key(ec.SECP384R1(),
-                                        backend=default_backend())
+        eckey = ec.generate_private_key(ec.SECP384R1(), backend=default_backend())
 
-        a_id = random.randint(1, 0xfffe)
+        a_id = random.randint(1, 0xFFFE)
         asymkey = AsymmetricKey.put(
-            self.session, a_id, 'Test Export Wrap 0x%04x' % a_id, 0xffff,
+            self.session,
+            a_id,
+            "Test Export Wrap 0x%04x" % a_id,
+            0xFFFF,
             CAPABILITY.SIGN_ECDSA | CAPABILITY.EXPORTABLE_UNDER_WRAP,
-            eckey)
+            eckey,
+        )
         origin = asymkey.get_info().origin
         self.assertEqual(origin, 0x02)
         self.assertFalse(origin.generated)
@@ -156,13 +166,16 @@ class TestWrap(YubiHsmTestCase):
         self.assertIsInstance(asymkey, AsymmetricKey)
 
     def test_wrap_data(self):
-        w_id = random.randint(1, 0xfffe)
-        key_label = 'Key in List 0x%04x' % w_id
+        w_id = random.randint(1, 0xFFFE)
+        key_label = "Key in List 0x%04x" % w_id
         key = WrapKey.generate(
-            self.session, w_id,
-            key_label, 1,
+            self.session,
+            w_id,
+            key_label,
+            1,
             CAPABILITY.WRAP_DATA | CAPABILITY.UNWRAP_DATA,
-            ALGORITHM.AES256_CCM_WRAP, 0
+            ALGORITHM.AES256_CCM_WRAP,
+            0,
         )
 
         for size in (1, 16, 128, 1024, 1989):
@@ -173,8 +186,8 @@ class TestWrap(YubiHsmTestCase):
             self.assertEqual(data, data2)
 
     def test_more_wrap_data(self):
-        w_id = random.randint(1, 0xfffe)
-        key_label = 'Key in List 0x%04x' % w_id
+        w_id = random.randint(1, 0xFFFE)
+        key_label = "Key in List 0x%04x" % w_id
         for size in (16, 24, 32):
             if size == 16:
                 a = ALGORITHM.AES128_CCM_WRAP
@@ -183,10 +196,15 @@ class TestWrap(YubiHsmTestCase):
             elif size == 32:
                 a = ALGORITHM.AES256_CCM_WRAP
             key = WrapKey.put(
-                self.session, w_id,
-                key_label, 1,
+                self.session,
+                w_id,
+                key_label,
+                1,
                 CAPABILITY.WRAP_DATA | CAPABILITY.UNWRAP_DATA,
-                a, 0, os.urandom(size))
+                a,
+                0,
+                os.urandom(size),
+            )
 
             data = os.urandom(size)
             wrap = key.wrap_data(data)
@@ -196,131 +214,175 @@ class TestWrap(YubiHsmTestCase):
             key.delete()
 
     def test_wrap_data_many(self):
-        key_label = 'wrap key'
+        key_label = "wrap key"
         raw_key = os.urandom(24)
         w_key = WrapKey.put(
-            self.session, 0,
-            key_label, 1,
-            CAPABILITY.WRAP_DATA, ALGORITHM.AES192_CCM_WRAP,
-            0, raw_key)
+            self.session,
+            0,
+            key_label,
+            1,
+            CAPABILITY.WRAP_DATA,
+            ALGORITHM.AES192_CCM_WRAP,
+            0,
+            raw_key,
+        )
         u_key = WrapKey.put(
-            self.session, 0,
-            key_label, 1,
-            CAPABILITY.UNWRAP_DATA, ALGORITHM.AES192_CCM_WRAP,
-            0, raw_key)
+            self.session,
+            0,
+            key_label,
+            1,
+            CAPABILITY.UNWRAP_DATA,
+            ALGORITHM.AES192_CCM_WRAP,
+            0,
+            raw_key,
+        )
 
-        for l in (range(1, 64)):
+        for l in range(1, 64):
             data = os.urandom(l)
             wrap = w_key.wrap_data(data)
             with self.assertRaises(YubiHsmDeviceError) as context:
                 u_key.wrap_data(data)
-            self.assertTrue('INVALID_DATA' in str(context.exception))
+            self.assertTrue("INVALID_DATA" in str(context.exception))
             plain = u_key.unwrap_data(wrap)
             with self.assertRaises(YubiHsmDeviceError) as context:
                 w_key.unwrap_data(wrap)
-            self.assertTrue('INVALID_DATA' in str(context.exception))
+            self.assertTrue("INVALID_DATA" in str(context.exception))
             self.assertEqual(data, plain)
 
     def test_import_wrap_permissions(self):
-        key_label = 'wrap key'
+        key_label = "wrap key"
         raw_key = os.urandom(24)
         opaque = Opaque.put(
-            self.session, 0, 'Test Opaque Object', 0xffff,
+            self.session,
+            0,
+            "Test Opaque Object",
+            0xFFFF,
             CAPABILITY.EXPORTABLE_UNDER_WRAP,
             ALGORITHM.OPAQUE_DATA,
-            b'\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa')
+            b"\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa",
+        )
         w_key = WrapKey.put(
-            self.session, 0, key_label, 1,
+            self.session,
+            0,
+            key_label,
+            1,
             CAPABILITY.EXPORT_WRAPPED | CAPABILITY.IMPORT_WRAPPED,
             ALGORITHM.AES192_CCM_WRAP,
             0,
-            raw_key)
+            raw_key,
+        )
 
         with self.assertRaises(YubiHsmDeviceError) as context:
             w_key.export_wrapped(opaque)
-        self.assertTrue('INSUFFICIENT_PERMISSIONS' in str(context.exception))
+        self.assertTrue("INSUFFICIENT_PERMISSIONS" in str(context.exception))
 
         w_key.delete()
         w_key = WrapKey.put(
-            self.session, 0,
-            key_label, 1,
+            self.session,
+            0,
+            key_label,
+            1,
             CAPABILITY.EXPORT_WRAPPED | CAPABILITY.IMPORT_WRAPPED,
             ALGORITHM.AES192_CCM_WRAP,
-            CAPABILITY.EXPORTABLE_UNDER_WRAP, raw_key)
+            CAPABILITY.EXPORTABLE_UNDER_WRAP,
+            raw_key,
+        )
 
         w_key.id += 1
         with self.assertRaises(YubiHsmDeviceError) as context:
             w_key.export_wrapped(opaque)
-        self.assertTrue('OBJECT_NOT_FOUND' in str(context.exception))
+        self.assertTrue("OBJECT_NOT_FOUND" in str(context.exception))
 
         w_key.id -= 1
         w_key.delete()
         w_key = WrapKey.put(
-            self.session, 0,
-            key_label, 1,
-            CAPABILITY.IMPORT_WRAPPED, ALGORITHM.AES192_CCM_WRAP,
-            CAPABILITY.EXPORTABLE_UNDER_WRAP, raw_key)
+            self.session,
+            0,
+            key_label,
+            1,
+            CAPABILITY.IMPORT_WRAPPED,
+            ALGORITHM.AES192_CCM_WRAP,
+            CAPABILITY.EXPORTABLE_UNDER_WRAP,
+            raw_key,
+        )
 
         with self.assertRaises(YubiHsmDeviceError) as context:
             w_key.export_wrapped(opaque)
-        self.assertTrue('INSUFFICIENT_PERMISSIONS' in str(context.exception))
+        self.assertTrue("INSUFFICIENT_PERMISSIONS" in str(context.exception))
 
         w_key.delete()
         w_key = WrapKey.put(
-            self.session, 0,
-            key_label, 1,
-            CAPABILITY.EXPORT_WRAPPED, ALGORITHM.AES192_CCM_WRAP,
-            CAPABILITY.EXPORTABLE_UNDER_WRAP, raw_key)
+            self.session,
+            0,
+            key_label,
+            1,
+            CAPABILITY.EXPORT_WRAPPED,
+            ALGORITHM.AES192_CCM_WRAP,
+            CAPABILITY.EXPORTABLE_UNDER_WRAP,
+            raw_key,
+        )
 
         opaque_wrapped = w_key.export_wrapped(opaque)
 
         with self.assertRaises(YubiHsmDeviceError) as context:
             w_key.import_wrapped(opaque_wrapped)
-        self.assertTrue('INSUFFICIENT_PERMISSIONS' in str(context.exception))
+        self.assertTrue("INSUFFICIENT_PERMISSIONS" in str(context.exception))
 
         w_key.delete()
         w_key = WrapKey.put(
-            self.session, 0, key_label, 1,
+            self.session,
+            0,
+            key_label,
+            1,
             CAPABILITY.IMPORT_WRAPPED | CAPABILITY.EXPORT_WRAPPED,
             ALGORITHM.AES192_CCM_WRAP,
             CAPABILITY.EXPORTABLE_UNDER_WRAP,
-            raw_key)
+            raw_key,
+        )
 
         opaque_wrapped = w_key.export_wrapped(opaque)
         opaque.delete()
         w_key.id += 1
         with self.assertRaises(YubiHsmDeviceError) as context:
             w_key.import_wrapped(opaque_wrapped)
-        self.assertTrue('OBJECT_NOT_FOUND' in str(context.exception))
+        self.assertTrue("OBJECT_NOT_FOUND" in str(context.exception))
         w_key.id -= 1
         opaque = w_key.import_wrapped(opaque_wrapped)
 
-        self.assertEqual(opaque.get(), b'\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa')
+        self.assertEqual(opaque.get(), b"\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa")
 
     def test_import_wrap_overwrite(self):
-        key_label = 'wrap key'
+        key_label = "wrap key"
         raw_key = os.urandom(24)
         w_key = WrapKey.put(
-            self.session, 0, key_label, 1,
+            self.session,
+            0,
+            key_label,
+            1,
             CAPABILITY.EXPORT_WRAPPED | CAPABILITY.IMPORT_WRAPPED,
             ALGORITHM.AES192_CCM_WRAP,
             CAPABILITY.EXPORTABLE_UNDER_WRAP,
-            raw_key)
+            raw_key,
+        )
         opaque = Opaque.put(
-            self.session, 0, 'Test Opaque Object', 0xffff,
+            self.session,
+            0,
+            "Test Opaque Object",
+            0xFFFF,
             CAPABILITY.EXPORTABLE_UNDER_WRAP,
             ALGORITHM.OPAQUE_DATA,
-            b'\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa')
+            b"\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa",
+        )
         opaque_wrapped = w_key.export_wrapped(opaque)
         with self.assertRaises(YubiHsmDeviceError) as context:
             w_key.import_wrapped(opaque_wrapped)
-        self.assertTrue('OBJECT_EXISTS' in str(context.exception))
+        self.assertTrue("OBJECT_EXISTS" in str(context.exception))
 
         opaque.delete()
 
         opaque = w_key.import_wrapped(opaque_wrapped)
 
-        self.assertEqual(opaque.get(), b'\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa')
+        self.assertEqual(opaque.get(), b"\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa")
         with self.assertRaises(YubiHsmDeviceError) as context:
             opaque = w_key.import_wrapped(opaque_wrapped)
-        self.assertTrue('OBJECT_EXISTS' in str(context.exception))
+        self.assertTrue("OBJECT_EXISTS" in str(context.exception))

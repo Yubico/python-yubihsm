@@ -21,9 +21,13 @@ from . import utils
 from .defs import COMMAND, ALGORITHM, LIST_FILTER, OPTION, AUDIT
 from .backends import get_backend
 from .objects import YhsmObject, _label_pack, LABEL_LENGTH
-from .exceptions import (YubiHsmDeviceError, YubiHsmInvalidRequestError,
-                         YubiHsmInvalidResponseError,
-                         YubiHsmAuthenticationError, YubiHsmConnectionError)
+from .exceptions import (
+    YubiHsmDeviceError,
+    YubiHsmInvalidRequestError,
+    YubiHsmInvalidResponseError,
+    YubiHsmAuthenticationError,
+    YubiHsmConnectionError,
+)
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import cmac, constant_time
@@ -48,26 +52,26 @@ MAX_MSG_SIZE = 2048 - 1
 def _derive(key, t, context, L=0x80):
     # this only supports aes128
     if L != 0x80 and L != 0x40:
-        raise ValueError('L must be 0x40 or 0x80')
+        raise ValueError("L must be 0x40 or 0x80")
 
-    i = b'\0' * 11 + struct.pack('!BBHB', t, 0, L, 1) + context
+    i = b"\0" * 11 + struct.pack("!BBHB", t, 0, L, 1) + context
 
     c = cmac.CMAC(algorithms.AES(key), backend=default_backend())
     c.update(i)
-    return c.finalize()[:L // 8]
+    return c.finalize()[: L // 8]
 
 
 def _unpad_resp(resp, cmd):
     if len(resp) < 3:
-        raise YubiHsmInvalidResponseError('Wrong length')
-    rcmd, length = struct.unpack('!BH', resp[:3])
+        raise YubiHsmInvalidResponseError("Wrong length")
+    rcmd, length = struct.unpack("!BH", resp[:3])
     if len(resp) < length + 3:
-        raise YubiHsmInvalidResponseError('Wrong length')
+        raise YubiHsmInvalidResponseError("Wrong length")
     if rcmd == COMMAND.ERROR:
         raise YubiHsmDeviceError(six.indexbytes(resp, 3))
     elif rcmd != cmd | 0x80:
-        raise YubiHsmInvalidResponseError('Wrong command in response')
-    return resp[3:length + 3]
+        raise YubiHsmInvalidResponseError("Wrong command in response")
+    return resp[3 : length + 3]
 
 
 class YubiHsm(object):
@@ -88,10 +92,10 @@ class YubiHsm(object):
 
     def _transceive(self, msg):
         if len(msg) > MAX_MSG_SIZE:
-            raise YubiHsmInvalidRequestError('Message too long.')
+            raise YubiHsmInvalidRequestError("Message too long.")
         return self._backend.transceive(msg)
 
-    def send_cmd(self, cmd, data=b''):
+    def send_cmd(self, cmd, data=b""):
         """Encode and send a command byte and its associated data.
 
         :param COMMAND cmd: The command to send.
@@ -99,7 +103,7 @@ class YubiHsm(object):
         :return: The response data from the YubiHSM.
         :rtype: bytes
         """
-        msg = struct.pack('!BH', cmd, len(data)) + data
+        msg = struct.pack("!BH", cmd, len(data)) + data
         return _unpad_resp(self._transceive(msg), cmd)
 
     def get_device_info(self):
@@ -154,14 +158,14 @@ class YubiHsm(object):
         return cls(get_backend(url))
 
     def __repr__(self):
-        return '{0.__class__.__name__}({0._backend})'.format(self)
+        return "{0.__class__.__name__}({0._backend})".format(self)
 
 
 class _UnknownIntEnum(int):
-    name = 'UNKNOWN'
+    name = "UNKNOWN"
 
     def __repr__(self):
-        return '<%s: %d>' % (self.name, self)
+        return "<%s: %d>" % (self.name, self)
 
     def __str__(self):
         return self.name
@@ -175,7 +179,8 @@ class _UnknownAlgorithm(_UnknownIntEnum):
     """Wrapper for unknown ALGORITHM values.
 
     Provides obj.name, obj.value and and string representations."""
-    name = 'ALGORITHM.UNKNOWN'
+
+    name = "ALGORITHM.UNKNOWN"
 
 
 def _algorithm(val):
@@ -189,16 +194,16 @@ class _UnknownCommand(_UnknownIntEnum):
     """Wrapper for unknown COMMAND values.
 
     Provides obj.name, obj.value and and string representations."""
-    name = 'COMMAND.UNKNOWN'
+
+    name = "COMMAND.UNKNOWN"
 
 
-class DeviceInfo(namedtuple('DeviceInfo', [
-        'version',
-        'serial',
-        'log_size',
-        'log_used',
-        'supported_algorithms'
-])):
+class DeviceInfo(
+    namedtuple(
+        "DeviceInfo",
+        ["version", "serial", "log_size", "log_used", "supported_algorithms"],
+    )
+):
     """Data class holding various information about the YubiHSM.
 
     :param version: YubiHSM version tuple.
@@ -208,8 +213,9 @@ class DeviceInfo(namedtuple('DeviceInfo', [
     :param int log_used: Log entries currently stored.
     :param set[ALGORITHM] supported_algorithms: List of supported algorithms.
     """
+
     __slots__ = ()
-    FORMAT = '!BBBIBB'
+    FORMAT = "!BBBIBB"
     LENGTH = struct.calcsize(FORMAT)
 
     @classmethod
@@ -223,14 +229,15 @@ class DeviceInfo(namedtuple('DeviceInfo', [
         unpacked = struct.unpack_from(cls.FORMAT, data)
         version = unpacked[:3]
         serial, log_size, log_used = unpacked[3:]
-        algorithms = {_algorithm(a) for a in six.iterbytes(data[cls.LENGTH:])}
+        algorithms = {_algorithm(a) for a in six.iterbytes(data[cls.LENGTH :])}
 
         return cls(version, serial, log_size, log_used, algorithms)
 
 
 def _calculate_iv(key, counter):
-    encryptor = Cipher(algorithms.AES(key), modes.ECB(),
-                       backend=default_backend()).encryptor()
+    encryptor = Cipher(
+        algorithms.AES(key), modes.ECB(), backend=default_backend()
+    ).encryptor()
     return encryptor.update(int_to_bytes(counter, 16)) + encryptor.finalize()
 
 
@@ -264,11 +271,12 @@ class AuthSession(object):
         context = os.urandom(8)
 
         data = self._hsm.send_cmd(
-            COMMAND.CREATE_SESSION, struct.pack('!H', auth_key_id) + context)
+            COMMAND.CREATE_SESSION, struct.pack("!H", auth_key_id) + context
+        )
 
         self._sid = six.indexbytes(data, 0)
-        context += data[1:1 + 8]
-        card_crypto = data[9:9 + 8]
+        context += data[1 : 1 + 8]
+        card_crypto = data[9 : 9 + 8]
         self._key_enc = _derive(key_enc, KEY_ENC, context)
         self._key_mac = _derive(key_mac, KEY_MAC, context)
         self._key_rmac = _derive(key_mac, KEY_RMAC, context)
@@ -277,41 +285,40 @@ class AuthSession(object):
         if not constant_time.bytes_eq(gen_card_crypto, card_crypto):
             raise YubiHsmAuthenticationError()
 
-        msg = struct.pack('!BHB', COMMAND.AUTHENTICATE_SESSION, 1 + 8 + 8,
-                          self.sid)
+        msg = struct.pack("!BHB", COMMAND.AUTHENTICATE_SESSION, 1 + 8 + 8, self.sid)
         msg += _derive(self._key_mac, HOST_CRYPTOGRAM, context, 0x40)
         self._ctr = 1
-        self._mac_chain, mac = _calculate_mac(self._key_mac, b'\0' * 16, msg)
+        self._mac_chain, mac = _calculate_mac(self._key_mac, b"\0" * 16, msg)
         msg += mac
-        data = _unpad_resp(self._hsm._transceive(msg),
-                           COMMAND.AUTHENTICATE_SESSION)
+        data = _unpad_resp(self._hsm._transceive(msg), COMMAND.AUTHENTICATE_SESSION)
 
     def _secure_transceive(self, msg):
-        msg += b'\x80'
+        msg += b"\x80"
         padlen = 16 - len(msg) % 16
-        msg = msg.ljust(len(msg) + padlen, b'\0')
+        msg = msg.ljust(len(msg) + padlen, b"\0")
 
-        wrapped = struct.pack('!BHB', COMMAND.SESSION_MESSAGE, 1 + len(msg) + 8,
-                              self.sid)
-        cipher = Cipher(algorithms.AES(self._key_enc),
-                        modes.CBC(_calculate_iv(self._key_enc, self._ctr)),
-                        backend=default_backend())
+        wrapped = struct.pack(
+            "!BHB", COMMAND.SESSION_MESSAGE, 1 + len(msg) + 8, self.sid
+        )
+        cipher = Cipher(
+            algorithms.AES(self._key_enc),
+            modes.CBC(_calculate_iv(self._key_enc, self._ctr)),
+            backend=default_backend(),
+        )
         encryptor = cipher.encryptor()
         wrapped += encryptor.update(msg) + encryptor.finalize()
-        next_mac_chain, mac = _calculate_mac(
-            self._key_mac, self._mac_chain, wrapped)
+        next_mac_chain, mac = _calculate_mac(self._key_mac, self._mac_chain, wrapped)
         wrapped += mac
         raw_resp = self._hsm._transceive(wrapped)
 
         data = _unpad_resp(raw_resp, COMMAND.SESSION_MESSAGE)
 
         if six.indexbytes(data, 0) != self._sid:
-            raise YubiHsmInvalidResponseError('Incorrect SID')
+            raise YubiHsmInvalidResponseError("Incorrect SID")
 
-        rmac = _calculate_mac(
-            self._key_rmac, next_mac_chain, raw_resp[:-8])[1]
+        rmac = _calculate_mac(self._key_rmac, next_mac_chain, raw_resp[:-8])[1]
         if not constant_time.bytes_eq(raw_resp[-8:], rmac):
-            raise YubiHsmInvalidResponseError('Incorrect MAC')
+            raise YubiHsmInvalidResponseError("Incorrect MAC")
 
         self._ctr += 1
         self._mac_chain = next_mac_chain
@@ -328,7 +335,7 @@ class AuthSession(object):
         """
         return self._sid
 
-    def send_secure_cmd(self, cmd, data=b''):
+    def send_secure_cmd(self, cmd, data=b""):
         """Send a command over the encrypted session.
 
         :param COMMAND cmd: The command to send.
@@ -336,7 +343,7 @@ class AuthSession(object):
         :return: The decrypted response data from the YubiHSM.
         :rtype: bytes
         """
-        msg = struct.pack('!BH', cmd, len(data)) + data
+        msg = struct.pack("!BH", cmd, len(data)) + data
         return _unpad_resp(self._secure_transceive(msg), cmd)
 
     def close(self):
@@ -352,8 +359,15 @@ class AuthSession(object):
                 self._sid = None
                 self._key_enc = self._key_mac = self._key_rmac = None
 
-    def list_objects(self, object_id=None, object_type=None, domains=None,
-                     capabilities=None, algorithm=None, label=None):
+    def list_objects(
+        self,
+        object_id=None,
+        object_type=None,
+        domains=None,
+        capabilities=None,
+        algorithm=None,
+        label=None,
+    ):
         """List objects from the YubiHSM.
 
         This returns a list of all objects currently stored on the YubiHSM,
@@ -372,27 +386,27 @@ class AuthSession(object):
         :return: A list of matched objects.
         :rtype: list
         """
-        msg = b''
+        msg = b""
         if object_id is not None:
-            msg += struct.pack('!BH', LIST_FILTER.ID, object_id)
+            msg += struct.pack("!BH", LIST_FILTER.ID, object_id)
         if object_type is not None:
-            msg += struct.pack('!BB', LIST_FILTER.TYPE, object_type)
+            msg += struct.pack("!BB", LIST_FILTER.TYPE, object_type)
         if domains is not None:
-            msg += struct.pack('!BH', LIST_FILTER.DOMAINS, domains)
+            msg += struct.pack("!BH", LIST_FILTER.DOMAINS, domains)
         if capabilities is not None:
-            msg += struct.pack('!BQ', LIST_FILTER.CAPABILITIES,
-                               capabilities)
+            msg += struct.pack("!BQ", LIST_FILTER.CAPABILITIES, capabilities)
         if algorithm is not None:
-            msg += struct.pack('!BB', LIST_FILTER.ALGORITHM, algorithm)
+            msg += struct.pack("!BB", LIST_FILTER.ALGORITHM, algorithm)
         if label is not None:
-            msg += struct.pack('!B%ds' % LABEL_LENGTH, LIST_FILTER.LABEL,
-                               _label_pack(label))
+            msg += struct.pack(
+                "!B%ds" % LABEL_LENGTH, LIST_FILTER.LABEL, _label_pack(label)
+            )
 
         resp = self.send_secure_cmd(COMMAND.LIST_OBJECTS, msg)
 
         objects = []
         for i in range(0, len(resp), 4):
-            object_id, typ, seq = struct.unpack('!HBB', resp[i:i + 4])
+            object_id, typ, seq = struct.unpack("!HBB", resp[i : i + 4])
             objects.append(YhsmObject._create(typ, self, object_id, seq))
         return objects
 
@@ -416,7 +430,7 @@ class AuthSession(object):
         :return: The requested number of random bytes.
         :rtype: bytes
         """
-        msg = struct.pack('!H', length)
+        msg = struct.pack("!H", length)
         return self.send_secure_cmd(COMMAND.GET_PSEUDO_RANDOM, msg)
 
     def reset_device(self):
@@ -426,8 +440,8 @@ class AuthSession(object):
         default Authkey.
         """
         try:
-            if self.send_secure_cmd(COMMAND.RESET_DEVICE) != b'':
-                raise YubiHsmInvalidResponseError('Non-empty response')
+            if self.send_secure_cmd(COMMAND.RESET_DEVICE) != b"":
+                raise YubiHsmInvalidResponseError("Non-empty response")
         except YubiHsmConnectionError:
             pass  # Assume reset went well, it may interrupt the connection.
         self._sid = None
@@ -449,18 +463,18 @@ class AuthSession(object):
         :rtype: LogData
         """
         resp = self.send_secure_cmd(COMMAND.GET_LOG_ENTRIES)
-        boot, auth, num = struct.unpack('!HHB', resp[:5])
+        boot, auth, num = struct.unpack("!HHB", resp[:5])
 
         data = resp[5:]
         if len(data) != num * LogEntry.LENGTH:
-            raise YubiHsmInvalidResponseError('Incorrect length')
+            raise YubiHsmInvalidResponseError("Incorrect length")
 
         logs = []
         for i in range(0, len(data), LogEntry.LENGTH):
-            entry = LogEntry.parse(data[i:i + LogEntry.LENGTH])
+            entry = LogEntry.parse(data[i : i + LogEntry.LENGTH])
             if previous_entry:
                 if not entry.validate(previous_entry):
-                    raise YubiHsmInvalidResponseError('Incorrect log digest')
+                    raise YubiHsmInvalidResponseError("Incorrect log digest")
             logs.append(entry)
             previous_entry = entry
 
@@ -471,9 +485,9 @@ class AuthSession(object):
 
         :param int index: The log entry index to clear up to (inclusive).
         """
-        msg = struct.pack('!H', index)
-        if self.send_secure_cmd(COMMAND.SET_LOG_INDEX, msg) != b'':
-            raise YubiHsmInvalidResponseError('Non-empty response')
+        msg = struct.pack("!H", index)
+        if self.send_secure_cmd(COMMAND.SET_LOG_INDEX, msg) != b"":
+            raise YubiHsmInvalidResponseError("Non-empty response")
 
     def put_option(self, option, value):
         """Set the raw value of a YubiHSM device option.
@@ -481,9 +495,9 @@ class AuthSession(object):
         :param OPTION option: The OPTION to set.
         :param bytes value: The value to set the OPTION to.
         """
-        msg = struct.pack('!BH', option, len(value)) + value
-        if self.send_secure_cmd(COMMAND.SET_OPTION, msg) != b'':
-            raise YubiHsmInvalidResponseError('Non-empty response')
+        msg = struct.pack("!BH", option, len(value)) + value
+        if self.send_secure_cmd(COMMAND.SET_OPTION, msg) != b"":
+            raise YubiHsmInvalidResponseError("Non-empty response")
 
     def get_option(self, option):
         """Get the raw value of a YubiHSM device option.
@@ -492,7 +506,7 @@ class AuthSession(object):
         :return: The currently set value for the given OPTION
         :rtype: bytes
         """
-        msg = struct.pack('!B', option)
+        msg = struct.pack("!B", option)
         return self.send_secure_cmd(COMMAND.GET_OPTION, msg)
 
     def set_force_audit(self, audit):
@@ -500,7 +514,7 @@ class AuthSession(object):
 
         :param AUDIT audit: The AUDIT mode to set.
         """
-        self.put_option(OPTION.FORCE_AUDIT, struct.pack('B', audit))
+        self.put_option(OPTION.FORCE_AUDIT, struct.pack("B", audit))
 
     def get_force_audit(self):
         """Get the current setting for forced audit mode.
@@ -526,7 +540,7 @@ class AuthSession(object):
         ...     COMMAND.LIST_OBJECTS: AUDIT.ON
         ... })
         """
-        msg = b''.join(struct.pack('!BB', k, v) for (k, v) in commands.items())
+        msg = b"".join(struct.pack("!BB", k, v) for (k, v) in commands.items())
         self.put_option(OPTION.COMMAND_AUDIT, msg)
 
     def get_command_audit(self):
@@ -539,7 +553,7 @@ class AuthSession(object):
         ret = {}
         for i in range(0, len(resp), 2):
             cmd = six.indexbytes(resp, i)
-            val = AUDIT(six.indexbytes(resp, i+1))
+            val = AUDIT(six.indexbytes(resp, i + 1))
             try:
                 ret[COMMAND(cmd)] = val
             except ValueError:
@@ -547,30 +561,36 @@ class AuthSession(object):
         return ret
 
     def __repr__(self):
-        return '{0.__class__.__name__}(id={0._sid}, hsm={0._hsm})'.format(self)
+        return "{0.__class__.__name__}(id={0._sid}, hsm={0._hsm})".format(self)
 
 
-class LogData(namedtuple('LogData', ['n_boot', 'n_auth', 'entries'])):
+class LogData(namedtuple("LogData", ["n_boot", "n_auth", "entries"])):
     """Data class holding response data from a GET_LOGS command.
 
     :param int n_boot: Number of unlogged boot events.
     :param int n_auth: Number of unlogged authentication events.
     :param list[LogEntry] entries: List of LogEntry items.
     """
+
     __slots__ = ()
 
 
-class LogEntry(namedtuple('LogEntry', [
-        'number',
-        'command',
-        'length',
-        'session_key',
-        'target_key',
-        'second_key',
-        'result',
-        'tick',
-        'digest'
-])):
+class LogEntry(
+    namedtuple(
+        "LogEntry",
+        [
+            "number",
+            "command",
+            "length",
+            "session_key",
+            "target_key",
+            "second_key",
+            "result",
+            "tick",
+            "digest",
+        ],
+    )
+):
     """YubiHSM log entry.
 
     :param int number: The sequence number of the entry.
@@ -584,8 +604,9 @@ class LogEntry(namedtuple('LogEntry', [
     :param int tick: The YubiHSM system tick value when the command was run.
     :param bytes digest: A truncated hash of the entry and previous digest.
     """
+
     __slots__ = ()
-    FORMAT = '!HBHHHHBL16s'
+    FORMAT = "!HBHHHHBL16s"
     LENGTH = struct.calcsize(FORMAT)
 
     @property
@@ -620,8 +641,8 @@ class LogEntry(namedtuple('LogEntry', [
         :rtype: bool
         """
 
-        if (self.number - previous_entry.number) & 0xffff != 1:
-            raise ValueError('previous_entry has wrong number!')
+        if (self.number - previous_entry.number) & 0xFFFF != 1:
+            raise ValueError("previous_entry has wrong number!")
 
         digest = sha256(self.data + previous_entry.digest).digest()[:16]
         return constant_time.bytes_eq(self.digest, digest)

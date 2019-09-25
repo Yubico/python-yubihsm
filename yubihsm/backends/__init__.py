@@ -20,22 +20,26 @@ import re
 
 def get_backend(url=None):
     """Returns a backend suitable for the given URL."""
-    url = url or 'http://localhost:12345'
+    url = url or "http://localhost:12345"
     parsed = parse.urlparse(url)
 
     try:
-        if parsed.scheme == 'yhusb':
+        if parsed.scheme == "yhusb":
             from .usb import UsbBackend
-            serial = re.match(r'serial=(\d+)', parsed.netloc)
+
+            serial = re.match(r"serial=(\d+)", parsed.netloc)
             if serial:
                 return UsbBackend(int(serial.group(1)))
             elif not parsed.netloc:  # On anything else, fall through to error.
                 return UsbBackend()
-        elif parsed.scheme in ('http', 'https'):
+        elif parsed.scheme in ("http", "https"):
             from .http import HttpBackend
+
             return HttpBackend(url, (10, 600))
     except ImportError:
-        raise ValueError('Unable to initialize backend for scheme "%s", are '
-                         'required dependencies installed?' % parsed.scheme)
+        raise ValueError(
+            'Unable to initialize backend for scheme "%s", are '
+            "required dependencies installed?" % parsed.scheme
+        )
 
-    raise ValueError('Invalid YubiHSM backend URL.')
+    raise ValueError("Invalid YubiHSM backend URL.")
