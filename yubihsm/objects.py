@@ -34,6 +34,7 @@ from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 from cryptography.utils import int_to_bytes, int_from_bytes
 from collections import namedtuple
 import six
+import copy
 import struct
 
 
@@ -123,6 +124,17 @@ class YhsmObject(object):
         self.session = session
         self.id = object_id
         self._seq = seq
+
+    def with_session(self, session):
+        """Get a copy of the object reference, using the given session.
+
+        :param AuthSession session: The session to use for the created reference.
+        :return: A new reference to the object, associated wth the given session.
+        :rtype: YhsmObject
+        """
+        other = copy.copy(self)
+        other.session = session
+        return other
 
     def get_info(self):
         """Read extended information about the object from the YubiHSM.

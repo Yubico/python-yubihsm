@@ -45,10 +45,10 @@ class Delete(YubiHsmTestCase):
         neg_key, neg_sess = self._set_up_key(CAPABILITY.NONE)
 
         with self.assertRaises(YubiHsmDeviceError) as context:
-            neg_sess.get_object(obj.id, obj.object_type).delete()
+            obj.with_session(neg_sess).delete()
         self.assertEqual(context.exception.code, ERROR.INSUFFICIENT_PERMISSIONS)
 
-        pos_sess.get_object(obj.id, obj.object_type).delete()
+        obj.with_session(pos_sess).delete()
 
         pos_sess.close()
         neg_sess.close()

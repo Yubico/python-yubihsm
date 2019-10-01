@@ -15,7 +15,7 @@
 from __future__ import absolute_import, division
 
 from .utils import YubiHsmTestCase
-from yubihsm.defs import COMMAND, CAPABILITY, OBJECT, ERROR
+from yubihsm.defs import COMMAND, CAPABILITY, ERROR
 from yubihsm.objects import AuthenticationKey
 from yubihsm.exceptions import YubiHsmAuthenticationError, YubiHsmDeviceError
 from yubihsm.utils import password_to_key
@@ -38,16 +38,13 @@ class TestAuthenticationKey(YubiHsmTestCase):
             password,
         )
 
-        session = self.hsm.create_session_derived(authkey.id, password)
-
-        message = os.urandom(256)
-
-        resp = session.send_secure_cmd(COMMAND.ECHO, message)
+        with self.hsm.create_session_derived(authkey.id, password) as session:
+            message = os.urandom(256)
+            resp = session.send_secure_cmd(COMMAND.ECHO, message)
 
         self.assertEqual(resp, message)
 
         authkey.delete()
-        session.close()
 
     def test_change_password(self):
         self.require_version((2, 1, 0), "Change authentication key")
@@ -69,10 +66,8 @@ class TestAuthenticationKey(YubiHsmTestCase):
         self.assertEqual(context.exception.code, ERROR.INVALID_ID)
 
         # Try again, using the new auth key
-        session = self.hsm.create_session_derived(authkey.id, "first_password")
-        authkey2 = session.get_object(authkey.id, OBJECT.AUTHENTICATION_KEY)
-        authkey2.change_password("second_password")
-        session.close()
+        with self.hsm.create_session_derived(authkey.id, "first_password") as session:
+            authkey.with_session(session).change_password("second_password")
 
         with self.assertRaises(YubiHsmAuthenticationError):
             self.hsm.create_session_derived(authkey.id, "first_password")
@@ -102,14 +97,63 @@ class TestAuthenticationKey(YubiHsmTestCase):
             key_mac,
         )
 
-        session = self.hsm.create_session_derived(authkey.id, "password")
-        authkey2 = session.get_object(authkey.id, OBJECT.AUTHENTICATION_KEY)
+        with self.hsm.create_session_derived(authkey.id, "password") as session:
+            key_enc, key_mac = password_to_key("second_password")
+            authkey.with_session(session).change_key(key_enc, key_mac)
 
-        key_enc, key_mac = password_to_key("second_password")
-
-        authkey2.change_key(key_enc, key_mac)
-        session.close()
-
-        self.hsm.create_session_derived(authkey.id, "second_password").close()
+        with self.hsm.create_session_derived(authkey.id, "second_password"):
+            pass
 
         authkey.delete()
+
+
+class TestSessions(YubiHsmTestCase):
+    def test_parallel_sessions(self):
+        authkey1 = AuthenticationKey.put_derived(
+            self.session,
+            0,
+            "Test authkey 1",
+            1,
+            CAPABILITY.NONE,
+            CAPABILITY.NONE,
+            "one",
+        )
+
+        authkey2 = AuthenticationKey.put_derived(
+            self.session,
+            0,
+            "Test authkey 2",
+            2,
+            CAPABILITY.NONE,
+            CAPABILITY.NONE,
+            "two",
+        )
+
+        authkey3 = AuthenticationKey.put_derived(
+            self.session,
+            0,
+            "Test authkey 3",
+            1,
+            CAPABILITY.NONE,
+            CAPABILITY.NONE,
+            "three",
+        )
+
+        session1 = self.hsm.create_session_derived(authkey1.id, "one")
+        session2 = self.hsm.create_session_derived(authkey2.id, "two")
+        session3 = self.hsm.create_session_derived(authkey3.id, "three")
+
+        session2.close()
+        session1.send_secure_cmd(COMMAND.ECHO, b"hello")
+        session3.send_secure_cmd(COMMAND.ECHO, b"hi")
+
+        session1.send_secure_cmd(COMMAND.ECHO, b"hello")
+        session3.send_secure_cmd(COMMAND.ECHO, b"greetings")
+        session1.close()
+
+        session3.send_secure_cmd(COMMAND.ECHO, b"good bye")
+        session3.close()
+
+        authkey1.delete()
+        authkey2.delete()
+        authkey3.delete()

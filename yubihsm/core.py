@@ -84,6 +84,12 @@ class YubiHsm(object):
         """
         self._backend = backend
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, typ, value, traceback):
+        self.close()
+
     def close(self):
         """Disconnect from the backend, freeing any resources in use by it."""
         if self._backend:
@@ -253,7 +259,7 @@ class AuthSession(object):
     """An authenticated secure session with a YubiHSM.
 
     Typically you get an instance of this class by calling
-    :func:`~YubiHsm.create_session`.
+    :func:`~YubiHsm.create_session` or :func:`~YubiHsm.create_session_derived`.
     """
 
     def __init__(self, hsm, auth_key_id, key_enc, key_mac):
@@ -265,7 +271,6 @@ class AuthSession(object):
         :param bytes key_enc: Static `K-ENC` used to establish the session.
         :param bytes key_mac: Static `K-MAC` used to establish the session.
         """
-
         self._hsm = hsm
 
         context = os.urandom(8)
@@ -290,7 +295,27 @@ class AuthSession(object):
         self._ctr = 1
         self._mac_chain, mac = _calculate_mac(self._key_mac, b"\0" * 16, msg)
         msg += mac
-        data = _unpad_resp(self._hsm._transceive(msg), COMMAND.AUTHENTICATE_SESSION)
+        if _unpad_resp(self._hsm._transceive(msg), COMMAND.AUTHENTICATE_SESSION) != b"":
+            raise YubiHsmInvalidResponseError("Non-empty response")
+
+    def close(self):
+        """Close this session with the YubiHSM.
+
+        Once closed, this session object can no longer be used, unless re-connected.
+        """
+
+        if self._sid is not None:
+            try:
+                self.send_secure_cmd(COMMAND.CLOSE_SESSION)
+            finally:
+                self._sid = None
+                self._key_enc = self._key_mac = self._key_rmac = None
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, typ, value, traceback):
+        self.close()
 
     def _secure_transceive(self, msg):
         msg += b"\x80"
@@ -345,19 +370,6 @@ class AuthSession(object):
         """
         msg = struct.pack("!BH", cmd, len(data)) + data
         return _unpad_resp(self._secure_transceive(msg), cmd)
-
-    def close(self):
-        """Close this session with the YubiHSM.
-
-        Once closed, this session object can no longer be used.
-        """
-
-        if self._sid is not None:
-            try:
-                self.send_secure_cmd(COMMAND.CLOSE_SESSION)
-            finally:
-                self._sid = None
-                self._key_enc = self._key_mac = self._key_rmac = None
 
     def list_objects(
         self,
