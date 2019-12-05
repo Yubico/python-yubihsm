@@ -3,7 +3,7 @@
 Python library and tests for the YubiHSM 2.
 This library is compatible with both Python 2 and 3.
 
-This libary communicates with the YubiHSM 2 connector daemon, which must already be running.
+This library communicates with the YubiHSM 2 connector daemon, which must already be running.
 It can also communicate directly with the YubiHSM 2 via USB.
 
 === License
@@ -55,7 +55,7 @@ key = AsymmetricKey.generate(  # Generate a new key object in the YubiHSM.
     0,                         # Object ID, 0 to get one assigned.
     'My key',                  # Label for the object.
     1,                         # Domain(s) for the object.
-    CAPABILITY.SIGN_ECDSA,     # Capabilities for the ojbect.
+    CAPABILITY.SIGN_ECDSA,     # Capabilities for the object.
     ALGORITHM.EC_P256          # Algorithm for the key.
 )
 
