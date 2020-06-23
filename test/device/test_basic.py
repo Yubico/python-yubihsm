@@ -141,6 +141,9 @@ class TestVarious(YubiHsmTestCase):
         with self.assertRaises(YubiHsmInvalidRequestError):
             self.hsm.send_cmd(COMMAND.ECHO, buf)
 
+    def test_get_scp11_pubkey(self):
+        buf = self.hsm.get_scp11_pubkey()
+        self.assertEqual(len(buf), 64)
 
 class TestEcho(YubiHsmTestCase):
     def plain_echo(self, echo_len):

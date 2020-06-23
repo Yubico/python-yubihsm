@@ -20,10 +20,44 @@ from yubihsm.objects import AuthenticationKey
 from yubihsm.exceptions import YubiHsmAuthenticationError, YubiHsmDeviceError
 from yubihsm.utils import password_to_key
 from binascii import a2b_hex
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import hashes, cmac, constant_time
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from cryptography.hazmat.primitives.asymmetric import ec, utils as crypto_utils
+from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurvePublicKey
+from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
+from cryptography.utils import int_to_bytes
 import os
 
 
 class TestAuthenticationKey(YubiHsmTestCase):
+    def test_put_scp11_authkey(self):
+        sk_oce = ec.generate_private_key(ec.SECP256R1(), backend=default_backend())
+        pk_oce = sk_oce.public_key().public_bytes(
+                Encoding.X962, PublicFormat.UncompressedPoint
+            )[1 : 1 + 64]
+
+        pk_sd = self.hsm.get_scp11_pubkey()
+        shsss = sk_oce.exchange(ec.ECDH(), EllipticCurvePublicKey.from_encoded_point(ec.SECP256R1(), b"\4" + pk_sd))
+
+        authkey = AuthenticationKey.put_scp11(
+            self.session,
+            0,
+            "Test PUT authkey",
+            1,
+            CAPABILITY.NONE,
+            CAPABILITY.NONE,
+            pk_oce,
+        )
+
+        with self.hsm.create_scp11_session(authkey.id, shsss) as session:
+            message = os.urandom(256)
+            resp = session.send_secure_cmd(COMMAND.ECHO, message)
+
+        self.assertEqual(resp, message)
+
+        authkey.delete()
+
     def test_put_unicode_authkey(self):
         # UTF-8 encoded unicode password
         password = b"\xF0\x9F\x98\x81\xF0\x9F\x98\x83\xF0\x9F\x98\x84".decode("utf8")

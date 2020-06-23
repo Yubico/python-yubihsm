@@ -30,8 +30,11 @@ from .exceptions import (
 )
 
 from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives import cmac, constant_time
+from cryptography.hazmat.primitives import hashes, cmac, constant_time
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from cryptography.hazmat.primitives.asymmetric import ec, utils as crypto_utils
+from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurvePublicKey
+from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 from cryptography.utils import int_to_bytes
 from hashlib import sha256
 from collections import namedtuple
@@ -73,6 +76,17 @@ def _unpad_resp(resp, cmd):
         raise YubiHsmInvalidResponseError("Wrong command in response")
     return resp[3 : length + 3]
 
+def x963_kdf(hash, shsee, shsss, length):
+    output = b""
+
+    for i in range(0, length // hash.digest_size + 1):
+        digest = hashes.Hash(hash, backend=default_backend())
+        digest.update(shsee)
+        digest.update(shsss)
+        digest.update(struct.pack("!L", i + 1))
+        output += digest.finalize()
+
+    return output[:length]
 
 class YubiHsm(object):
     """An unauthenticated connection to a YubiHSM."""
@@ -120,6 +134,12 @@ class YubiHsm(object):
         """
         return DeviceInfo.parse(self.send_cmd(COMMAND.DEVICE_INFO))
 
+    def get_scp11_pubkey(self):
+        return self.send_cmd(COMMAND.GET_SCP11_PUBKEY)
+
+    def create_scp11_session(self, auth_key_id, shsss):
+        return AuthSession.create_scp11_session(self, auth_key_id, shsss)
+
     def create_session(self, auth_key_id, key_enc, key_mac):
         """Creates an authenticated session with the YubiHSM.
 
@@ -133,7 +153,7 @@ class YubiHsm(object):
         :return: An authenticated session.
         :rtype: AuthSession
         """
-        return AuthSession(self, auth_key_id, key_enc, key_mac)
+        return AuthSession.create_scp03_session(self, auth_key_id, key_enc, key_mac)
 
     def create_session_derived(self, auth_key_id, password):
         """Creates an authenticated session with the YubiHSM.
@@ -262,7 +282,42 @@ class AuthSession(object):
     :func:`~YubiHsm.create_session` or :func:`~YubiHsm.create_session_derived`.
     """
 
-    def __init__(self, hsm, auth_key_id, key_enc, key_mac):
+    @classmethod
+    def create_scp11_session(cls, hsm, auth_key_id, shsss):
+
+        esk_oce = ec.generate_private_key(ec.SECP256R1(), backend=default_backend())
+        epk_oce = esk_oce.public_key().public_bytes(
+                Encoding.X962, PublicFormat.UncompressedPoint
+            )[1 : 1 + 64]
+
+        data = hsm.send_cmd(
+            COMMAND.CREATE_SESSION, struct.pack("!H", auth_key_id) + epk_oce
+        )
+        
+        sid = six.indexbytes(data, 0)
+        epk_sd = data[1 : 1 + 64]
+        receipt = data[1 + 64 : 1 + 64 + 16]
+
+        shsee = esk_oce.exchange(ec.ECDH(), EllipticCurvePublicKey.from_encoded_point(ec.SECP256R1(), b"\4" + epk_sd))
+        shs_oce = x963_kdf(hashes.SHA256(), shsee, shsss, 4 * 16)
+
+        key_receipt = shs_oce[0:16]
+        key_enc = shs_oce[16:32]
+        key_mac = shs_oce[32:48]
+        key_rmac = shs_oce[48:64]
+
+        c = cmac.CMAC(algorithms.AES(key_receipt), backend=default_backend())
+        c.update(epk_sd)
+        c.update(epk_oce)
+        receipt_oce = c.finalize()
+
+        if not constant_time.bytes_eq(receipt_oce, receipt):
+            raise YubiHsmAuthenticationError()
+
+        return cls(hsm, sid, key_enc, key_mac, key_rmac, receipt)
+
+    @classmethod
+    def create_scp03_session(cls, hsm, auth_key_id, enc_key, mac_key):
         """Constructs an authenticated session.
 
         :param YubiHsm hsm: The YubiHSM connection.
@@ -271,32 +326,41 @@ class AuthSession(object):
         :param bytes key_enc: Static `K-ENC` used to establish the session.
         :param bytes key_mac: Static `K-MAC` used to establish the session.
         """
-        self._hsm = hsm
 
         context = os.urandom(8)
 
-        data = self._hsm.send_cmd(
+        data = hsm.send_cmd(
             COMMAND.CREATE_SESSION, struct.pack("!H", auth_key_id) + context
         )
 
-        self._sid = six.indexbytes(data, 0)
+        sid = six.indexbytes(data, 0)
         context += data[1 : 1 + 8]
         card_crypto = data[9 : 9 + 8]
-        self._key_enc = _derive(key_enc, KEY_ENC, context)
-        self._key_mac = _derive(key_mac, KEY_MAC, context)
-        self._key_rmac = _derive(key_mac, KEY_RMAC, context)
-        gen_card_crypto = _derive(self._key_mac, CARD_CRYPTOGRAM, context, 0x40)
+
+        key_enc = _derive(enc_key, KEY_ENC, context)
+        key_mac = _derive(mac_key, KEY_MAC, context)
+        key_rmac = _derive(mac_key, KEY_RMAC, context)
+        gen_card_crypto = _derive(key_mac, CARD_CRYPTOGRAM, context, 0x40)
 
         if not constant_time.bytes_eq(gen_card_crypto, card_crypto):
             raise YubiHsmAuthenticationError()
 
-        msg = struct.pack("!BHB", COMMAND.AUTHENTICATE_SESSION, 1 + 8 + 8, self.sid)
-        msg += _derive(self._key_mac, HOST_CRYPTOGRAM, context, 0x40)
-        self._ctr = 1
-        self._mac_chain, mac = _calculate_mac(self._key_mac, b"\0" * 16, msg)
+        msg = struct.pack("!BHB", COMMAND.AUTHENTICATE_SESSION, 1 + 8 + 8, sid)
+        msg += _derive(key_mac, HOST_CRYPTOGRAM, context, 0x40)
+        mac_chain, mac = _calculate_mac(key_mac, b"\0" * 16, msg)
         msg += mac
-        if _unpad_resp(self._hsm._transceive(msg), COMMAND.AUTHENTICATE_SESSION) != b"":
+        if _unpad_resp(hsm._transceive(msg), COMMAND.AUTHENTICATE_SESSION) != b"":
             raise YubiHsmInvalidResponseError("Non-empty response")
+        return cls(hsm, sid, key_enc, key_mac, key_rmac, mac_chain)
+
+    def __init__(self, hsm, sid, key_enc, key_mac, key_rmac, mac_chain):
+        self._hsm = hsm
+        self._sid = sid
+        self._key_enc = key_enc
+        self._key_mac = key_mac
+        self._key_rmac = key_rmac
+        self._mac_chain = mac_chain
+        self._ctr = 1
 
     def close(self):
         """Close this session with the YubiHSM.

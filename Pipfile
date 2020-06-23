@@ -8,9 +8,10 @@ name = "pypi"
 sphinx = "*"
 sphinx-rtd-theme = "*"
 mock = "*"
+pylint = "<2.0.0"
 
 [packages]
-yubihsm = {editable = true, extras = ["http", "usb"], path = "."}
+yubihsm = {path = ".",extras = ["http", "usb"],editable = true}
 
 [scripts]
 test = "python setup.py test"
