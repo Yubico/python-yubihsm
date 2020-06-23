@@ -363,6 +363,44 @@ class AuthenticationKey(YhsmObject):
         msg += key_enc + key_mac
         return cls._from_command(session, COMMAND.PUT_AUTHENTICATION_KEY, msg)
 
+    @classmethod
+    def put_scp11(
+        cls,
+        session,
+        object_id,
+        label,
+        domains,
+        capabilities,
+        delegated_capabilities,
+        pk_oce,
+    ):
+        """Create an AuthenticationKey by providing raw public key.
+
+        :param AuthSession session: The session to import via.
+        :param int object_id: The ID to set for the object. Set to 0 to let the
+            YubiHSM designate an ID.
+        :param str label: A text label to give the object.
+        :param int domains: The set of domains to assign the object to.
+        :param int capabilities: The set of capabilities to give the object.
+        :param int delegated_capabilities: The set of capabilities that the
+            AuthenticationKey can give to objects created when authenticated
+            using it.
+        :param bytes pk_oce: The raw public key.
+        :return: A reference to the newly created object.
+        :rtype: AuthenticationKey
+        """
+        msg = struct.pack(
+            "!H%dsHQBQ" % LABEL_LENGTH,
+            object_id,
+            _label_pack(label),
+            domains,
+            capabilities,
+            ALGORITHM.EC_P256_YUBICO_AUTHENTICATION,
+            delegated_capabilities,
+        )
+        msg += pk_oce
+        return cls._from_command(session, COMMAND.PUT_AUTHENTICATION_KEY, msg)
+
     def change_password(self, password):
         """Change the password used to authenticate a session.
 

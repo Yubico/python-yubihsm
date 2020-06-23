@@ -130,6 +130,7 @@ class COMMAND(IntEnum):
     SIGN_EDDSA = 0x6A
     BLINK_DEVICE = 0x6B
     CHANGE_AUTHENTICATION_KEY = 0x6C
+    GET_SCP11_PUBKEY = 0x6D
 
     ERROR = 0x7F
 
@@ -189,6 +190,8 @@ class ALGORITHM(IntEnum):
     EC_ECDSA_SHA512 = 45
     EC_ED25519 = 46
     EC_P224 = 47
+    RSA_PKCS1_DECRYPT = 48
+    EC_P256_YUBICO_AUTHENTICATION = 49
 
     def to_curve(self):
         """Return a Cryptography EC curve instance for a given member.
