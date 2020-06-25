@@ -19,6 +19,8 @@ from yubihsm.core import MAX_MSG_SIZE
 from yubihsm.defs import ALGORITHM, CAPABILITY, OBJECT, COMMAND, ORIGIN
 from yubihsm.objects import AsymmetricKey, HmacKey, WrapKey, AuthenticationKey
 from yubihsm.exceptions import YubiHsmInvalidRequestError
+from cryptography.hazmat.primitives.asymmetric import ec
+from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurvePublicKey
 import uuid
 import os
 
@@ -142,8 +144,8 @@ class TestVarious(YubiHsmTestCase):
             self.hsm.send_cmd(COMMAND.ECHO, buf)
 
     def test_get_scp11_pubkey(self):
-        buf = self.hsm.get_scp11_pubkey()
-        self.assertEqual(len(buf), 64)
+        pk_sd = self.hsm.get_scp11_pubkey()
+        EllipticCurvePublicKey.from_encoded_point(ec.SECP256R1(), b"\4" + pk_sd)
 
 class TestEcho(YubiHsmTestCase):
     def plain_echo(self, echo_len):
