@@ -134,11 +134,11 @@ class YubiHsm(object):
         """
         return DeviceInfo.parse(self.send_cmd(COMMAND.DEVICE_INFO))
 
-    def get_scp11_pubkey(self):
-        return self.send_cmd(COMMAND.GET_SCP11_PUBKEY)
+    def get_device_pubkey(self):
+        return self.send_cmd(COMMAND.GET_DEVICE_PUBKEY)
 
-    def create_scp11_session(self, auth_key_id, shsss):
-        return AuthSession.create_scp11_session(self, auth_key_id, shsss)
+    def create_asym_session(self, auth_key_id, shsss):
+        return AuthSession.create_asym_session(self, auth_key_id, shsss)
 
     def create_session(self, auth_key_id, key_enc, key_mac):
         """Creates an authenticated session with the YubiHSM.
@@ -153,7 +153,7 @@ class YubiHsm(object):
         :return: An authenticated session.
         :rtype: AuthSession
         """
-        return AuthSession.create_scp03_session(self, auth_key_id, key_enc, key_mac)
+        return AuthSession.create_session(self, auth_key_id, key_enc, key_mac)
 
     def create_session_derived(self, auth_key_id, password):
         """Creates an authenticated session with the YubiHSM.
@@ -283,7 +283,7 @@ class AuthSession(object):
     """
 
     @classmethod
-    def create_scp11_session(cls, hsm, auth_key_id, shsss):
+    def create_asym_session(cls, hsm, auth_key_id, shsss):
 
         esk_oce = ec.generate_private_key(ec.SECP256R1(), backend=default_backend())
         epk_oce = esk_oce.public_key().public_bytes(
@@ -317,7 +317,7 @@ class AuthSession(object):
         return cls(hsm, sid, key_enc, key_mac, key_rmac, receipt)
 
     @classmethod
-    def create_scp03_session(cls, hsm, auth_key_id, enc_key, mac_key):
+    def create_session(cls, hsm, auth_key_id, enc_key, mac_key):
         """Constructs an authenticated session.
 
         :param YubiHsm hsm: The YubiHSM connection.
