@@ -374,7 +374,7 @@ class AuthenticationKey(YhsmObject):
         return cls._from_command(session, COMMAND.PUT_AUTHENTICATION_KEY, msg)
 
     @classmethod
-    def put_scp11(
+    def put_asym(
         cls,
         session,
         object_id,

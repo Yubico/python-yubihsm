@@ -31,16 +31,16 @@ import os
 
 
 class TestAuthenticationKey(YubiHsmTestCase):
-    def test_put_scp11_authkey(self):
+    def test_put_asym_authkey(self):
         sk_oce = ec.generate_private_key(ec.SECP256R1(), backend=default_backend())
         pk_oce = sk_oce.public_key().public_bytes(
                 Encoding.X962, PublicFormat.UncompressedPoint
             )[1 : 1 + 64]
 
-        pk_sd = self.hsm.get_scp11_pubkey()
+        pk_sd = self.hsm.get_device_pubkey()
         shsss = sk_oce.exchange(ec.ECDH(), EllipticCurvePublicKey.from_encoded_point(ec.SECP256R1(), b"\4" + pk_sd))
 
-        authkey = AuthenticationKey.put_scp11(
+        authkey = AuthenticationKey.put_asym(
             self.session,
             0,
             "Test PUT authkey",
@@ -50,7 +50,7 @@ class TestAuthenticationKey(YubiHsmTestCase):
             pk_oce,
         )
 
-        with self.hsm.create_scp11_session(authkey.id, shsss) as session:
+        with self.hsm.create_asym_session(authkey.id, shsss) as session:
             message = os.urandom(256)
             resp = session.send_secure_cmd(COMMAND.ECHO, message)
 
