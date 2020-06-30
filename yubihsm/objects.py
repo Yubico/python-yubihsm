@@ -427,6 +427,19 @@ class AuthenticationKey(YhsmObject):
         if struct.unpack("!H", resp)[0] != self.id:
             raise YubiHsmInvalidResponseError("Wrong ID returned")
 
+    def change_asym_key(self, key):
+        """Change the raw keys used to authenticate a session.
+
+        :param bytes key_enc: The raw encryption key.
+        :param bytes key_mac: The raw MAC key.
+        """
+        msg = (
+            struct.pack("!HB", self.id, ALGORITHM.EC_P256_YUBICO_AUTHENTICATION)
+            + key
+        )
+        resp = self.session.send_secure_cmd(COMMAND.CHANGE_AUTHENTICATION_KEY, msg)
+        if struct.unpack("!H", resp)[0] != self.id:
+            raise YubiHsmInvalidResponseError("Wrong ID returned")
 
 class AsymmetricKey(YhsmObject):
     """Used to sign/decrypt data with the private key of an asymmetric key pair.
