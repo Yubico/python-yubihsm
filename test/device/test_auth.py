@@ -140,6 +140,42 @@ class TestAuthenticationKey(YubiHsmTestCase):
 
         authkey.delete()
 
+    def test_change_asym_keys(self):
+        self.require_version((2, 1, 0), "Change authentication key")
+
+        pk_sd = self.hsm.get_device_pubkey()
+
+        sk_oce = ec.generate_private_key(ec.SECP256R1(), backend=default_backend())
+        shsss = sk_oce.exchange(ec.ECDH(), EllipticCurvePublicKey.from_encoded_point(ec.SECP256R1(), b"\4" + pk_sd))
+
+        pk_oce = sk_oce.public_key().public_bytes(
+                Encoding.X962, PublicFormat.UncompressedPoint
+            )[1 : 1 + 64]
+
+        authkey = AuthenticationKey.put_asym(
+            self.session,
+            0,
+            "Test PUT authkey",
+            1,
+            CAPABILITY.CHANGE_AUTHENTICATION_KEY,
+            CAPABILITY.NONE,
+            pk_oce,
+        )
+
+        with self.hsm.create_asym_session(authkey.id, shsss) as session:
+            sk_oce_2 = ec.generate_private_key(ec.SECP256R1(), backend=default_backend())
+            shsss_2 = sk_oce_2.exchange(ec.ECDH(), EllipticCurvePublicKey.from_encoded_point(ec.SECP256R1(), b"\4" + pk_sd))
+
+            pk_oce_2 = sk_oce.public_key().public_bytes(
+                    Encoding.X962, PublicFormat.UncompressedPoint
+                )[1 : 1 + 64]
+
+            authkey.with_session(session).change_asym_key(pk_oce_2)
+
+        with self.hsm.create_asym_session(authkey.id, shsss_2):
+            pass
+
+        authkey.delete()
 
 class TestSessions(YubiHsmTestCase):
     def test_parallel_sessions(self):
