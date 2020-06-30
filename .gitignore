@@ -8,5 +8,4 @@ venv/
 *.pyc
 .eggs/
 **/_build
-virtualenv_test/
-.vscode/settings.json
+.vscode/
