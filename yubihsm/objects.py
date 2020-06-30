@@ -30,6 +30,7 @@ from cryptography.hazmat.backends import default_backend
 from cryptography import x509
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import rsa, ec
+from cryptography.hazmat.primitives.asymmetric.utils import Prehashed
 from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 from cryptography.utils import int_to_bytes, int_from_bytes
 from collections import namedtuple
@@ -57,6 +58,15 @@ def _label_unpack(packed):
     except UnicodeDecodeError:
         # Not valid UTF-8 string, return the raw data.
         return packed
+
+
+def _calc_hash(data, hash):
+    if not isinstance(hash, Prehashed):
+        digest = hashes.Hash(hash, backend=default_backend())
+        digest.update(data)
+        data = digest.finalize()
+
+    return data
 
 
 class ObjectInfo(
@@ -572,9 +582,7 @@ class AsymmetricKey(YhsmObject):
         :return: The resulting signature.
         :rtype: bytes
         """
-        digest = hashes.Hash(hash, backend=default_backend())
-        digest.update(data)
-        data = digest.finalize()
+        data = _calc_hash(data, hash)
 
         if not length:
             length = hash.digest_size
@@ -609,10 +617,7 @@ class AsymmetricKey(YhsmObject):
         :return: The resulting signature.
         :rtype: bytes
         """
-        digest = hashes.Hash(hash, backend=default_backend())
-        digest.update(data)
-
-        data = digest.finalize()
+        data = _calc_hash(data, hash)
 
         msg = struct.pack("!H", self.id) + data
         return self.session.send_secure_cmd(COMMAND.SIGN_PKCS1, msg)
@@ -639,9 +644,7 @@ class AsymmetricKey(YhsmObject):
         :return: The resulting signature.
         :rtype: bytes
         """
-        digest = hashes.Hash(hash, backend=default_backend())
-        digest.update(data)
-        data = digest.finalize()
+        data = _calc_hash(data, hash)
 
         mgf = getattr(ALGORITHM, "RSA_MGF1_%s" % mgf_hash.name.upper())
 
