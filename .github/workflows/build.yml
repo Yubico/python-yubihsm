@@ -57,17 +57,15 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest]
-        python: [2.7, 3.8]
 
-    name: device test ${{ matrix.os }} Py ${{ matrix.python }}
+    name: Device tests ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v2
 
       - name: Set up Python
         uses: actions/setup-python@v1
         with:
-          python-version: ${{ matrix.python }}
-          architecture: x64
+          python-version: 3.x
 
       - name: Install python dependencies
         run: |
@@ -87,13 +85,14 @@ jobs:
           echo "::set-env name=BACKEND::$(curl http://localhost:12345/dispatcher/request)"
 
       - name: Run device tests
+        if: ${{ env.BACKEND }}
         run: |
           echo Using backend $BACKEND
           pipenv run test
 
       - name: Release connector
         if: ${{ always() }}
-        run: curl "http://localhost:12345/dispatcher/release?connector=$BACKEND"
+        run: test -n "$BACKEND" && curl "http://localhost:12345/dispatcher/release?connector=$BACKEND"
 
   build:
     runs-on: ubuntu-latest
