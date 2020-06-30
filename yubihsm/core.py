@@ -32,7 +32,7 @@ from .exceptions import (
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes, cmac, constant_time
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-from cryptography.hazmat.primitives.asymmetric import ec, utils as crypto_utils
+from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurvePublicKey
 from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 from cryptography.utils import int_to_bytes
@@ -76,6 +76,7 @@ def _unpad_resp(resp, cmd):
         raise YubiHsmInvalidResponseError("Wrong command in response")
     return resp[3 : length + 3]
 
+
 def x963_kdf(hash, shsee, shsss, length):
     output = b""
 
@@ -87,6 +88,7 @@ def x963_kdf(hash, shsee, shsss, length):
         output += digest.finalize()
 
     return output[:length]
+
 
 class YubiHsm(object):
     """An unauthenticated connection to a YubiHSM."""
@@ -287,18 +289,21 @@ class AuthSession(object):
 
         esk_oce = ec.generate_private_key(ec.SECP256R1(), backend=default_backend())
         epk_oce = esk_oce.public_key().public_bytes(
-                Encoding.X962, PublicFormat.UncompressedPoint
-            )[1 : 1 + 64]
+            Encoding.X962, PublicFormat.UncompressedPoint
+        )[1 : 1 + 64]
 
         data = hsm.send_cmd(
             COMMAND.CREATE_SESSION, struct.pack("!H", auth_key_id) + epk_oce
         )
-        
+
         sid = six.indexbytes(data, 0)
         epk_sd = data[1 : 1 + 64]
         receipt = data[1 + 64 : 1 + 64 + 16]
 
-        shsee = esk_oce.exchange(ec.ECDH(), EllipticCurvePublicKey.from_encoded_point(ec.SECP256R1(), b"\4" + epk_sd))
+        shsee = esk_oce.exchange(
+            ec.ECDH(),
+            EllipticCurvePublicKey.from_encoded_point(ec.SECP256R1(), b"\4" + epk_sd),
+        )
         shs_oce = x963_kdf(hashes.SHA256(), shsee, shsss, 4 * 16)
 
         key_receipt = shs_oce[0:16]

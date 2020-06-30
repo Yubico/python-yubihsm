@@ -237,8 +237,8 @@ class TestWrap(YubiHsmTestCase):
             raw_key,
         )
 
-        for l in range(1, 64):
-            data = os.urandom(l)
+        for ll in range(1, 64):
+            data = os.urandom(ll)
             wrap = w_key.wrap_data(data)
             with self.assertRaises(YubiHsmDeviceError) as context:
                 u_key.wrap_data(data)
