@@ -176,7 +176,7 @@ class TestAuthenticationKey(YubiHsmTestCase):
                 ),
             )
 
-            pk_oce_2 = sk_oce.public_key().public_bytes(
+            pk_oce_2 = sk_oce_2.public_key().public_bytes(
                 Encoding.X962, PublicFormat.UncompressedPoint
             )[1 : 1 + 64]
 
