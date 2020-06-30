@@ -13,7 +13,6 @@
 # limitations under the License.
 
 import re
-import sys
 from setuptools import setup, find_packages
 
 
@@ -22,10 +21,6 @@ def get_version():
         match = re.search(r"(?m)^__version__\s*=\s*['\"](.+)['\"]$", f.read())
         return match.group(1)
 
-
-install_requires = ["six", "cryptography>=1.8"]
-if sys.version_info < (3, 4):
-    install_requires.append("enum34")
 
 setup(
     name="yubihsm",
@@ -44,7 +39,7 @@ setup(
     ],
     packages=find_packages(exclude=["test", "test.*"]),
     test_suite="test",
-    install_requires=install_requires,
+    install_requires=["six", "cryptography>=1.8"],
     extras_require={"http": ["requests"], "usb": ["pyusb"]},
     tests_require=["mock", "cryptography>=2.6"],
 )
