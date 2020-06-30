@@ -146,14 +146,14 @@ class TestAuthenticationKey(YubiHsmTestCase):
         pk_sd = self.hsm.get_device_pubkey()
 
         sk_oce = ec.generate_private_key(ec.SECP256R1(), backend=default_backend())
+        pk_oce = sk_oce.public_key().public_bytes(
+            Encoding.X962, PublicFormat.UncompressedPoint
+        )[1 : 1 + 64]
+
         shsss = sk_oce.exchange(
             ec.ECDH(),
             EllipticCurvePublicKey.from_encoded_point(ec.SECP256R1(), b"\4" + pk_sd),
         )
-
-        pk_oce = sk_oce.public_key().public_bytes(
-            Encoding.X962, PublicFormat.UncompressedPoint
-        )[1 : 1 + 64]
 
         authkey = AuthenticationKey.put_asym(
             self.session,
@@ -169,16 +169,16 @@ class TestAuthenticationKey(YubiHsmTestCase):
             sk_oce_2 = ec.generate_private_key(
                 ec.SECP256R1(), backend=default_backend()
             )
+            pk_oce_2 = sk_oce_2.public_key().public_bytes(
+                Encoding.X962, PublicFormat.UncompressedPoint
+            )[1 : 1 + 64]
+
             shsss_2 = sk_oce_2.exchange(
                 ec.ECDH(),
                 EllipticCurvePublicKey.from_encoded_point(
                     ec.SECP256R1(), b"\4" + pk_sd
                 ),
             )
-
-            pk_oce_2 = sk_oce_2.public_key().public_bytes(
-                Encoding.X962, PublicFormat.UncompressedPoint
-            )[1 : 1 + 64]
 
             authkey.with_session(session).change_asym_key(pk_oce_2)
 
