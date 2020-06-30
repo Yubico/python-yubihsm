@@ -147,6 +147,7 @@ class TestVarious(YubiHsmTestCase):
         pk_sd = self.hsm.get_device_pubkey()
         EllipticCurvePublicKey.from_encoded_point(ec.SECP256R1(), b"\4" + pk_sd)
 
+
 class TestEcho(YubiHsmTestCase):
     def plain_echo(self, echo_len):
         echo_buf = os.urandom(echo_len)
