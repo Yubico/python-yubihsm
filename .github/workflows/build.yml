@@ -51,6 +51,50 @@ jobs:
         env:
           BACKEND: NONE
 
+  device_test:
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        python: [2.7, 3.8]
+
+    name: device test ${{ matrix.os }} Py ${{ matrix.python }}
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v1
+        with:
+          python-version: ${{ matrix.python }}
+          architecture: x64
+
+      - name: Install python dependencies
+        run: |
+          python -m pip install --upgrade pip setuptools pipenv
+          pipenv install --skip-lock
+
+      - name: Set up tunnel
+        env:
+          tlspwd: ${{ secrets.TLSPWD }}
+        run: |
+          openssl aes-256-cbc -k "$tlspwd" -md sha256 -in ./.ci/client-combined.pem.enc -out ./.ci/client-combined.pem -d
+          export krnl="$(uname -s | tr '[:upper:]' '[:lower:]')"
+          wget https://github.com/square/ghostunnel/releases/download/v1.3.1/ghostunnel-v1.3.1-$krnl-amd64-with-pkcs11 -O ghostunnel
+          chmod +x ./ghostunnel
+          ./ghostunnel client --listen localhost:12345 --target hsm-connector01.sthlm.in.yubico.org:8443 --keystore ./.ci/client-combined.pem --cacert ./.ci/server-crt.pem 2>/dev/null &
+          sleep 3
+          echo "::set-env name=BACKEND::$(curl http://localhost:12345/dispatcher/request)"
+
+      - name: Run device tests
+        run: |
+          echo Using backend $BACKEND
+          pipenv run test
+
+      - name: Release connector
+        if: ${{ always() }}
+        run: curl "http://localhost:12345/dispatcher/release?connector=$BACKEND"
+
   build:
     runs-on: ubuntu-latest
     name: Build Python source .tar.gz
