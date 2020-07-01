@@ -242,7 +242,7 @@ class DeviceInfo(
 
 def _calculate_iv(key, counter):
     encryptor = Cipher(
-        algorithms.AES(key), modes.ECB(), backend=default_backend()
+        algorithms.AES(key), modes.ECB(), backend=default_backend()  # nosec ECB
     ).encryptor()
     return encryptor.update(int_to_bytes(counter, 16)) + encryptor.finalize()
 
