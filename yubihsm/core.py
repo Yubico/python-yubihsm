@@ -137,7 +137,8 @@ class YubiHsm(object):
         return DeviceInfo.parse(self.send_cmd(COMMAND.DEVICE_INFO))
 
     def get_device_pubkey(self):
-        return self.send_cmd(COMMAND.GET_DEVICE_PUBKEY)
+        pk_sd = self.send_cmd(COMMAND.GET_DEVICE_PUBKEY)
+        return EllipticCurvePublicKey.from_encoded_point(ec.SECP256R1(), b"\x04" + pk_sd[1 : 1 + 64])
 
     def create_asym_session(self, auth_key_id, shsss):
         return AuthSession.create_asym_session(self, auth_key_id, shsss)
@@ -290,19 +291,19 @@ class AuthSession(object):
         esk_oce = ec.generate_private_key(ec.SECP256R1(), backend=default_backend())
         epk_oce = esk_oce.public_key().public_bytes(
             Encoding.X962, PublicFormat.UncompressedPoint
-        )[1 : 1 + 64]
+        )
 
         data = hsm.send_cmd(
             COMMAND.CREATE_SESSION, struct.pack("!H", auth_key_id) + epk_oce
         )
 
         sid = six.indexbytes(data, 0)
-        epk_sd = data[1 : 1 + 64]
-        receipt = data[1 + 64 : 1 + 64 + 16]
+        epk_sd = data[1 : 1 + 65]
+        receipt = data[1 + 65 : 1 + 65 + 16]
 
         shsee = esk_oce.exchange(
             ec.ECDH(),
-            EllipticCurvePublicKey.from_encoded_point(ec.SECP256R1(), b"\4" + epk_sd),
+            EllipticCurvePublicKey.from_encoded_point(ec.SECP256R1(), epk_sd),
         )
         shs_oce = x963_kdf(hashes.SHA256(), shsee, shsss, 4 * 16)
 

@@ -32,12 +32,12 @@ class TestAuthenticationKey(YubiHsmTestCase):
         sk_oce = ec.generate_private_key(ec.SECP256R1(), backend=default_backend())
         pk_oce = sk_oce.public_key().public_bytes(
             Encoding.X962, PublicFormat.UncompressedPoint
-        )[1 : 1 + 64]
+        )
 
         pk_sd = self.hsm.get_device_pubkey()
         shsss = sk_oce.exchange(
             ec.ECDH(),
-            EllipticCurvePublicKey.from_encoded_point(ec.SECP256R1(), b"\4" + pk_sd),
+            pk_sd,
         )
 
         authkey = AuthenticationKey.put_asym(
@@ -47,7 +47,7 @@ class TestAuthenticationKey(YubiHsmTestCase):
             1,
             CAPABILITY.NONE,
             CAPABILITY.NONE,
-            pk_oce,
+            pk_oce[1 : 1 + 64],
         )
 
         with self.hsm.create_asym_session(authkey.id, shsss) as session:
@@ -148,11 +148,11 @@ class TestAuthenticationKey(YubiHsmTestCase):
         sk_oce = ec.generate_private_key(ec.SECP256R1(), backend=default_backend())
         pk_oce = sk_oce.public_key().public_bytes(
             Encoding.X962, PublicFormat.UncompressedPoint
-        )[1 : 1 + 64]
+        )
 
         shsss = sk_oce.exchange(
             ec.ECDH(),
-            EllipticCurvePublicKey.from_encoded_point(ec.SECP256R1(), b"\4" + pk_sd),
+            pk_sd,
         )
 
         authkey = AuthenticationKey.put_asym(
@@ -162,7 +162,7 @@ class TestAuthenticationKey(YubiHsmTestCase):
             1,
             CAPABILITY.CHANGE_AUTHENTICATION_KEY,
             CAPABILITY.NONE,
-            pk_oce,
+            pk_oce[1 : 1 + 64],
         )
 
         with self.hsm.create_asym_session(authkey.id, shsss) as session:
@@ -171,16 +171,14 @@ class TestAuthenticationKey(YubiHsmTestCase):
             )
             pk_oce_2 = sk_oce_2.public_key().public_bytes(
                 Encoding.X962, PublicFormat.UncompressedPoint
-            )[1 : 1 + 64]
+            )
 
             shsss_2 = sk_oce_2.exchange(
                 ec.ECDH(),
-                EllipticCurvePublicKey.from_encoded_point(
-                    ec.SECP256R1(), b"\4" + pk_sd
-                ),
+                pk_sd,
             )
 
-            authkey.with_session(session).change_asym_key(pk_oce_2)
+            authkey.with_session(session).change_asym_key(pk_oce_2[1 : 1 + 64])
 
         with self.hsm.create_asym_session(authkey.id, shsss_2):
             pass
