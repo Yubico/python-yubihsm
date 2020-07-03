@@ -35,6 +35,7 @@ from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurvePublicKey
 from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
+from cryptography.hazmat.primitives.kdf.x963kdf import X963KDF
 from cryptography.utils import int_to_bytes
 from hashlib import sha256
 from collections import namedtuple
@@ -75,19 +76,6 @@ def _unpad_resp(resp, cmd):
     elif rcmd != cmd | 0x80:
         raise YubiHsmInvalidResponseError("Wrong command in response")
     return resp[3 : length + 3]
-
-
-def x963_kdf(hash, shsee, shsss, length):
-    output = b""
-
-    for i in range(0, length // hash.digest_size + 1):
-        digest = hashes.Hash(hash, backend=default_backend())
-        digest.update(shsee)
-        digest.update(shsss)
-        digest.update(struct.pack("!L", i + 1))
-        output += digest.finalize()
-
-    return output[:length]
 
 
 class YubiHsm(object):
@@ -305,8 +293,10 @@ class AuthSession(object):
             ec.ECDH(),
             EllipticCurvePublicKey.from_encoded_point(ec.SECP256R1(), epk_sd),
         )
-        shs_oce = x963_kdf(hashes.SHA256(), shsee, shsss, 4 * 16)
 
+        kdf = X963KDF(hashes.SHA256(), 4 * 16, b"\x3c\x88\x10", backend=default_backend())
+        shs_oce = kdf.derive(shsee + shsss)
+        
         key_receipt = shs_oce[0:16]
         key_enc = shs_oce[16:32]
         key_mac = shs_oce[32:48]
