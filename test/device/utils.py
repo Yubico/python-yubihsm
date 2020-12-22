@@ -53,7 +53,7 @@ class YubiHsmTestCase(unittest.TestCase):
             print("RESETTING DEVICE!!!!")
             self.session.reset_device()
             YubiHsmTestCase._HAS_RESET = True
-            time.sleep(3)
+            time.sleep(5)
             self.setUp()
 
     def tearDown(self):
