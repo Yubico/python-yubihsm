@@ -82,7 +82,7 @@ jobs:
           chmod +x ./ghostunnel
           ./ghostunnel client --listen localhost:12345 --target hsm-connector01.sthlm.in.yubico.org:8443 --keystore ./.ci/client-combined.pem --cacert ./.ci/server-crt.pem 2>/dev/null &
           sleep 3
-          echo "::set-env name=BACKEND::$(curl http://localhost:12345/dispatcher/request)"
+          echo "BACKEND=$(curl http://localhost:12345/dispatcher/request)" >> $GITHUB_ENV
 
       - name: Run device tests
         if: ${{ env.BACKEND }}
