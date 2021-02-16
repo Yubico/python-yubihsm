@@ -46,7 +46,7 @@ KEY_RMAC = 0x07
 CARD_CRYPTOGRAM = 0x00
 HOST_CRYPTOGRAM = 0x01
 
-MAX_MSG_SIZE = 2048 - 1
+MAX_MSG_SIZE = 2048
 
 
 def _derive(key, t, context, L=0x80):
@@ -318,8 +318,8 @@ class AuthSession(object):
         self.close()
 
     def _secure_transceive(self, msg):
+        padlen = 15 - len(msg) % 16
         msg += b"\x80"
-        padlen = 16 - len(msg) % 16
         msg = msg.ljust(len(msg) + padlen, b"\0")
 
         wrapped = struct.pack(
