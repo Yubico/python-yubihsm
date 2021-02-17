@@ -46,7 +46,7 @@ KEY_RMAC = 0x07
 CARD_CRYPTOGRAM = 0x00
 HOST_CRYPTOGRAM = 0x01
 
-MAX_MSG_SIZE = 2048
+MAX_MSG_SIZE = 2048 - 1
 
 
 def _derive(key, t, context, L=0x80):

@@ -15,7 +15,7 @@
 from __future__ import absolute_import, division
 
 from .utils import YubiHsmTestCase
-from yubihsm.defs import CAPABILITY, ALGORITHM, ERROR
+from yubihsm.defs import CAPABILITY, ALGORITHM
 from yubihsm.objects import Opaque
 from yubihsm.exceptions import YubiHsmInvalidRequestError
 from cryptography import x509
@@ -42,7 +42,7 @@ class TestOpaque(YubiHsmTestCase):
             )
 
     def test_data(self):
-        for size in (1, 256, 1234, 1975):
+        for size in (1, 256, 1234, 1968):
             data = os.urandom(size)
 
             opaque = Opaque.put(
