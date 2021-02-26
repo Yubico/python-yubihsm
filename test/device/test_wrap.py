@@ -142,7 +142,7 @@ class TestWrap(YubiHsmTestCase):
         # dec = decryptor.update(data)
 
         # numbers = eckey.private_numbers()
-        # serialized = int_from_bytes(numbers.private_value, 'big')
+        # serialized = int.int_from_bytes(numbers.private_value, 'big')
         # self.assertEqual(serialized, dec[-len(serialized):])
 
         asymkey.delete()

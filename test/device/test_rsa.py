@@ -22,7 +22,7 @@ from yubihsm.exceptions import YubiHsmDeviceError
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa, padding
-from cryptography.utils import int_from_bytes, int_to_bytes
+from cryptography.utils import int_to_bytes
 from binascii import a2b_hex
 import os
 
@@ -115,7 +115,7 @@ class TestRsaPkcs1v1_5(YubiHsmTestCase):
         for m in rawmessages:
             error = ERROR.OK
             m = m.ljust(256, b"\xc3")
-            m_int = int_from_bytes(m, "big")
+            m_int = int.int_from_bytes(m, "big")
             enc = pow(m_int, numbers.e, numbers.n)
             try:
                 key.decrypt_pkcs1v1_5(int_to_bytes(enc).rjust(256, b"\x00"))

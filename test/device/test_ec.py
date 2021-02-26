@@ -26,7 +26,6 @@ from yubihsm.exceptions import YubiHsmDeviceError
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec, ed25519, utils as crypto_utils
-from cryptography.utils import int_from_bytes
 from binascii import a2b_hex
 import os
 import struct
@@ -178,7 +177,7 @@ class TestSecpEcdsa(YubiHsmTestCase):
 
         digest = hashes.Hash(hashes.SHA256(), backend=default_backend())
         digest.update(data)
-        h = int_from_bytes(digest.finalize(), "big")
+        h = int.int_from_bytes(digest.finalize(), "big")
 
         # The assumption here is that for 1024 runs we should get a distribution
         # where each single bit is set between 400 and 1024 - 400 times.

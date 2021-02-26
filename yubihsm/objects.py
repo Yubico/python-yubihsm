@@ -32,7 +32,7 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import rsa, ec
 from cryptography.hazmat.primitives.asymmetric.utils import Prehashed
 from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
-from cryptography.utils import int_to_bytes, int_from_bytes
+from cryptography.utils import int_to_bytes
 from collections import namedtuple
 import six
 import copy
@@ -520,7 +520,7 @@ class AsymmetricKey(YhsmObject):
         algo = ALGORITHM(six.indexbytes(ret, 0))
         raw_key = ret[1:]
         if algo in [ALGORITHM.RSA_2048, ALGORITHM.RSA_3072, ALGORITHM.RSA_4096]:
-            num = int_from_bytes(raw_key, "big")
+            num = int.int_from_bytes(raw_key, "big")
             pubkey = rsa.RSAPublicNumbers(e=0x10001, n=num)
         elif algo in [
             ALGORITHM.EC_P224,
@@ -533,8 +533,8 @@ class AsymmetricKey(YhsmObject):
             ALGORITHM.EC_BP512,
         ]:
             c_len = len(raw_key) // 2
-            x = int_from_bytes(raw_key[:c_len], "big")
-            y = int_from_bytes(raw_key[c_len:], "big")
+            x = int.int_from_bytes(raw_key[:c_len], "big")
+            y = int.int_from_bytes(raw_key[c_len:], "big")
             pubkey = ec.EllipticCurvePublicNumbers(curve=algo.to_curve(), x=x, y=y)
         elif algo in [ALGORITHM.EC_ED25519]:
             return _deserialize_ed25519_public_key(raw_key)
