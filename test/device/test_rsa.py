@@ -115,7 +115,7 @@ class TestRsaPkcs1v1_5(YubiHsmTestCase):
         for m in rawmessages:
             error = ERROR.OK
             m = m.ljust(256, b"\xc3")
-            m_int = int.int_from_bytes(m, "big")
+            m_int = int.from_bytes(m, "big")
             enc = pow(m_int, numbers.e, numbers.n)
             try:
                 key.decrypt_pkcs1v1_5(int_to_bytes(enc).rjust(256, b"\x00"))

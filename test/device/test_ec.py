@@ -177,7 +177,7 @@ class TestSecpEcdsa(YubiHsmTestCase):
 
         digest = hashes.Hash(hashes.SHA256(), backend=default_backend())
         digest.update(data)
-        h = int.int_from_bytes(digest.finalize(), "big")
+        h = int.from_bytes(digest.finalize(), "big")
 
         # The assumption here is that for 1024 runs we should get a distribution
         # where each single bit is set between 400 and 1024 - 400 times.
