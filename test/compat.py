@@ -18,7 +18,7 @@ from sys import version_info
 
 if version_info >= (3, 3):
     # standard library
-    import unittest.mock as mock
+    import unittest.mock as mock  # noqa: F401
 else:
     # package
-    import mock
+    import mock  # noqa: F401
