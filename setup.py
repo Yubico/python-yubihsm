@@ -41,5 +41,5 @@ setup(
     test_suite="test",
     install_requires=["six", "cryptography>=1.8"],
     extras_require={"http": ["requests"], "usb": ["pyusb"]},
-    tests_require=["mock", "cryptography>=2.6"],
+    tests_require=["mock; python_version < '3.3.0'", "cryptography>=2.6"],
 )

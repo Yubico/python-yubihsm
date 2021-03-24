@@ -28,8 +28,13 @@ from yubihsm.objects import (
 from yubihsm.core import AuthSession
 from yubihsm.defs import ORIGIN, ALGORITHM, OBJECT
 from binascii import a2b_hex
-from mock import MagicMock
 from random import randint
+from sys import version_info
+
+if version_info >= (3, 3):
+    from unittest.mock import MagicMock
+else:
+    from mock import MagicMock
 
 import unittest
 
