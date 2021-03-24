@@ -30,7 +30,7 @@ from yubihsm.defs import ORIGIN, ALGORITHM, OBJECT
 from binascii import a2b_hex
 from random import randint
 
-from .mock import MagicMock
+from .compat import mock
 
 import unittest
 
@@ -65,7 +65,7 @@ class TestObjectInfo(unittest.TestCase):
 
 class TestYhsmObject(unittest.TestCase):
     def test_get_info(self):
-        AuthMock = MagicMock(AuthSession)
+        AuthMock = mock.MagicMock(AuthSession)
         AuthMock.send_secure_cmd.return_value = b"\x00\x00\x7f\xff\xff\xff\xff\xff\x00\x05\x01\x00\x00)\x05\x16\x00\x01hmaclabel\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"  # noqa E501
 
         # Create instance from mocked data and set the object type
@@ -89,7 +89,7 @@ class TestYhsmObject(unittest.TestCase):
         self.assertEqual(info, obj.get_info())
 
     def test_delete(self):
-        AuthMock = MagicMock(AuthSession)
+        AuthMock = mock.MagicMock(AuthSession)
         AuthMock.send_secure_cmd.return_value = b""
         obj = YhsmObject(session=AuthMock, object_id=5)
         obj.object_type = OBJECT.HMAC_KEY
@@ -107,7 +107,7 @@ class TestYhsmObject(unittest.TestCase):
             (OBJECT.OTP_AEAD_KEY, OtpAeadKey),
         ]
 
-        AuthMock = MagicMock(AuthSession)
+        AuthMock = mock.MagicMock(AuthSession)
 
         for obj_type, obj_class in items:
             id_num = randint(1, 17)

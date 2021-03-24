@@ -34,7 +34,7 @@ from yubihsm.core import (
 from yubihsm.defs import COMMAND, CAPABILITY, ALGORITHM
 from yubihsm.exceptions import YubiHsmDeviceError, YubiHsmInvalidResponseError
 
-from .mock import patch, MagicMock, mock, call
+from .compat import mock
 
 _DEVICE_INFO = b"\x02\x00\x00\x00s5m>>\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0b\x0c\r\x0e\x0f\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f !\"#$%&'()*+,-./"  # noqa
 _TRANSCEIVE_DEVICE_INFO = b"\x86\x008\x02\x00\x00\x00s4\xbc>\x04\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0b\x0c\r\x0e\x0f\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f !\"#$%&'()*+,-./"  # noqa
@@ -52,7 +52,7 @@ def get_mocked_session(patch):
     the backend.transceive function
     """
     mocked_backend = get_backend()
-    mocked_backend.transceive = MagicMock(get_backend().transceive)
+    mocked_backend.transceive = mock.MagicMock(get_backend().transceive)
     mocked_backend.transceive.side_effect = [
         b"\x83\x00\x11\x00\x05MV1\xc9\x18o\x802%\xed\x8a2$\xf2\xcf",
         b"\x84\x00\x00",
@@ -255,7 +255,7 @@ class TestLogCorrect(unittest.TestCase):
 
 
 class TestYubiHsm(unittest.TestCase):
-    @patch("yubihsm.core.YubiHsm.create_session")
+    @mock.patch("yubihsm.core.YubiHsm.create_session")
     def test_create_session_derived(self, item):
         """
         Test if create_session_derived calls create_session correctly
@@ -280,7 +280,7 @@ class TestYubiHsm(unittest.TestCase):
         """
 
         backend = get_backend()
-        backend.transceive = MagicMock(
+        backend.transceive = mock.MagicMock(
             backend.transceive, return_value=_TRANSCEIVE_DEVICE_INFO
         )
 
@@ -303,7 +303,7 @@ class TestAuthsession(unittest.TestCase):
         We process the input and make our query to the send_cmd
         """
         # Create fake session, and mock the return from a call to side_effect
-        session = MagicMock(AuthSession)
+        session = mock.MagicMock(AuthSession)
         session.send_secure_cmd.side_effect = [b"\x00\x01\x02\x00V7\x03\x00"]
 
         # Run the function, and make sure the correct call is made to secure_cmd
@@ -329,7 +329,7 @@ class TestAuthsession(unittest.TestCase):
         send_cmd function and return the list of objects
         """
         list_objects = AuthSession.list_objects
-        session = MagicMock(AuthSession)
+        session = mock.MagicMock(AuthSession)
         session.send_secure_cmd.return_value = b"\x00\x01\x02\x00d\x8f\x03\x00\x00\x01\x03\x00\x00\x04\x05\x00\x00\x05\x05\x00\x00\x05\x03\x00"  # noqa
 
         # The input to the below function doesn't matter;
@@ -353,8 +353,8 @@ class TestAuthsession(unittest.TestCase):
         # Create session should make two calls to transceive.
         # First call was to create session. Second was to authenticate session.
         calls = [
-            call(b"\x03\x00\n\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00"),
-            call(b"\x04\x00\x11\x00\x1c\xe7U.\x0fyv\xdb\xcc!\x98\xfd\x15\\3Z"),
+            mock.call(b"\x03\x00\n\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00"),
+            mock.call(b"\x04\x00\x11\x00\x1c\xe7U.\x0fyv\xdb\xcc!\x98\xfd\x15\\3Z"),
         ]
 
         authsession._hsm._backend.transceive.assert_has_calls(calls)
@@ -366,7 +366,7 @@ class TestAuthsession(unittest.TestCase):
         """
 
         session = get_mocked_session()
-        session.send_secure_cmd = MagicMock(session.send_secure_cmd)
+        session.send_secure_cmd = mock.MagicMock(session.send_secure_cmd)
 
         session.close()
         session.send_secure_cmd.assert_called_once_with(COMMAND.CLOSE_SESSION)
@@ -377,7 +377,7 @@ class TestAuthsession(unittest.TestCase):
         not to transceive
         """
         session = get_mocked_session()
-        session.send_secure_cmd = MagicMock(session.send_secure_cmd)
+        session.send_secure_cmd = mock.MagicMock(session.send_secure_cmd)
         session.send_secure_cmd.return_value = b""
 
         session.reset_device()
@@ -390,7 +390,7 @@ class TestAuthsession(unittest.TestCase):
         """
 
         session = get_mocked_session()
-        session.send_secure_cmd = MagicMock(session.send_secure_cmd)
+        session.send_secure_cmd = mock.MagicMock(session.send_secure_cmd)
         session.send_secure_cmd.return_value = b"\00"
 
         self.assertRaises(YubiHsmInvalidResponseError, session.reset_device)
