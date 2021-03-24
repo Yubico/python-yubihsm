@@ -21,7 +21,6 @@ from __future__ import absolute_import, division
 
 import struct
 import unittest
-from sys import version_info
 
 from yubihsm.core import (
     DeviceInfo,
@@ -35,10 +34,7 @@ from yubihsm.core import (
 from yubihsm.defs import COMMAND, CAPABILITY, ALGORITHM
 from yubihsm.exceptions import YubiHsmDeviceError, YubiHsmInvalidResponseError
 
-if version_info >= (3, 3):
-    from unittest.mock import patch, MagicMock, mock, call
-else:
-    from mock import patch, MagicMock, mock, call
+from .mock import patch, MagicMock, mock, call
 
 _DEVICE_INFO = b"\x02\x00\x00\x00s5m>>\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0b\x0c\r\x0e\x0f\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f !\"#$%&'()*+,-./"  # noqa
 _TRANSCEIVE_DEVICE_INFO = b"\x86\x008\x02\x00\x00\x00s4\xbc>\x04\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0b\x0c\r\x0e\x0f\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f !\"#$%&'()*+,-./"  # noqa
