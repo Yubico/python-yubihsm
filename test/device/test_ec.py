@@ -19,6 +19,7 @@ from __future__ import absolute_import, division
 from .utils import YubiHsmTestCase
 from yubihsm.defs import ALGORITHM, CAPABILITY, COMMAND, ERROR
 from yubihsm.defs import BRAINPOOLP256R1, BRAINPOOLP384R1, BRAINPOOLP512R1
+from yubihsm.utils import int_from_bytes
 from yubihsm.eddsa import load_ed25519_private_key, serialize_ed25519_public_key
 from yubihsm.objects import AsymmetricKey
 from yubihsm.exceptions import YubiHsmDeviceError
@@ -26,7 +27,6 @@ from yubihsm.exceptions import YubiHsmDeviceError
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec, ed25519, utils as crypto_utils
-from cryptography.utils import int_from_bytes
 from binascii import a2b_hex
 import os
 import struct

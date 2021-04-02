@@ -17,7 +17,6 @@
 
 from __future__ import absolute_import, division
 
-from . import utils
 from .defs import ALGORITHM, COMMAND, OBJECT, ORIGIN
 from .exceptions import YubiHsmInvalidResponseError
 from .eddsa import (
@@ -32,7 +31,8 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import rsa, ec
 from cryptography.hazmat.primitives.asymmetric.utils import Prehashed
 from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
-from cryptography.utils import int_to_bytes, int_from_bytes
+from cryptography.utils import int_to_bytes
+from .utils import int_from_bytes, password_to_key
 from collections import namedtuple
 import six
 import copy
@@ -321,7 +321,7 @@ class AuthenticationKey(YhsmObject):
         :return: A reference to the newly created object.
         :rtype: AuthenticationKey
         """
-        key_enc, key_mac = utils.password_to_key(password)
+        key_enc, key_mac = password_to_key(password)
         return cls.put(
             session,
             object_id,
@@ -381,7 +381,7 @@ class AuthenticationKey(YhsmObject):
 
         :param str password: The password to derive raw keys from.
         """
-        key_enc, key_mac = utils.password_to_key(password)
+        key_enc, key_mac = password_to_key(password)
         self.change_key(key_enc, key_mac)
 
     def change_key(self, key_enc, key_mac):

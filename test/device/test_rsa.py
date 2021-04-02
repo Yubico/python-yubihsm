@@ -16,13 +16,14 @@ from __future__ import absolute_import, division
 
 from .utils import YubiHsmTestCase
 from yubihsm.defs import ALGORITHM, CAPABILITY, ERROR
+from yubihsm.utils import int_from_bytes
 from yubihsm.objects import AsymmetricKey
 from yubihsm.exceptions import YubiHsmDeviceError
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa, padding
-from cryptography.utils import int_from_bytes, int_to_bytes
+from cryptography.utils import int_to_bytes
 from binascii import a2b_hex
 import os
 
