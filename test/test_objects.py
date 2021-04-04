@@ -28,7 +28,7 @@ from yubihsm.objects import (
 from yubihsm.core import AuthSession
 from yubihsm.defs import ORIGIN, ALGORITHM, OBJECT
 from binascii import a2b_hex
-from mock import MagicMock
+from unittest.mock import MagicMock
 from random import randint
 
 import unittest
