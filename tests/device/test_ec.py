@@ -14,8 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import absolute_import, division
-
 from .utils import YubiHsmTestCase
 from yubihsm.defs import ALGORITHM, CAPABILITY, COMMAND, ERROR
 from yubihsm.defs import BRAINPOOLP256R1, BRAINPOOLP384R1, BRAINPOOLP512R1

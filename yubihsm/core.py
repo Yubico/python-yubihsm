@@ -14,9 +14,6 @@
 
 """Core classes for YubiHSM communication."""
 
-
-from __future__ import absolute_import, division
-
 from . import utils
 from .defs import COMMAND, ALGORITHM, LIST_FILTER, OPTION, AUDIT
 from .backends import get_backend

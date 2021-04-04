@@ -14,9 +14,6 @@
 
 """Exceptions thrown by this library."""
 
-
-from __future__ import absolute_import
-
 from .defs import ERROR
 
 

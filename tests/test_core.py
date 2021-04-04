@@ -17,8 +17,6 @@ Tests of the core.py module. Currently just includes test of functions that
 don't require mocking.
 """
 
-from __future__ import absolute_import, division
-
 import struct
 import unittest
 

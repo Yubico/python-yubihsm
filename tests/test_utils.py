@@ -14,8 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import absolute_import, division, unicode_literals
-
 from yubihsm.utils import password_to_key
 from binascii import a2b_hex
 
