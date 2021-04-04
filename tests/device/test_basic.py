@@ -12,18 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .utils import YubiHsmTestCase
 from yubihsm.core import MAX_MSG_SIZE
 from yubihsm.defs import ALGORITHM, CAPABILITY, OBJECT, COMMAND, ORIGIN
 from yubihsm.objects import AsymmetricKey, HmacKey, WrapKey, AuthenticationKey
 from yubihsm.exceptions import YubiHsmInvalidRequestError
 import uuid
 import os
+import pytest
 
 
-class TestListObjects(YubiHsmTestCase):
-    def print_list_objects(self):
-        objlist = self.session.list_objects()
+class TestListObjects:
+    def print_list_objects(self, session):
+        objlist = session.list_objects()
 
         for i in range(len(objlist)):
             print(
@@ -49,26 +49,24 @@ class TestListObjects(YubiHsmTestCase):
             objinfo.algorithm,
         )
 
-    def key_in_list(self, keytype, algorithm=None):
+    def key_in_list(self, session, keytype, algorithm=None):
         dom = None
         cap = 0
         key_label = "%s%s" % (str(uuid.uuid4()), b"\xf0\x9f\x98\x83".decode())
 
         if keytype == OBJECT.ASYMMETRIC_KEY:
             dom = 0xFFFF
-            key = AsymmetricKey.generate(
-                self.session, 0, key_label, dom, cap, algorithm
-            )
+            key = AsymmetricKey.generate(session, 0, key_label, dom, cap, algorithm)
         elif keytype == OBJECT.WRAP_KEY:
             dom = 0x01
-            key = WrapKey.generate(self.session, 0, key_label, dom, cap, algorithm, cap)
+            key = WrapKey.generate(session, 0, key_label, dom, cap, algorithm, cap)
         elif keytype == OBJECT.HMAC_KEY:
             dom = 0x01
-            key = HmacKey.generate(self.session, 0, key_label, dom, cap, algorithm)
+            key = HmacKey.generate(session, 0, key_label, dom, cap, algorithm)
         elif keytype == OBJECT.AUTHENTICATION_KEY:
             dom = 0x01
             key = AuthenticationKey.put_derived(
-                self.session,
+                session,
                 0,
                 key_label,
                 dom,
@@ -77,38 +75,36 @@ class TestListObjects(YubiHsmTestCase):
                 b"\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa" b"\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa",
             )
 
-        objlist = self.session.list_objects(
-            object_id=key.id, object_type=key.object_type
-        )
-        self.assertEqual(objlist[0].id, key.id)
-        self.assertEqual(objlist[0].object_type, key.object_type)
+        objlist = session.list_objects(object_id=key.id, object_type=key.object_type)
+        assert objlist[0].id == key.id
+        assert objlist[0].object_type == key.object_type
 
         objinfo = objlist[0].get_info()
-        self.assertEqual(objinfo.id, key.id)
-        self.assertEqual(objinfo.object_type, key.object_type)
-        self.assertEqual(objinfo.domains, dom)
-        self.assertEqual(objinfo.capabilities, cap)
+        assert objinfo.id == key.id
+        assert objinfo.object_type == key.object_type
+        assert objinfo.domains == dom
+        assert objinfo.capabilities == cap
         if algorithm:
-            self.assertEqual(objinfo.algorithm, algorithm)
+            assert objinfo.algorithm == algorithm
 
         if key.object_type == OBJECT.AUTHENTICATION_KEY:
-            self.assertEqual(objinfo.origin, ORIGIN.IMPORTED)
+            assert objinfo.origin == ORIGIN.IMPORTED
         else:
-            self.assertEqual(objinfo.origin, ORIGIN.GENERATED)
+            assert objinfo.origin == ORIGIN.GENERATED
 
-        self.assertEqual(objinfo.label, key_label)
+        assert objinfo.label == key_label
 
         key.delete()
 
-    def test_keys_in_list(self):
-        self.key_in_list(OBJECT.ASYMMETRIC_KEY, ALGORITHM.EC_P256)
-        self.key_in_list(OBJECT.WRAP_KEY, ALGORITHM.AES128_CCM_WRAP)
-        self.key_in_list(OBJECT.HMAC_KEY, ALGORITHM.HMAC_SHA1)
-        self.key_in_list(OBJECT.AUTHENTICATION_KEY)
+    def test_keys_in_list(self, session):
+        self.key_in_list(session, OBJECT.ASYMMETRIC_KEY, ALGORITHM.EC_P256)
+        self.key_in_list(session, OBJECT.WRAP_KEY, ALGORITHM.AES128_CCM_WRAP)
+        self.key_in_list(session, OBJECT.HMAC_KEY, ALGORITHM.HMAC_SHA1)
+        self.key_in_list(session, OBJECT.AUTHENTICATION_KEY)
 
-    def test_list_all_params(self):
+    def test_list_all_params(self, session):
         # TODO: this test should check for presence of some things..
-        self.session.list_objects(
+        session.list_objects(
             object_id=1,
             object_type=OBJECT.HMAC_KEY,
             domains=1,
@@ -118,53 +114,53 @@ class TestListObjects(YubiHsmTestCase):
         )
 
 
-class TestVarious(YubiHsmTestCase):
-    def test_device_info(self):
-        device_info = self.hsm.get_device_info()
-        self.assertEqual(len(device_info.version), 3)
-        self.assertGreater(device_info.serial, 0)
-        self.assertGreater(device_info.log_used, 0)
-        self.assertGreaterEqual(device_info.log_size, device_info.log_used)
-        self.assertGreaterEqual(len(device_info.supported_algorithms), len(ALGORITHM))
+class TestVarious:
+    def test_device_info(self, hsm):
+        device_info = hsm.get_device_info()
+        assert len(device_info.version) == 3
+        assert device_info.serial > 0
+        assert device_info.log_used > 0
+        assert device_info.log_size >= device_info.log_used
+        assert len(device_info.supported_algorithms) >= len(ALGORITHM)
 
-    def test_get_pseudo_random(self):
-        data = self.session.get_pseudo_random(10)
-        self.assertEqual(len(data), 10)
-        data2 = self.session.get_pseudo_random(10)
-        self.assertEqual(len(data2), 10)
-        self.assertNotEqual(data, data2)
+    def test_get_pseudo_random(self, session):
+        data = session.get_pseudo_random(10)
+        assert len(data) == 10
+        data2 = session.get_pseudo_random(10)
+        assert len(data2) == 10
+        assert data != data2
 
-    def test_send_too_big(self):
+    def test_send_too_big(self, hsm):
         buf = os.urandom(MAX_MSG_SIZE - 3 + 1)  # Message 1 byte too large
-        with self.assertRaises(YubiHsmInvalidRequestError):
-            self.hsm.send_cmd(COMMAND.ECHO, buf)
+        with pytest.raises(YubiHsmInvalidRequestError):
+            hsm.send_cmd(COMMAND.ECHO, buf)
 
 
-class TestEcho(YubiHsmTestCase):
-    def plain_echo(self, echo_len):
+class TestEcho:
+    def plain_echo(self, hsm, echo_len):
         echo_buf = os.urandom(echo_len)
 
-        resp = self.hsm.send_cmd(COMMAND.ECHO, echo_buf)
+        resp = hsm.send_cmd(COMMAND.ECHO, echo_buf)
 
-        self.assertEqual(len(resp), echo_len)
-        self.assertEqual(resp, echo_buf)
+        assert len(resp) == echo_len
+        assert resp == echo_buf
 
-    def secure_echo(self, echo_len):
+    def secure_echo(self, session, echo_len):
         echo_buf = os.urandom(echo_len)
 
-        resp = self.session.send_secure_cmd(COMMAND.ECHO, echo_buf)
-        self.assertEqual(resp, echo_buf)
+        resp = session.send_secure_cmd(COMMAND.ECHO, echo_buf)
+        assert resp == echo_buf
 
-    def test_plain_echo(self):
-        self.plain_echo(1024)
+    def test_plain_echo(self, hsm):
+        self.plain_echo(hsm, 1024)
 
-    def test_secure_echo(self):
-        self.secure_echo(1024)
+    def test_secure_echo(self, session):
+        self.secure_echo(session, 1024)
 
-    def test_plain_echo_many(self):
+    def test_plain_echo_many(self, hsm):
         for i in range(1, 256):
-            self.plain_echo(i)
+            self.plain_echo(hsm, i)
 
-    def test_echo_max_size(self):
-        self.plain_echo(2021)
-        self.secure_echo(2021)
+    def test_echo_max_size(self, hsm, session):
+        self.plain_echo(hsm, 2021)
+        self.secure_echo(session, 2021)

@@ -12,16 +12,55 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .utils import YubiHsmTestCase
 from yubihsm.defs import ALGORITHM, CAPABILITY
 from yubihsm.objects import HmacKey
 import random
 import os
+import pytest
 
 
-class TestHmac(YubiHsmTestCase):
+@pytest.mark.parametrize(
+    "algorithm, expect_len",
+    [
+        (ALGORITHM.HMAC_SHA1, 20),
+        (ALGORITHM.HMAC_SHA256, 32),
+        (ALGORITHM.HMAC_SHA384, 48),
+        (ALGORITHM.HMAC_SHA512, 64),
+    ],
+)
+def test_generate_hmac(session, algorithm, expect_len):
+    caps = CAPABILITY.SIGN_HMAC | CAPABILITY.VERIFY_HMAC
+    hmackey = HmacKey.generate(session, 0, "Generate HMAC", 1, caps, algorithm)
 
-    vectors = [
+    data = os.urandom(64)
+
+    resp = hmackey.sign_hmac(data)
+    assert len(resp) == expect_len
+    assert hmackey.verify_hmac(resp, data)
+
+    resp2 = hmackey.sign_hmac(data)
+    assert len(resp2) == expect_len
+    assert resp == resp2
+
+    data = os.urandom(64)
+    resp2 = hmackey.sign_hmac(data)
+    assert len(resp2) == expect_len
+    assert resp != resp2
+    assert hmackey.verify_hmac(resp2, data)
+
+    hmackey = HmacKey.generate(session, 0, "Generate HMAC", 1, caps, algorithm)
+
+    resp = hmackey.sign_hmac(data)
+    assert len(resp) == expect_len
+    assert resp != resp2
+    assert hmackey.verify_hmac(resp, data)
+
+    hmackey.delete()
+
+
+@pytest.mark.parametrize(
+    "vector",
+    [
         {
             "key": b"\x0b" * 20,
             "chal": b"Hi There",
@@ -54,104 +93,63 @@ class TestHmac(YubiHsmTestCase):
             "exp_sha512": b"\xb0\xba\x46\x56\x37\x45\x8c\x69\x90\xe5\xa8\xc5\xf6\x1d\x4a\xf7\xe5\x76\xd9\x7f\xf9\x4b\x87\x2d\xe7\x6f\x80\x50\x36\x1e\xe3\xdb\xa9\x1c\xa5\xc1\x1a\xa2\x5e\xb4\xd6\x79\x27\x5c\xc5\x78\x80\x63\xa5\xf1\x97\x41\x12\x0c\x4f\x2d\xe2\xad\xeb\xeb\x10\xa2\x98\xdd",  # noqa: E501
             "exp_sha384": b"\x3e\x8a\x69\xb7\x78\x3c\x25\x85\x19\x33\xab\x62\x90\xaf\x6c\xa7\x7a\x99\x81\x48\x08\x50\x00\x9c\xc5\x57\x7c\x6e\x1f\x57\x3b\x4e\x68\x01\xdd\x23\xc4\xa7\xd6\x79\xcc\xf8\xa3\x86\xc6\x74\xcf\xfb",  # noqa: E501
         },
-    ]
+    ],
+)
+def test_hmac_vectors(session, vector):
+    key1_id = random.randint(1, 0xFFFE)
+    key2_id = random.randint(1, 0xFFFE)
+    key3_id = random.randint(1, 0xFFFE)
+    key4_id = random.randint(1, 0xFFFE)
 
-    def test_hmac_vectors(self):
-        key1_id = random.randint(1, 0xFFFE)
-        key2_id = random.randint(1, 0xFFFE)
-        key3_id = random.randint(1, 0xFFFE)
-        key4_id = random.randint(1, 0xFFFE)
+    caps = CAPABILITY.SIGN_HMAC | CAPABILITY.VERIFY_HMAC
 
-        caps = CAPABILITY.SIGN_HMAC | CAPABILITY.VERIFY_HMAC
-        for v in self.vectors:
-            key1 = HmacKey.put(
-                self.session,
-                key1_id,
-                "Test HMAC Vectors 0x%04x" % key1_id,
-                1,
-                caps,
-                v["key"],
-                ALGORITHM.HMAC_SHA1,
-            )
-            key2 = HmacKey.put(
-                self.session,
-                key2_id,
-                "Test HMAC Vectors 0x%04x" % key2_id,
-                1,
-                caps,
-                v["key"],
-                ALGORITHM.HMAC_SHA256,
-            )
-            key3 = HmacKey.put(
-                self.session,
-                key3_id,
-                "Test HMAC Vectors 0x%04x" % key3_id,
-                1,
-                caps,
-                v["key"],
-                ALGORITHM.HMAC_SHA384,
-            )
-            key4 = HmacKey.put(
-                self.session,
-                key4_id,
-                "Test HMAC Vectors 0x%04x" % key4_id,
-                1,
-                caps,
-                v["key"],
-                ALGORITHM.HMAC_SHA512,
-            )
+    key1 = HmacKey.put(
+        session,
+        key1_id,
+        "Test HMAC Vectors 0x%04x" % key1_id,
+        1,
+        caps,
+        vector["key"],
+        ALGORITHM.HMAC_SHA1,
+    )
+    key2 = HmacKey.put(
+        session,
+        key2_id,
+        "Test HMAC Vectors 0x%04x" % key2_id,
+        1,
+        caps,
+        vector["key"],
+        ALGORITHM.HMAC_SHA256,
+    )
+    key3 = HmacKey.put(
+        session,
+        key3_id,
+        "Test HMAC Vectors 0x%04x" % key3_id,
+        1,
+        caps,
+        vector["key"],
+        ALGORITHM.HMAC_SHA384,
+    )
+    key4 = HmacKey.put(
+        session,
+        key4_id,
+        "Test HMAC Vectors 0x%04x" % key4_id,
+        1,
+        caps,
+        vector["key"],
+        ALGORITHM.HMAC_SHA512,
+    )
 
-            self.assertEqual(key1.sign_hmac(v["chal"]), v["exp_sha1"])
-            self.assertEqual(key2.sign_hmac(v["chal"]), v["exp_sha256"])
-            self.assertEqual(key3.sign_hmac(v["chal"]), v["exp_sha384"])
-            self.assertEqual(key4.sign_hmac(v["chal"]), v["exp_sha512"])
-            self.assertTrue(key1.verify_hmac(v["exp_sha1"], v["chal"]))
-            self.assertTrue(key2.verify_hmac(v["exp_sha256"], v["chal"]))
-            self.assertTrue(key3.verify_hmac(v["exp_sha384"], v["chal"]))
-            self.assertTrue(key4.verify_hmac(v["exp_sha512"], v["chal"]))
+    assert key1.sign_hmac(vector["chal"]) == vector["exp_sha1"]
+    assert key2.sign_hmac(vector["chal"]) == vector["exp_sha256"]
+    assert key3.sign_hmac(vector["chal"]) == vector["exp_sha384"]
+    assert key4.sign_hmac(vector["chal"]) == vector["exp_sha512"]
+    assert key1.verify_hmac(vector["exp_sha1"], vector["chal"])
+    assert key2.verify_hmac(vector["exp_sha256"], vector["chal"])
+    assert key3.verify_hmac(vector["exp_sha384"], vector["chal"])
+    assert key4.verify_hmac(vector["exp_sha512"], vector["chal"])
 
-            key1.delete()
-            key2.delete()
-            key3.delete()
-            key4.delete()
-
-    def generate_hmac(self, expect_len, hmactype):
-        caps = CAPABILITY.SIGN_HMAC | CAPABILITY.VERIFY_HMAC
-        hmackey = HmacKey.generate(self.session, 0, "Generate HMAC", 1, caps, hmactype)
-
-        data = os.urandom(64)
-
-        resp = hmackey.sign_hmac(data)
-        self.assertEqual(len(resp), expect_len)
-        self.assertTrue(hmackey.verify_hmac(resp, data))
-
-        resp2 = hmackey.sign_hmac(data)
-        self.assertEqual(len(resp2), expect_len)
-        self.assertEqual(resp, resp2)
-
-        data = os.urandom(64)
-        resp2 = hmackey.sign_hmac(data)
-        self.assertEqual(len(resp2), expect_len)
-        self.assertNotEqual(resp, resp2)
-        self.assertTrue(hmackey.verify_hmac(resp2, data))
-
-        hmackey = HmacKey.generate(self.session, 0, "Generate HMAC", 1, caps, hmactype)
-
-        resp = hmackey.sign_hmac(data)
-        self.assertEqual(len(resp), expect_len)
-        self.assertNotEqual(resp, resp2)
-        self.assertTrue(hmackey.verify_hmac(resp, data))
-
-        hmackey.delete()
-
-    def test_generate_hmac_sha1(self):
-        self.generate_hmac(20, ALGORITHM.HMAC_SHA1)
-
-    def test_generate_hmac_sha256(self):
-        self.generate_hmac(32, ALGORITHM.HMAC_SHA256)
-
-    def test_generate_hmac_sha384(self):
-        self.generate_hmac(48, ALGORITHM.HMAC_SHA384)
-
-    def test_generate_hmac_sha512(self):
-        self.generate_hmac(64, ALGORITHM.HMAC_SHA512)
+    key1.delete()
+    key2.delete()
+    key3.delete()
+    key4.delete()

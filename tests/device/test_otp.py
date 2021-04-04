@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .utils import YubiHsmTestCase
 from yubihsm.defs import ALGORITHM, CAPABILITY, ERROR
 from yubihsm.objects import OtpAeadKey, OtpData
 from yubihsm.exceptions import YubiHsmDeviceError
@@ -22,6 +21,7 @@ from cryptography.hazmat.backends import default_backend
 from dataclasses import dataclass
 import os
 import struct
+import pytest
 from typing import Mapping
 
 
@@ -88,115 +88,116 @@ def _construct_otp(aes_key, private_id, otp_data, random_number=0):
     return encryptor.update(token) + encryptor.finalize()
 
 
-class TestOTP(YubiHsmTestCase):
-    def test_randomize_aead(self):
-        aes_key = os.urandom(16)
-        nonce_id = 0x01234567
-        key = OtpAeadKey.put(
-            self.session,
-            0,
-            "Test OTP Randomize AEAD",
-            1,
-            CAPABILITY.DECRYPT_OTP | CAPABILITY.RANDOMIZE_OTP_AEAD,
-            ALGORITHM.AES128_YUBICO_OTP,
-            nonce_id,
-            aes_key,
-        )
+def test_randomize_aead(session):
+    aes_key = os.urandom(16)
+    nonce_id = 0x01234567
+    key = OtpAeadKey.put(
+        session,
+        0,
+        "Test OTP Randomize AEAD",
+        1,
+        CAPABILITY.DECRYPT_OTP | CAPABILITY.RANDOMIZE_OTP_AEAD,
+        ALGORITHM.AES128_YUBICO_OTP,
+        nonce_id,
+        aes_key,
+    )
 
-        aead = key.randomize_otp_aead()
-        self.assertEqual(len(aead), 36)
+    aead = key.randomize_otp_aead()
+    assert len(aead) == 36
 
-        # Decrypt generated AEAD
-        aes_ccm = AESCCM(aes_key, 8)
-        nonce, ct = aead[:6], aead[6:]
-        pt = aes_ccm.decrypt(struct.pack("<I6sBBB", nonce_id, nonce, 0, 0, 0), ct, None)
+    # Decrypt generated AEAD
+    aes_ccm = AESCCM(aes_key, 8)
+    nonce, ct = aead[:6], aead[6:]
+    pt = aes_ccm.decrypt(struct.pack("<I6sBBB", nonce_id, nonce, 0, 0, 0), ct, None)
 
-        # Construct an OTP
-        otp_data = OtpData(1, 2, 3, 4)
-        otp = _construct_otp(pt[:16], pt[16:], otp_data)
+    # Construct an OTP
+    otp_data = OtpData(1, 2, 3, 4)
+    otp = _construct_otp(pt[:16], pt[16:], otp_data)
 
-        # Compare YubiHSM decrypted output
-        self.assertEqual(key.decrypt_otp(aead, otp), otp_data)
+    # Compare YubiHSM decrypted output
+    assert key.decrypt_otp(aead, otp) == otp_data
 
-        key.delete()
+    key.delete()
 
-    def test_decrypt_invalid_otp(self):
-        key = OtpAeadKey.generate(
-            self.session,
-            0,
-            "Test OTP invalid",
-            1,
-            CAPABILITY.RANDOMIZE_OTP_AEAD | CAPABILITY.DECRYPT_OTP,
-            ALGORITHM.AES128_YUBICO_OTP,
-            0x12345678,
-        )
-        aead = key.randomize_otp_aead()
 
-        with self.assertRaises(YubiHsmDeviceError) as context:
-            key.decrypt_otp(aead, os.urandom(16))
-        self.assertEqual(context.exception.code, ERROR.INVALID_OTP)
+def test_decrypt_invalid_otp(session):
+    key = OtpAeadKey.generate(
+        session,
+        0,
+        "Test OTP invalid",
+        1,
+        CAPABILITY.RANDOMIZE_OTP_AEAD | CAPABILITY.DECRYPT_OTP,
+        ALGORITHM.AES128_YUBICO_OTP,
+        0x12345678,
+    )
+    aead = key.randomize_otp_aead()
 
-        with self.assertRaises(YubiHsmDeviceError) as context:
-            key.decrypt_otp(aead, os.urandom(15))
-        self.assertEqual(context.exception.code, ERROR.WRONG_LENGTH)
+    with pytest.raises(YubiHsmDeviceError) as context:
+        key.decrypt_otp(aead, os.urandom(16))
+    assert context.value.code == ERROR.INVALID_OTP
 
-        key.delete()
+    with pytest.raises(YubiHsmDeviceError) as context:
+        key.decrypt_otp(aead, os.urandom(15))
+    assert context.value.code, ERROR.WRONG_LENGTH
 
-    def test_otp_vectors(self):
-        key1 = OtpAeadKey.generate(
-            self.session,
-            0,
-            "Test OTP OtpTestVectors",
-            1,
-            CAPABILITY.CREATE_OTP_AEAD
-            | CAPABILITY.REWRAP_FROM_OTP_AEAD_KEY
-            | CAPABILITY.DECRYPT_OTP,
-            ALGORITHM.AES128_YUBICO_OTP,
-            0x12345678,
-        )
-        key2 = OtpAeadKey.generate(
-            self.session,
-            0,
-            "Test OTP OtpTestVectors",
-            1,
-            CAPABILITY.REWRAP_FROM_OTP_AEAD_KEY
-            | CAPABILITY.REWRAP_TO_OTP_AEAD_KEY
-            | CAPABILITY.DECRYPT_OTP,
-            ALGORITHM.AES192_YUBICO_OTP,
-            0x87654321,
-        )
-        keydata = os.urandom(32)
-        key3 = OtpAeadKey.put(
-            self.session,
-            0,
-            "Test OTP OtpTestVectors",
-            1,
-            CAPABILITY.DECRYPT_OTP
-            | CAPABILITY.CREATE_OTP_AEAD
-            | CAPABILITY.REWRAP_TO_OTP_AEAD_KEY,
-            ALGORITHM.AES256_YUBICO_OTP,
-            0x00000001,
-            keydata,
-        )
+    key.delete()
 
-        modhex = bytes.maketrans(b"cbdefghijklnrtuv", b"0123456789abcdef")
 
-        for v in TEST_VECTORS:
-            aead1 = key1.create_otp_aead(v.key, v.id)
-            aead2 = key1.rewrap_otp_aead(key2.id, aead1)
-            self.assertNotEqual(aead1, aead2)
+def test_otp_vectors(session):
+    key1 = OtpAeadKey.generate(
+        session,
+        0,
+        "Test OTP OtpTestVectors",
+        1,
+        CAPABILITY.CREATE_OTP_AEAD
+        | CAPABILITY.REWRAP_FROM_OTP_AEAD_KEY
+        | CAPABILITY.DECRYPT_OTP,
+        ALGORITHM.AES128_YUBICO_OTP,
+        0x12345678,
+    )
+    key2 = OtpAeadKey.generate(
+        session,
+        0,
+        "Test OTP OtpTestVectors",
+        1,
+        CAPABILITY.REWRAP_FROM_OTP_AEAD_KEY
+        | CAPABILITY.REWRAP_TO_OTP_AEAD_KEY
+        | CAPABILITY.DECRYPT_OTP,
+        ALGORITHM.AES192_YUBICO_OTP,
+        0x87654321,
+    )
+    keydata = os.urandom(32)
+    key3 = OtpAeadKey.put(
+        session,
+        0,
+        "Test OTP OtpTestVectors",
+        1,
+        CAPABILITY.DECRYPT_OTP
+        | CAPABILITY.CREATE_OTP_AEAD
+        | CAPABILITY.REWRAP_TO_OTP_AEAD_KEY,
+        ALGORITHM.AES256_YUBICO_OTP,
+        0x00000001,
+        keydata,
+    )
 
-            aead3 = key2.rewrap_otp_aead(key3.id, aead2)
-            self.assertNotEqual(aead1, aead3)
-            self.assertNotEqual(aead2, aead3)
-            self.assertNotEqual(aead1, key3.create_otp_aead(v.key, v.id))
+    modhex = bytes.maketrans(b"cbdefghijklnrtuv", b"0123456789abcdef")
 
-            for otp, data in v.otps.items():
-                otp_bin = bytes.fromhex(otp.translate(modhex))
-                self.assertEqual(data, key1.decrypt_otp(aead1, otp_bin))
-                self.assertEqual(data, key2.decrypt_otp(aead2, otp_bin))
-                self.assertEqual(data, key3.decrypt_otp(aead3, otp_bin))
+    for v in TEST_VECTORS:
+        aead1 = key1.create_otp_aead(v.key, v.id)
+        aead2 = key1.rewrap_otp_aead(key2.id, aead1)
+        assert aead1 != aead2
 
-        key1.delete()
-        key2.delete()
-        key3.delete()
+        aead3 = key2.rewrap_otp_aead(key3.id, aead2)
+        assert aead1 != aead3
+        assert aead2 != aead3
+        assert aead1 != key3.create_otp_aead(v.key, v.id)
+
+        for otp, data in v.otps.items():
+            otp_bin = bytes.fromhex(otp.translate(modhex))
+            assert data == key1.decrypt_otp(aead1, otp_bin)
+            assert data == key2.decrypt_otp(aead2, otp_bin)
+            assert data == key3.decrypt_otp(aead3, otp_bin)
+
+    key1.delete()
+    key2.delete()
+    key3.delete()

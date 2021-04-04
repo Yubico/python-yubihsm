@@ -12,36 +12,34 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .utils import YubiHsmTestCase, DEFAULT_KEY
+from . import DEFAULT_KEY
 from yubihsm.defs import OBJECT, CAPABILITY, ALGORITHM, ORIGIN
 from yubihsm.objects import Opaque
 import time
 
 
-class Reset(YubiHsmTestCase):
-    def test_reset(self):
-        Opaque.put(
-            self.session, 0, "Test opaque data", 1, 0, OBJECT.OPAQUE, b"dummyobject"
-        )
-        self.session.reset_device()
-        self.hsm.close()
+def test_reset(hsm, session, connect_hsm):
+    Opaque.put(session, 0, "Test opaque data", 1, 0, OBJECT.OPAQUE, b"dummyobject")
+    session.reset_device()
+    hsm.close()
 
-        time.sleep(5)  # Wait for device to reboot
+    time.sleep(5)  # Wait for device to reboot
 
-        self.connect_hsm()  # Re-connect since device restarted.
-        self.session = self.hsm.create_session_derived(1, DEFAULT_KEY)
-        self.assertEqual(len(self.session.list_objects()), 1)
-        auth_key = self.session.get_object(1, OBJECT.AUTHENTICATION_KEY)
+    with connect_hsm() as hsm:  # Re-connect since device restarted.
+        with hsm.create_session_derived(1, DEFAULT_KEY) as session:
+            assert len(session.list_objects()) == 1
+            auth_key = session.get_object(1, OBJECT.AUTHENTICATION_KEY)
 
-        # Check details of default key
-        info = auth_key.get_info()
-        self.assertEqual(info.capabilities & CAPABILITY.ALL, CAPABILITY.ALL)
-        self.assertEqual(info.id, 1)
-        self.assertEqual(info.size, 40)
-        self.assertEqual(info.domains, 0xFFFF)
-        self.assertEqual(info.object_type, OBJECT.AUTHENTICATION_KEY)
-        self.assertEqual(info.algorithm, ALGORITHM.AES128_YUBICO_AUTHENTICATION)
-        self.assertEqual(info.sequence, 0)
-        self.assertEqual(info.origin, ORIGIN.IMPORTED)
-        self.assertEqual(info.label, "DEFAULT AUTHKEY CHANGE THIS ASAP")
-        self.assertEqual(info.capabilities, info.delegated_capabilities)
+            # Check details of default key
+            info = auth_key.get_info()
+
+    assert info.capabilities & CAPABILITY.ALL == CAPABILITY.ALL
+    assert info.id == 1
+    assert info.size == 40
+    assert info.domains == 0xFFFF
+    assert info.object_type == OBJECT.AUTHENTICATION_KEY
+    assert info.algorithm == ALGORITHM.AES128_YUBICO_AUTHENTICATION
+    assert info.sequence == 0
+    assert info.origin == ORIGIN.IMPORTED
+    assert info.label == "DEFAULT AUTHKEY CHANGE THIS ASAP"
+    assert info.capabilities == info.delegated_capabilities
