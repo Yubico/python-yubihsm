@@ -14,9 +14,6 @@
 
 """Classes for interacting with objects on a YubiHSM."""
 
-
-from __future__ import absolute_import, division
-
 from .defs import ALGORITHM, COMMAND, OBJECT, ORIGIN
 from .exceptions import YubiHsmInvalidResponseError
 from .eddsa import (

@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import absolute_import, division
-
 from .utils import YubiHsmTestCase
 from yubihsm.defs import ALGORITHM, CAPABILITY, ERROR
 from yubihsm.objects import OtpAeadKey, OtpData
@@ -21,22 +19,22 @@ from yubihsm.exceptions import YubiHsmDeviceError
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives.ciphers.aead import AESCCM
 from cryptography.hazmat.backends import default_backend
-from collections import namedtuple
-from binascii import a2b_hex
+from dataclasses import dataclass
 import os
 import struct
+from typing import Mapping
 
-try:
-    maketrans = bytes.maketrans
-except AttributeError:  # Python 2 fallback
-    from string import maketrans
 
-TestVector = namedtuple("TestVector", ["key", "id", "otps"])
+@dataclass
+class OtpTestVector:
+    key: bytes
+    id: bytes
+    otps: Mapping[str, OtpData]
 
 
 # From: https://developers.yubico.com/OTP/Specifications/Test_vectors.html
 TEST_VECTORS = [
-    TestVector(
+    OtpTestVector(
         key=b"\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f",
         id=b"\x01\x02\x03\x04\x05\x06",
         otps={
@@ -45,17 +43,17 @@ TEST_VECTORS = [
             "iikkijbdknrrdhfdrjltvgrbkkjblcbh": OtpData(0xFFF, 1, 1, 1),
         },
     ),
-    TestVector(
+    OtpTestVector(
         key=b"\x88\x88\x88\x88\x88\x88\x88\x88\x88\x88\x88\x88\x88\x88\x88\x88",
         id=b"\x88\x88\x88\x88\x88\x88",
         otps={"dcihgvrhjeucvrinhdfddbjhfjftjdei": OtpData(0x8888, 0x88, 0x88, 0x8888)},
     ),
-    TestVector(
+    OtpTestVector(
         key=b"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00",
         id=b"\x00\x00\x00\x00\x00\x00",
         otps={"kkkncjnvcnenkjvjgncjihljiibgbhbh": OtpData(0, 0, 0, 0)},
     ),
-    TestVector(
+    OtpTestVector(
         key=b"\xc4\x42\x28\x90\x65\x30\x76\xcd\xe7\x3d\x44\x9b\x19\x1b\x41\x6a",
         id=b"\x33\xc6\x9e\x7f\x24\x9e",
         otps={"iucvrkjiegbhidrcicvlgrcgkgurhjnj": OtpData(1, 0, 0x24, 0x13A7)},
@@ -148,7 +146,7 @@ class TestOTP(YubiHsmTestCase):
         key1 = OtpAeadKey.generate(
             self.session,
             0,
-            "Test OTP TestVectors",
+            "Test OTP OtpTestVectors",
             1,
             CAPABILITY.CREATE_OTP_AEAD
             | CAPABILITY.REWRAP_FROM_OTP_AEAD_KEY
@@ -159,7 +157,7 @@ class TestOTP(YubiHsmTestCase):
         key2 = OtpAeadKey.generate(
             self.session,
             0,
-            "Test OTP TestVectors",
+            "Test OTP OtpTestVectors",
             1,
             CAPABILITY.REWRAP_FROM_OTP_AEAD_KEY
             | CAPABILITY.REWRAP_TO_OTP_AEAD_KEY
@@ -171,7 +169,7 @@ class TestOTP(YubiHsmTestCase):
         key3 = OtpAeadKey.put(
             self.session,
             0,
-            "Test OTP TestVectors",
+            "Test OTP OtpTestVectors",
             1,
             CAPABILITY.DECRYPT_OTP
             | CAPABILITY.CREATE_OTP_AEAD
@@ -181,7 +179,7 @@ class TestOTP(YubiHsmTestCase):
             keydata,
         )
 
-        modhex = maketrans(b"cbdefghijklnrtuv", b"0123456789abcdef")
+        modhex = bytes.maketrans(b"cbdefghijklnrtuv", b"0123456789abcdef")
 
         for v in TEST_VECTORS:
             aead1 = key1.create_otp_aead(v.key, v.id)
@@ -194,7 +192,7 @@ class TestOTP(YubiHsmTestCase):
             self.assertNotEqual(aead1, key3.create_otp_aead(v.key, v.id))
 
             for otp, data in v.otps.items():
-                otp_bin = a2b_hex(otp.translate(modhex))
+                otp_bin = bytes.fromhex(otp.translate(modhex))
                 self.assertEqual(data, key1.decrypt_otp(aead1, otp_bin))
                 self.assertEqual(data, key2.decrypt_otp(aead2, otp_bin))
                 self.assertEqual(data, key3.decrypt_otp(aead3, otp_bin))

@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import absolute_import
-
 from ..exceptions import YubiHsmConnectionError
 from requests.exceptions import RequestException
 from six.moves.urllib import parse

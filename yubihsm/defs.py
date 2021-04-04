@@ -14,9 +14,6 @@
 
 """Named constants used in YubiHSM commands."""
 
-
-from __future__ import absolute_import, division
-
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography import utils
 from enum import IntEnum, unique

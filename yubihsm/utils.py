@@ -14,9 +14,6 @@
 
 """Various utility functions used throughout the library."""
 
-
-from __future__ import absolute_import, division
-
 import six
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
