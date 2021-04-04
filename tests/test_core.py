@@ -39,7 +39,7 @@ _TRANSCEIVE_DEVICE_INFO = b"\x86\x008\x02\x00\x00\x00s4\xbc>\x04\x01\x02\x03\x04
 
 def simple_urandom(length):
     """See https://xkcd.com/221/"""
-    return struct.pack("!%ds" % length, b"")
+    return b"\x00" * length
 
 
 @patch("os.urandom", side_effect=simple_urandom)

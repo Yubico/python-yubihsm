@@ -12,22 +12,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .utils import YubiHsmTestCase
 from yubihsm.defs import COMMAND, CAPABILITY, ERROR
 from yubihsm.objects import AuthenticationKey
 from yubihsm.exceptions import YubiHsmAuthenticationError, YubiHsmDeviceError
 from yubihsm.utils import password_to_key
 from binascii import a2b_hex
+import pytest
 import os
 
 
-class TestAuthenticationKey(YubiHsmTestCase):
-    def test_put_unicode_authkey(self):
+class TestAuthenticationKey:
+    def test_put_unicode_authkey(self, hsm, session):
         # UTF-8 encoded unicode password
         password = b"\xF0\x9F\x98\x81\xF0\x9F\x98\x83\xF0\x9F\x98\x84".decode()
 
         authkey = AuthenticationKey.put_derived(
-            self.session,
+            session,
             0,
             "Test PUT authkey",
             1,
@@ -36,20 +36,25 @@ class TestAuthenticationKey(YubiHsmTestCase):
             password,
         )
 
-        with self.hsm.create_session_derived(authkey.id, password) as session:
+        with hsm.create_session_derived(authkey.id, password) as session:
             message = os.urandom(256)
             resp = session.send_secure_cmd(COMMAND.ECHO, message)
 
-        self.assertEqual(resp, message)
+        assert resp == message
 
         authkey.delete()
 
-    def test_change_password(self):
-        self.require_version((2, 1, 0), "Change authentication key")
 
+class TestChangeAuthenticationKey:
+    @pytest.fixture(autouse=True)
+    def prerequisites(self, info):
+        if info.version < (2, 1, 0):
+            pytest.skip("Change authentication key requires 2.1.0")
+
+    def test_change_password(self, hsm, session):
         # Create an auth key with the capability to change
         authkey = AuthenticationKey.put_derived(
-            self.session,
+            session,
             0,
             "Test CHANGE authkey",
             1,
@@ -59,33 +64,31 @@ class TestAuthenticationKey(YubiHsmTestCase):
         )
 
         # Can't change the password of another key
-        with self.assertRaises(YubiHsmDeviceError) as context:
+        with pytest.raises(YubiHsmDeviceError) as context:
             authkey.change_password("second_password")
-        self.assertEqual(context.exception.code, ERROR.INVALID_ID)
+        assert context.value.code == ERROR.INVALID_ID
 
         # Try again, using the new auth key
-        with self.hsm.create_session_derived(authkey.id, "first_password") as session:
+        with hsm.create_session_derived(authkey.id, "first_password") as session:
             authkey.with_session(session).change_password("second_password")
 
-        with self.assertRaises(YubiHsmAuthenticationError):
-            self.hsm.create_session_derived(authkey.id, "first_password")
+        with pytest.raises(YubiHsmAuthenticationError):
+            hsm.create_session_derived(authkey.id, "first_password")
 
-        self.hsm.create_session_derived(authkey.id, "second_password").close()
+        hsm.create_session_derived(authkey.id, "second_password").close()
 
         authkey.delete()
-        with self.assertRaises(YubiHsmDeviceError) as context:
-            self.hsm.create_session_derived(authkey.id, "second_password")
-        self.assertEqual(context.exception.code, ERROR.OBJECT_NOT_FOUND)
+        with pytest.raises(YubiHsmDeviceError) as context:
+            hsm.create_session_derived(authkey.id, "second_password")
+        assert context.value.code == ERROR.OBJECT_NOT_FOUND
 
-    def test_change_raw_keys(self):
-        self.require_version((2, 1, 0), "Change authentication key")
-
+    def test_change_raw_keys(self, session, hsm):
         key_enc = a2b_hex("090b47dbed595654901dee1cc655e420")
         key_mac = a2b_hex("592fd483f759e29909a04c4505d2ce0a")
 
         # Create an auth key with the capability to change
         authkey = AuthenticationKey.put(
-            self.session,
+            session,
             0,
             "Test CHANGE authkey",
             1,
@@ -95,20 +98,20 @@ class TestAuthenticationKey(YubiHsmTestCase):
             key_mac,
         )
 
-        with self.hsm.create_session_derived(authkey.id, "password") as session:
+        with hsm.create_session_derived(authkey.id, "password") as session:
             key_enc, key_mac = password_to_key("second_password")
             authkey.with_session(session).change_key(key_enc, key_mac)
 
-        with self.hsm.create_session_derived(authkey.id, "second_password"):
+        with hsm.create_session_derived(authkey.id, "second_password"):
             pass
 
         authkey.delete()
 
 
-class TestSessions(YubiHsmTestCase):
-    def test_parallel_sessions(self):
+class TestSessions:
+    def test_parallel_sessions(self, session, hsm):
         authkey1 = AuthenticationKey.put_derived(
-            self.session,
+            session,
             0,
             "Test authkey 1",
             1,
@@ -118,7 +121,7 @@ class TestSessions(YubiHsmTestCase):
         )
 
         authkey2 = AuthenticationKey.put_derived(
-            self.session,
+            session,
             0,
             "Test authkey 2",
             2,
@@ -128,7 +131,7 @@ class TestSessions(YubiHsmTestCase):
         )
 
         authkey3 = AuthenticationKey.put_derived(
-            self.session,
+            session,
             0,
             "Test authkey 3",
             1,
@@ -137,9 +140,9 @@ class TestSessions(YubiHsmTestCase):
             "three",
         )
 
-        session1 = self.hsm.create_session_derived(authkey1.id, "one")
-        session2 = self.hsm.create_session_derived(authkey2.id, "two")
-        session3 = self.hsm.create_session_derived(authkey3.id, "three")
+        session1 = hsm.create_session_derived(authkey1.id, "one")
+        session2 = hsm.create_session_derived(authkey2.id, "two")
+        session3 = hsm.create_session_derived(authkey3.id, "three")
 
         session2.close()
         session1.send_secure_cmd(COMMAND.ECHO, b"hello")

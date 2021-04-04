@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .utils import YubiHsmTestCase, DEFAULT_KEY
+from . import DEFAULT_KEY
 from yubihsm.defs import ALGORITHM, CAPABILITY, AUDIT, ERROR, COMMAND
 from yubihsm.objects import HmacKey
 from yubihsm.exceptions import YubiHsmDeviceError, YubiHsmInvalidResponseError
@@ -21,129 +21,132 @@ from cryptography.hazmat.primitives import hashes
 import os
 import time
 import struct
+import pytest
 
 
-class TestLogs(YubiHsmTestCase):
-    def test_get_log_entries(self):
-        boot, auth, logs = self.session.get_log_entries()
+def test_get_log_entries(session):
+    boot, auth, logs = session.get_log_entries()
 
-        last_digest = logs[0].digest
-        for i in range(1, len(logs)):
-            digest = hashes.Hash(hashes.SHA256(), backend=default_backend())
-            digest.update(logs[i].data)
-            digest.update(last_digest)
-            last_digest = digest.finalize()[:16]
-            self.assertEqual(last_digest, logs[i].digest)
+    last_digest = logs[0].digest
+    for i in range(1, len(logs)):
+        digest = hashes.Hash(hashes.SHA256(), backend=default_backend())
+        digest.update(logs[i].data)
+        digest.update(last_digest)
+        last_digest = digest.finalize()[:16]
+        assert last_digest == logs[i].digest
 
-    def test_full_log(self):
-        hmackey = HmacKey.generate(
-            self.session,
-            0,
-            "Test Full Log",
-            1,
-            CAPABILITY.SIGN_HMAC | CAPABILITY.VERIFY_HMAC,
-            ALGORITHM.HMAC_SHA256,
-        )
 
-        for i in range(0, 30):
+def test_full_log(session):
+    hmackey = HmacKey.generate(
+        session,
+        0,
+        "Test Full Log",
+        1,
+        CAPABILITY.SIGN_HMAC | CAPABILITY.VERIFY_HMAC,
+        ALGORITHM.HMAC_SHA256,
+    )
+
+    for i in range(0, 30):
+        data = os.urandom(64)
+        resp = hmackey.sign_hmac(data)
+        assert len(resp) == 32
+        assert hmackey.verify_hmac(resp, data)
+
+    boot, auth, logs = session.get_log_entries()
+
+    last_digest = logs[0].digest
+    for i in range(1, len(logs)):
+        digest = hashes.Hash(hashes.SHA256(), backend=default_backend())
+        digest.update(logs[i].data)
+        digest.update(last_digest)
+        last_digest = digest.finalize()[:16]
+        assert last_digest == logs[i].digest
+
+
+def test_wrong_chain(session):
+    hmackey = HmacKey.generate(
+        session,
+        0,
+        "Test Log hash chain",
+        1,
+        CAPABILITY.SIGN_HMAC | CAPABILITY.VERIFY_HMAC,
+        ALGORITHM.HMAC_SHA256,
+    )
+
+    boot, auth, logs = session.get_log_entries()
+    last_line = logs.pop()
+    session.set_log_index(last_line.number)
+
+    hmackey.sign_hmac(b"hello")
+    hmackey.sign_hmac(b"hello")
+    hmackey.sign_hmac(b"hello")
+
+    with pytest.raises(ValueError):
+        session.get_log_entries(logs.pop())  # Wrong number
+
+    wrong_line = last_line._replace(digest=os.urandom(16))
+    with pytest.raises(YubiHsmInvalidResponseError):
+        session.get_log_entries(wrong_line)
+
+
+def test_forced_log(hsm, session):
+    boot, auth, logs = session.get_log_entries()
+    last_line = logs.pop()
+    session.set_log_index(last_line.number)
+    session.set_force_audit(AUDIT.ON)
+    assert session.get_force_audit() == AUDIT.ON
+
+    hmackey = HmacKey.generate(
+        session,
+        0,
+        "Test Force Log",
+        1,
+        CAPABILITY.SIGN_HMAC | CAPABILITY.VERIFY_HMAC,
+        ALGORITHM.HMAC_SHA256,
+    )
+
+    error = 0
+    for i in range(0, 32):
+        try:
             data = os.urandom(64)
             resp = hmackey.sign_hmac(data)
-            self.assertEqual(len(resp), 32)
-            self.assertTrue(hmackey.verify_hmac(resp, data))
+            assert len(resp) == 32
+            assert hmackey.verify_hmac(resp, data)
+        except YubiHsmDeviceError as e:
+            error = e.code
+    assert error == ERROR.LOG_FULL
+    device_info = hsm.get_device_info()
+    assert device_info.log_used == device_info.log_size
 
-        boot, auth, logs = self.session.get_log_entries()
+    boot, auth, logs = session.get_log_entries(last_line)
+    last_line = logs.pop()
+    session.set_log_index(last_line.number)
+    session.set_force_audit(AUDIT.OFF)
+    assert session.get_force_audit() == AUDIT.OFF
 
-        last_digest = logs[0].digest
-        for i in range(1, len(logs)):
-            digest = hashes.Hash(hashes.SHA256(), backend=default_backend())
-            digest.update(logs[i].data)
-            digest.update(last_digest)
-            last_digest = digest.finalize()[:16]
-            self.assertEqual(last_digest, logs[i].digest)
+    for i in range(0, 32):
+        data = os.urandom(64)
+        resp = hmackey.sign_hmac(data)
+        assert len(resp) == 32
+        assert hmackey.verify_hmac(resp, data)
 
-    def test_wrong_chain(self):
-        hmackey = HmacKey.generate(
-            self.session,
-            0,
-            "Test Log hash chain",
-            1,
-            CAPABILITY.SIGN_HMAC | CAPABILITY.VERIFY_HMAC,
-            ALGORITHM.HMAC_SHA256,
-        )
 
-        boot, auth, logs = self.session.get_log_entries()
-        last_line = logs.pop()
-        self.session.set_log_index(last_line.number)
+def test_logs_after_reset(hsm, connect_hsm, session):
+    session.reset_device()
+    hsm.close()
 
-        hmackey.sign_hmac(b"hello")
-        hmackey.sign_hmac(b"hello")
-        hmackey.sign_hmac(b"hello")
+    time.sleep(5)  # Wait for device to reboot
 
-        with self.assertRaises(ValueError):
-            self.session.get_log_entries(logs.pop())  # Wrong number
+    with connect_hsm() as hsm:
+        with hsm.create_session_derived(1, DEFAULT_KEY) as session:
+            boot, auth, logs = session.get_log_entries()
+    assert 4 == len(logs)
 
-        wrong_line = last_line._replace(digest=os.urandom(16))
-        with self.assertRaises(YubiHsmInvalidResponseError):
-            self.session.get_log_entries(wrong_line)
+    # Reset line
+    assert logs.pop(0).data == b"\0\1" + b"\xff" * 14
 
-    def test_forced_log(self):
-        boot, auth, logs = self.session.get_log_entries()
-        last_line = logs.pop()
-        self.session.set_log_index(last_line.number)
-        self.session.set_force_audit(AUDIT.ON)
-        self.assertEqual(self.session.get_force_audit(), AUDIT.ON)
+    # Boot line
+    assert logs.pop(0).data == struct.pack("!HBHHHHBL", 2, 0, 0, 0xFFFF, 0, 0, 0, 0)
 
-        hmackey = HmacKey.generate(
-            self.session,
-            0,
-            "Test Force Log",
-            1,
-            CAPABILITY.SIGN_HMAC | CAPABILITY.VERIFY_HMAC,
-            ALGORITHM.HMAC_SHA256,
-        )
-
-        error = 0
-        for i in range(0, 32):
-            try:
-                data = os.urandom(64)
-                resp = hmackey.sign_hmac(data)
-                self.assertEqual(len(resp), 32)
-                self.assertTrue(hmackey.verify_hmac(resp, data))
-            except YubiHsmDeviceError as e:
-                error = e.code
-        self.assertEqual(error, ERROR.LOG_FULL)
-        device_info = self.hsm.get_device_info()
-        self.assertEqual(device_info.log_used, device_info.log_size)
-
-        boot, auth, logs = self.session.get_log_entries(last_line)
-        last_line = logs.pop()
-        self.session.set_log_index(last_line.number)
-        self.session.set_force_audit(AUDIT.OFF)
-        self.assertEqual(self.session.get_force_audit(), AUDIT.OFF)
-
-        for i in range(0, 32):
-            data = os.urandom(64)
-            resp = hmackey.sign_hmac(data)
-            self.assertEqual(len(resp), 32)
-            self.assertTrue(hmackey.verify_hmac(resp, data))
-
-    def test_logs_after_reset(self):
-        self.session.reset_device()
-        self.hsm.close()
-        time.sleep(5)  # Wait for device to reboot
-
-        self.connect_hsm()  # Re-connect since device restarted.
-        self.session = self.hsm.create_session_derived(1, DEFAULT_KEY)
-        boot, auth, logs = self.session.get_log_entries()
-        self.assertEqual(4, len(logs))
-
-        # Reset line
-        self.assertEqual(logs.pop(0).data, b"\0\1" + b"\xff" * 14)
-
-        # Boot line
-        self.assertEqual(
-            logs.pop(0).data, struct.pack("!HBHHHHBL", 2, 0, 0, 0xFFFF, 0, 0, 0, 0)
-        )
-
-        self.assertEqual(logs.pop(0).command, COMMAND.CREATE_SESSION)
-        self.assertEqual(logs.pop(0).command, COMMAND.AUTHENTICATE_SESSION)
+    assert logs.pop(0).command == COMMAND.CREATE_SESSION
+    assert logs.pop(0).command == COMMAND.AUTHENTICATE_SESSION
