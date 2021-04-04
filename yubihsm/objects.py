@@ -31,7 +31,6 @@ from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 from cryptography.utils import int_to_bytes
 from .utils import int_from_bytes, password_to_key
 from collections import namedtuple
-import six
 import copy
 import struct
 
@@ -41,8 +40,8 @@ LABEL_LENGTH = 40
 
 def _label_pack(label):
     """Pack a label into binary form."""
-    if isinstance(label, six.text_type):
-        label = label.encode("utf8")
+    if isinstance(label, str):
+        label = label.encode()
     if len(label) > LABEL_LENGTH:
         raise ValueError("Label must be no longer than %d bytes" % LABEL_LENGTH)
     return label
@@ -51,7 +50,7 @@ def _label_pack(label):
 def _label_unpack(packed):
     """Unpack a label from its binary form."""
     try:
-        return packed.split(b"\0", 2)[0].decode("utf8")
+        return packed.split(b"\0", 2)[0].decode()
     except UnicodeDecodeError:
         # Not valid UTF-8 string, return the raw data.
         return packed
@@ -514,7 +513,7 @@ class AsymmetricKey(YhsmObject):
         """
         msg = struct.pack("!H", self.id)
         ret = self.session.send_secure_cmd(COMMAND.GET_PUBLIC_KEY, msg)
-        algo = ALGORITHM(six.indexbytes(ret, 0))
+        algo = ALGORITHM(ret[0])
         raw_key = ret[1:]
         if algo in [ALGORITHM.RSA_2048, ALGORITHM.RSA_3072, ALGORITHM.RSA_4096]:
             num = int_from_bytes(raw_key, "big")

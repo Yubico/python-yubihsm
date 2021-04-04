@@ -14,7 +14,7 @@
 
 from ..exceptions import YubiHsmConnectionError
 from requests.exceptions import RequestException
-from six.moves.urllib import parse
+from urllib import parse
 import requests
 
 
