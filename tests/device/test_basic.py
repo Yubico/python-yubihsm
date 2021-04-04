@@ -52,7 +52,7 @@ class TestListObjects(YubiHsmTestCase):
     def key_in_list(self, keytype, algorithm=None):
         dom = None
         cap = 0
-        key_label = "%s%s" % (str(uuid.uuid4()), b"\xf0\x9f\x98\x83".decode("utf8"))
+        key_label = "%s%s" % (str(uuid.uuid4()), b"\xf0\x9f\x98\x83".decode())
 
         if keytype == OBJECT.ASYMMETRIC_KEY:
             dom = 0xFFFF

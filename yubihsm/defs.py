@@ -17,17 +17,6 @@
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography import utils
 from enum import IntEnum, unique
-import six
-
-
-if six.PY2:
-    # Workaround for int max size on Python 2.
-    from enum import Enum
-
-    class _LongEnum(long, Enum):  # noqa F821
-        """Like IntEnum, but supports larger values"""
-
-    IntEnum = _LongEnum  # Use instead of IntEnum  # noqa F811
 
 
 @utils.register_interface(ec.EllipticCurve)

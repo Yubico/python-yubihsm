@@ -24,7 +24,7 @@ import os
 class TestAuthenticationKey(YubiHsmTestCase):
     def test_put_unicode_authkey(self):
         # UTF-8 encoded unicode password
-        password = b"\xF0\x9F\x98\x81\xF0\x9F\x98\x83\xF0\x9F\x98\x84".decode("utf8")
+        password = b"\xF0\x9F\x98\x81\xF0\x9F\x98\x83\xF0\x9F\x98\x84".decode()
 
         authkey = AuthenticationKey.put_derived(
             self.session,

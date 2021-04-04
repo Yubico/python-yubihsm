@@ -14,7 +14,6 @@
 
 """Various utility functions used throughout the library."""
 
-import six
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
@@ -33,8 +32,8 @@ def password_to_key(password):
     :return: A tuple containing the encryption key, and MAC key.
     :rtype: tuple[bytes, bytes]
     """
-    if isinstance(password, six.text_type):
-        password = password.encode("utf8")
+    if isinstance(password, str):
+        password = password.encode()
     key = PBKDF2HMAC(
         algorithm=hashes.SHA256(),
         length=32,

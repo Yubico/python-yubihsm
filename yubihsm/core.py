@@ -33,7 +33,6 @@ from cryptography.utils import int_to_bytes
 from hashlib import sha256
 from collections import namedtuple
 import os
-import six
 import struct
 
 
@@ -65,7 +64,7 @@ def _unpad_resp(resp, cmd):
     if len(resp) < length + 3:
         raise YubiHsmInvalidResponseError("Wrong length")
     if rcmd == COMMAND.ERROR:
-        raise YubiHsmDeviceError(six.indexbytes(resp, 3))
+        raise YubiHsmDeviceError(resp[3])
     elif rcmd != cmd | 0x80:
         raise YubiHsmInvalidResponseError("Wrong command in response")
     return resp[3 : length + 3]
@@ -232,7 +231,7 @@ class DeviceInfo(
         unpacked = struct.unpack_from(cls.FORMAT, data)
         version = unpacked[:3]
         serial, log_size, log_used = unpacked[3:]
-        algorithms = {_algorithm(a) for a in six.iterbytes(data[cls.LENGTH :])}
+        algorithms = {_algorithm(a) for a in data[cls.LENGTH :]}
 
         return cls(version, serial, log_size, log_used, algorithms)
 
@@ -276,7 +275,7 @@ class AuthSession(object):
             COMMAND.CREATE_SESSION, struct.pack("!H", auth_key_id) + context
         )
 
-        self._sid = six.indexbytes(data, 0)
+        self._sid = data[0]
         context += data[1 : 1 + 8]
         card_crypto = data[9 : 9 + 8]
         self._key_enc = _derive(key_enc, KEY_ENC, context)
@@ -335,7 +334,7 @@ class AuthSession(object):
 
         data = _unpad_resp(raw_resp, COMMAND.SESSION_MESSAGE)
 
-        if six.indexbytes(data, 0) != self._sid:
+        if data[0] != self._sid:
             raise YubiHsmInvalidResponseError("Incorrect SID")
 
         rmac = _calculate_mac(self._key_rmac, next_mac_chain, raw_resp[:-8])[1]
@@ -531,7 +530,7 @@ class AuthSession(object):
         :return: The AUDIT setting for FORCE_AUDIT.
         :rtype: AUDIT
         """
-        return AUDIT(six.indexbytes(self.get_option(OPTION.FORCE_AUDIT), 0))
+        return AUDIT(self.get_option(OPTION.FORCE_AUDIT)[0])
 
     def set_command_audit(self, commands):
         """Set audit mode of commands.
@@ -561,8 +560,8 @@ class AuthSession(object):
         resp = self.get_option(OPTION.COMMAND_AUDIT)
         ret = {}
         for i in range(0, len(resp), 2):
-            cmd = six.indexbytes(resp, i)
-            val = AUDIT(six.indexbytes(resp, i + 1))
+            cmd = resp[i]
+            val = AUDIT(resp[i + 1])
             try:
                 ret[COMMAND(cmd)] = val
             except ValueError:
