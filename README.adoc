@@ -1,9 +1,9 @@
 == python-yubihsm
 
 Python library and tests for the YubiHSM 2.
-This library is compatible with both Python 2 and 3.
+This library requires Python 3.6 or later.
 
-This library communicates with the YubiHSM 2 connector daemon, which must already be running.
+Communicates with the YubiHSM 2 connector daemon, which must already be running.
 It can also communicate directly with the YubiHSM 2 via USB.
 
 === License
@@ -78,10 +78,10 @@ hsm.close()
 ----
 
 === Development
-For development of the library, we recommend using `pipenv`. To set up the dev
+For development of the library, `poetry` is used. To set up the dev
 environment, run this command in the root directory of the repository:
 
- $ pipenv install --dev
+ $ poetry install
 
 ==== Running tests
 Running the tests require a YubiHSM2 to run against, with the default
@@ -89,17 +89,15 @@ authentication key set.
 
 WARNING: The YubiHSM under test will be factory reset by the tests!
 
- $ pipenv run test
+ $ poetry run pytest
 
-You can specify a specific module or test to run by using the -s flag:
-
- $ pipenv run test -s test.device.test_ec
+See pytest documentation for instructions on running a specific test.
 
 By default the tests will connect to a yubihsm-connector running with the
 default settings on http://localhost:12345. To change this, use the `BACKEND`
 variable, eg:
 
- $ BACKEND="yhusb://" pipenv run python setup.py test
+ $ BACKEND="yhusb://" poetry run pytest
 
 Access to the device requires proper permissions, so either use sudo or setup a
 udev rule.
@@ -108,13 +106,13 @@ udev rule.
 
 To build the HTML documentation, run:
 
- $ pipenv run docs
+ $ poetry run make -C docs/ html
 
 The resulting output will be in docs/_build/html/.
 
 ==== Source releases for distribution
 Build a source release:
 
- $ pipenv run python setup.py sdist
+ $ poetry build
 
-The resulting .tar.gz will be created in `dist/`.
+The resulting .tar.gz and .whl will be created in `dist/`.
