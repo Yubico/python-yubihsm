@@ -12,23 +12,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from . import YhsmBackend
 from ..exceptions import YubiHsmConnectionError
 import usb.core
 import usb.util
+from typing import Optional
 
 
 YUBIHSM_VID = 0x1050
 YUBIHSM_PID = 0x0030
 
 
-class UsbBackend(object):
+class UsbBackend(YhsmBackend):
     """A backend for communicating with a YubiHSM directly over USB."""
 
-    def __init__(self, serial=None):
+    def __init__(self, serial: Optional[int] = None):
         """Construct a UsbBackend, connected to a YubiHSM via USB.
 
-        :param int serial: (optional) The serial number of the YubiHSM to
-            connect to.
+        :param serial: (optional) The serial number of the YubiHSM to connect to.
         """
         for device in usb.core.find(
             find_all=True, idVendor=YUBIHSM_VID, idProduct=YUBIHSM_PID
@@ -53,7 +54,6 @@ class UsbBackend(object):
         self.timeout = 300
 
     def transceive(self, msg):
-        """Send a verbatim message."""
         try:
             sent = self._device.write(0x01, msg, self.timeout * 1000)
             if sent != len(msg):

@@ -15,7 +15,7 @@
 """Named constants used in YubiHSM commands."""
 
 from cryptography.hazmat.primitives.asymmetric import ec
-from cryptography import utils
+from cryptography import utils  # type: ignore
 from enum import IntEnum, unique
 
 
@@ -314,8 +314,8 @@ class CAPABILITY(IntEnum):
     CHANGE_AUTHENTICATION_KEY = 1 << 0x2E
 
 
-CAPABILITY.ALL = sum(CAPABILITY)
-CAPABILITY.NONE = 0x00
+CAPABILITY.ALL = sum(CAPABILITY)  # type: ignore
+CAPABILITY.NONE = 0x00  # type: ignore
 
 
 class ORIGIN(int):

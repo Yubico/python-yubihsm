@@ -36,6 +36,7 @@ usb = ["pyusb"]
 pytest = "^6.0"
 Sphinx = "^3.5.3"
 sphinx-rtd-theme = "^0.5.1"
+sphinx-autodoc-typehints = "^1.11.1"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

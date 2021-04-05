@@ -18,6 +18,7 @@ from yubihsm.objects import HmacKey
 from yubihsm.exceptions import YubiHsmDeviceError, YubiHsmInvalidResponseError
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
+from dataclasses import replace
 import os
 import time
 import struct
@@ -84,7 +85,7 @@ def test_wrong_chain(session):
     with pytest.raises(ValueError):
         session.get_log_entries(logs.pop())  # Wrong number
 
-    wrong_line = last_line._replace(digest=os.urandom(16))
+    wrong_line = replace(last_line, digest=os.urandom(16))
     with pytest.raises(YubiHsmInvalidResponseError):
         session.get_log_entries(wrong_line)
 
