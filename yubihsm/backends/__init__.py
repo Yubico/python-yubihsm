@@ -14,9 +14,21 @@
 
 from urllib import parse
 import re
+import abc
+from typing import Optional
 
 
-def get_backend(url=None):
+class YhsmBackend(abc.ABC):
+    """Provides low-level communication with a YubiHSM."""
+
+    def transceive(self, msg: bytes) -> bytes:
+        """Send a verbatim message."""
+
+    def close(self):
+        """Closes the connection to the YubiHSM."""
+
+
+def get_backend(url: Optional[str] = None) -> YhsmBackend:
     """Returns a backend suitable for the given URL."""
     url = url or "http://localhost:12345"
     parsed = parse.urlparse(url)

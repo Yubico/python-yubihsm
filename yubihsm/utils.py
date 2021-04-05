@@ -18,28 +18,30 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from binascii import b2a_hex
+from typing import Tuple, Union
 
 
-def int_from_bytes(value, byteorder="big"):
+def int_from_bytes(value: bytes, byteorder: str = "big") -> int:
     if byteorder != "big":
         raise ValueError("byteorder must be big")
     return int(b2a_hex(value), 16)
 
 
-def password_to_key(password):
+def password_to_key(password: Union[str, bytes]) -> Tuple[bytes, bytes]:
     """Derive keys for establishing a YubiHSM session from a password.
 
     :return: A tuple containing the encryption key, and MAC key.
-    :rtype: tuple[bytes, bytes]
     """
     if isinstance(password, str):
-        password = password.encode()
+        pw_bytes = password.encode()
+    else:
+        pw_bytes = password
     key = PBKDF2HMAC(
         algorithm=hashes.SHA256(),
         length=32,
         salt=b"Yubico",
         iterations=10000,
         backend=default_backend(),
-    ).derive(password)
+    ).derive(pw_bytes)
     key_enc, key_mac = key[:16], key[16:]
     return key_enc, key_mac

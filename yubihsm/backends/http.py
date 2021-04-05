@@ -12,16 +12,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from . import YhsmBackend
 from ..exceptions import YubiHsmConnectionError
 from requests.exceptions import RequestException
 from urllib import parse
 import requests
+from typing import Optional, Union, Tuple
 
 
-class HttpBackend(object):
+class HttpBackend(YhsmBackend):
     """A backend for communicating with a YubiHSM connector over HTTP."""
 
-    def __init__(self, url="http://localhost:12345", timeout=None):
+    def __init__(
+        self,
+        url: str = "http://localhost:12345",
+        timeout: Optional[Union[Tuple[int, int], int]] = None,
+    ):
         """Constructs a new HttpBackend, connecting to the given URL.
 
         The URL should be a http(s) URL to a running YubiHSM connector.
@@ -40,7 +46,6 @@ class HttpBackend(object):
         self._session.headers.update({"Content-Type": "application/octet-stream"})
 
     def transceive(self, msg):
-        """Send a verbatim message."""
         try:
             resp = self._session.post(url=self._url, data=msg, timeout=self._timeout)
             resp.raise_for_status()

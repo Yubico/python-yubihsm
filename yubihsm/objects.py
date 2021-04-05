@@ -21,6 +21,8 @@ from .eddsa import (
     _serialize_ed25519_private_key,
     _deserialize_ed25519_public_key,
 )
+from .utils import int_from_bytes, password_to_key
+from . import core
 
 from cryptography.hazmat.backends import default_backend
 from cryptography import x509
@@ -28,9 +30,8 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import rsa, ec
 from cryptography.hazmat.primitives.asymmetric.utils import Prehashed
 from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
-from cryptography.utils import int_to_bytes
-from .utils import int_from_bytes, password_to_key
-from collections import namedtuple
+from dataclasses import dataclass
+from typing import ClassVar, Union, Optional, TypeVar, NamedTuple
 import copy
 import struct
 
@@ -65,88 +66,83 @@ def _calc_hash(data, hash):
     return data
 
 
-class ObjectInfo(
-    namedtuple(
-        "ObjectInfo",
-        [
-            "capabilities",
-            "id",
-            "size",
-            "domains",
-            "object_type",
-            "algorithm",
-            "sequence",
-            "origin",
-            "label",
-            "delegated_capabilities",
-        ],
-    )
-):
+@dataclass(frozen=True)
+class ObjectInfo:
     """Data structure holding various information about an object.
 
-    :param int capabilities: The capabilities of the object.
-    :param int id: The ID of the object.
-    :param int size: The size of the object.
-    :param int domains: The set of domains the object belongs to.
-    :param OBJECT object_type: The type of the object.
-    :param ALGORITHM algorithm: The algorithm of the object.
-    :param int sequence: The sequence number of the object.
-    :param ORIGIN origin: How the object was created/imported.
-    :param label: The label of the object.
-    :type label: str or bytes
-    :param int delegated_capabilities: The set of delegated capabilities for the
-        object.
+    :ivar capabilities: The capabilities of the object.
+    :ivar id: The ID of the object.
+    :ivar size: The size of the object.
+    :ivar domains: The set of domains the object belongs to.
+    :ivar object_type: The type of the object.
+    :ivar algorithm: The algorithm of the object.
+    :ivar sequence: The sequence number of the object.
+    :ivar origin: How the object was created/imported.
+    :ivar label: The label of the object.
+    :ivar delegated_capabilities: The set of delegated capabilities for the object.
     """
 
-    __slots__ = ()
-    FORMAT = "!QHHHBBBB%dsQ" % LABEL_LENGTH
-    LENGTH = struct.calcsize(FORMAT)
+    FORMAT: ClassVar[str] = "!QHHHBBBB%dsQ" % LABEL_LENGTH
+    LENGTH: ClassVar[int] = struct.calcsize(FORMAT)
+
+    capabilities: int
+    id: int
+    size: int
+    domains: int
+    object_type: OBJECT
+    algorithm: ALGORITHM
+    sequence: int
+    origin: ORIGIN
+    label: Union[str, bytes]
+    delegated_capabilities: int
 
     @classmethod
-    def parse(cls, data):
+    def parse(cls, value: bytes) -> "ObjectInfo":
         """Parse an ObjectInfo from its binary representation."""
-        tmp = cls(*struct.unpack(cls.FORMAT, data))
-        return tmp._replace(
-            object_type=OBJECT(tmp.object_type),
-            algorithm=ALGORITHM(tmp.algorithm),
-            origin=ORIGIN(tmp.origin),
-            label=_label_unpack(tmp.label),
-        )
+        data = list(struct.unpack(cls.FORMAT, value))
+        data[4] = OBJECT(data[4])
+        data[5] = ALGORITHM(data[5])
+        data[7] = ORIGIN(data[7])
+        data[8] = _label_unpack(data[8])
+        return cls(*data)
 
 
-class YhsmObject(object):
+T_Object = TypeVar("T_Object", bound="YhsmObject")
+
+
+class YhsmObject:
     """A reference to an object stored in a YubiHSM.
 
     YubiHSM objects are uniquely identified by their type and ID combined.
 
-    :param OBJECT object_type: The type of the object.
-    :param int id: The ID of the object.
-    :param AuthSession session: The session to use for YubiHSM communication.
+    :ivar session: The session to use for YubiHSM communication.
+    :ivar id: The ID of the object.
+    :ivar object_type: The type of the object.
     """
 
-    object_type = None
+    object_type: ClassVar[OBJECT]
 
-    def __init__(self, session, object_id, seq=None):
+    def __init__(
+        self, session: "core.AuthSession", object_id: int, seq: Optional[int] = None
+    ):
         self.session = session
-        self.id = object_id
+        self.id: int = object_id
         self._seq = seq
 
-    def with_session(self, session):
+    def with_session(self: T_Object, session: "core.AuthSession") -> T_Object:
         """Get a copy of the object reference, using the given session.
 
-        :param AuthSession session: The session to use for the created reference.
+        :param session: The session to use for the created reference.
         :return: A new reference to the object, associated wth the given session.
-        :rtype: YhsmObject
         """
         other = copy.copy(self)
         other.session = session
         return other
 
-    def get_info(self):
+    def get_info(self) -> ObjectInfo:
         """Read extended information about the object from the YubiHSM.
 
         :return: Information about the object.
-        :rtype: ObjectInfo
         """
         msg = struct.pack("!HB", self.id, self.object_type)
         resp = self.session.send_secure_cmd(COMMAND.GET_OBJECT_INFO, msg)
@@ -155,7 +151,7 @@ class YhsmObject(object):
         except ValueError:
             raise YubiHsmInvalidResponseError()
 
-    def delete(self):
+    def delete(self) -> None:
         """Deletes the object from the YubiHSM.
 
         .. warning:: This action in irreversible.
@@ -192,6 +188,8 @@ class _UnknownYhsmObject(YhsmObject):
     set to the specified `object_type` parameter.
     """
 
+    object_type = None  # type: ignore
+
     def __init__(self, object_type, *args, **kwargs):
         super(_UnknownYhsmObject, self).__init__(*args, **kwargs)
         self.object_type = object_type
@@ -208,19 +206,27 @@ class Opaque(YhsmObject):
     object_type = OBJECT.OPAQUE
 
     @classmethod
-    def put(cls, session, object_id, label, domains, capabilities, algorithm, data):
+    def put(
+        cls,
+        session: "core.AuthSession",
+        object_id: int,
+        label: str,
+        domains: int,
+        capabilities: int,
+        algorithm: ALGORITHM,
+        data: bytes,
+    ) -> "Opaque":
         """Import an Opaque object into the YubiHSM.
 
-        :param AuthSession session: The session to import via.
-        :param int object_id: The ID to set for the object. Set to 0 to let the
+        :param session: The session to import via.
+        :param object_id: The ID to set for the object. Set to 0 to let the
             YubiHSM designate an ID.
-        :param str label: A text label to give the object.
-        :param int domains: The set of domains to assign the object to.
-        :param int capabilities: The set of capabilities to give the object.
-        :param ALGORITHM algorithm: The algorithm to use for the object.
-        :param bytes data: The binary data to store.
+        :param label: A text label to give the object.
+        :param domains: The set of domains to assign the object to.
+        :param capabilities: The set of capabilities to give the object.
+        :param algorithm: The algorithm to use for the object.
+        :param data: The binary data to store.
         :return: A reference to the newly created object.
-        :rtype: Opaque
         """
         if not data:
             raise ValueError("Cannot store empty data")
@@ -235,31 +241,34 @@ class Opaque(YhsmObject):
         msg += data
         return cls._from_command(session, COMMAND.PUT_OPAQUE, msg)
 
-    def get(self):
+    def get(self) -> bytes:
         """Read the data of an Opaque object from the YubiHSM.
 
         :return: The data stored for the object.
-        :rtype: bytes
         """
         msg = struct.pack("!H", self.id)
         return self.session.send_secure_cmd(COMMAND.GET_OPAQUE, msg)
 
     @classmethod
     def put_certificate(
-        cls, session, object_id, label, domains, capabilities, certificate
-    ):
+        cls,
+        session: "core.AuthSession",
+        object_id: int,
+        label: str,
+        domains: int,
+        capabilities: int,
+        certificate: x509.Certificate,
+    ) -> "Opaque":
         """Import an X509 certificate into the YubiHSM as an Opaque.
 
-        :param AuthSession session: The session to import via.
-        :param int object_id: The ID to set for the object. Set to 0 to let the
+        :param session: The session to import via.
+        :param object_id: The ID to set for the object. Set to 0 to let the
             YubiHSM designate an ID.
-        :param str label: A text label to give the object.
-        :param int domains: The set of domains to assign the object to.
-        :param int capabilities: The set of capabilities to give the object.
-        :param cryptography.x509.Certificate certificate: A certificate to
-            import.
+        :param label: A text label to give the object.
+        :param domains: The set of domains to assign the object to.
+        :param capabilities: The set of capabilities to give the object.
+        :param certificate: A certificate to import.
         :return: A reference to the newly created object.
-        :rtype: Opaque
         """
         encoded_cert = certificate.public_bytes(Encoding.DER)
         return cls.put(
@@ -272,11 +281,10 @@ class Opaque(YhsmObject):
             encoded_cert,
         )
 
-    def get_certificate(self):
+    def get_certificate(self) -> x509.Certificate:
         """Read an Opaque object from the YubiHSM, parsed as a certificate.
 
         :return: The certificate stored for the object.
-        :rtype: cryptography.x509.Certificate
         """
         return x509.load_der_x509_certificate(self.get(), default_backend())
 
@@ -294,28 +302,27 @@ class AuthenticationKey(YhsmObject):
     @classmethod
     def put_derived(
         cls,
-        session,
-        object_id,
-        label,
-        domains,
-        capabilities,
-        delegated_capabilities,
-        password,
-    ):
+        session: "core.AuthSession",
+        object_id: int,
+        label: str,
+        domains: int,
+        capabilities: int,
+        delegated_capabilities: int,
+        password: str,
+    ) -> "AuthenticationKey":
         """Create an AuthenticationKey derived from a password.
 
-        :param AuthSession session: The session to import via.
-        :param int object_id: The ID to set for the object. Set to 0 to let the
+        :param session: The session to import via.
+        :param object_id: The ID to set for the object. Set to 0 to let the
             YubiHSM designate an ID.
-        :param str label: A text label to give the object.
-        :param int domains: The set of domains to assign the object to.
-        :param int capabilities: The set of capabilities to give the object.
-        :param int delegated_capabilities: The set of capabilities that the
+        :param label: A text label to give the object.
+        :param domains: The set of domains to assign the object to.
+        :param capabilities: The set of capabilities to give the object.
+        :param delegated_capabilities: The set of capabilities that the
             AuthenticationKey can give to objects created when authenticated
             using it.
-        :param str password: The password to derive raw keys from.
+        :param password: The password to derive raw keys from.
         :return: A reference to the newly created object.
-        :rtype: AuthenticationKey
         """
         key_enc, key_mac = password_to_key(password)
         return cls.put(
@@ -332,30 +339,29 @@ class AuthenticationKey(YhsmObject):
     @classmethod
     def put(
         cls,
-        session,
-        object_id,
-        label,
-        domains,
-        capabilities,
-        delegated_capabilities,
-        key_enc,
-        key_mac,
-    ):
+        session: "core.AuthSession",
+        object_id: int,
+        label: str,
+        domains: int,
+        capabilities: int,
+        delegated_capabilities: int,
+        key_enc: bytes,
+        key_mac: bytes,
+    ) -> "AuthenticationKey":
         """Create an AuthenticationKey by providing raw keys.
 
-        :param AuthSession session: The session to import via.
-        :param int object_id: The ID to set for the object. Set to 0 to let the
+        :param session: The session to import via.
+        :param object_id: The ID to set for the object. Set to 0 to let the
             YubiHSM designate an ID.
-        :param str label: A text label to give the object.
-        :param int domains: The set of domains to assign the object to.
-        :param int capabilities: The set of capabilities to give the object.
-        :param int delegated_capabilities: The set of capabilities that the
+        :param label: A text label to give the object.
+        :param domains: The set of domains to assign the object to.
+        :param capabilities: The set of capabilities to give the object.
+        :param delegated_capabilities: The set of capabilities that the
             AuthenticationKey can give to objects created when authenticated
             using it.
-        :param bytes key_enc: The raw encryption key.
-        :param bytes key_mac: The raw MAC key.
+        :param key_enc: The raw encryption key.
+        :param key_mac: The raw MAC key.
         :return: A reference to the newly created object.
-        :rtype: AuthenticationKey
         """
         msg = struct.pack(
             "!H%dsHQBQ" % LABEL_LENGTH,
@@ -369,22 +375,22 @@ class AuthenticationKey(YhsmObject):
         msg += key_enc + key_mac
         return cls._from_command(session, COMMAND.PUT_AUTHENTICATION_KEY, msg)
 
-    def change_password(self, password):
+    def change_password(self, password: str) -> None:
         """Change the password used to authenticate a session.
 
         Changes the raw keys used for authentication, by deriving them from a
         password.
 
-        :param str password: The password to derive raw keys from.
+        :param password: The password to derive raw keys from.
         """
         key_enc, key_mac = password_to_key(password)
         self.change_key(key_enc, key_mac)
 
-    def change_key(self, key_enc, key_mac):
+    def change_key(self, key_enc: bytes, key_mac: bytes) -> None:
         """Change the raw keys used to authenticate a session.
 
-        :param bytes key_enc: The raw encryption key.
-        :param bytes key_mac: The raw MAC key.
+        :param key_enc: The raw encryption key.
+        :param key_mac: The raw MAC key.
         """
         msg = (
             struct.pack("!HB", self.id, ALGORITHM.AES128_YUBICO_AUTHENTICATION)
@@ -417,7 +423,15 @@ class AsymmetricKey(YhsmObject):
     object_type = OBJECT.ASYMMETRIC_KEY
 
     @classmethod
-    def put(cls, session, object_id, label, domains, capabilities, key):
+    def put(
+        cls,
+        session: "core.AuthSession",
+        object_id: int,
+        label: str,
+        domains: int,
+        capabilities: int,
+        key,
+    ) -> "AsymmetricKey":
         """Import a private key into the YubiHSM.
 
         RSA and EC keys can be created by using the cryptography APIs. You can
@@ -431,24 +445,25 @@ class AsymmetricKey(YhsmObject):
         by calling
         :func:`~yubihsm.eddsa.load_ed25519_private_key`.
 
-        :param AuthSession session: The session to import via.
-        :param int object_id: The ID to set for the object. Set to 0 to let the
+        :param session: The session to import via.
+        :param object_id: The ID to set for the object. Set to 0 to let the
             YubiHSM designate an ID.
-        :param str label: A text label to give the object.
-        :param int domains: The set of domains to assign the object to.
-        :param int capabilities: The set of capabilities to give the object.
+        :param label: A text label to give the object.
+        :param domains: The set of domains to assign the object to.
+        :param capabilities: The set of capabilities to give the object.
         :param key: The private key to import.
         :return: A reference to the newly created object.
-        :rtype: AsymmetricKey
         """
-        if isinstance(key, rsa.RSAPrivateKey):
-            numbers = key.private_numbers()
-            serialized = int_to_bytes(numbers.p) + int_to_bytes(numbers.q)
+        if isinstance(key, rsa.RSAPrivateKeyWithSerialization):
+            rsa_numbers = key.private_numbers()
+            serialized = int.to_bytes(
+                rsa_numbers.p, key.key_size // 8 // 2, "big"
+            ) + int.to_bytes(rsa_numbers.q, key.key_size // 8 // 2, "big")
             algo = getattr(ALGORITHM, "RSA_%d" % key.key_size)
-        elif isinstance(key, ec.EllipticCurvePrivateKey):
-            numbers = key.private_numbers()
-            serialized = int_to_bytes(
-                numbers.private_value, (key.curve.key_size + 7) // 8
+        elif isinstance(key, ec.EllipticCurvePrivateKeyWithSerialization):
+            ec_numbers = key.private_numbers()
+            serialized = int.to_bytes(
+                ec_numbers.private_value, (key.curve.key_size + 7) // 8, "big"
             )
             algo = ALGORITHM.for_curve(key.curve)
         elif _is_ed25519_private_key(key):
@@ -471,18 +486,25 @@ class AsymmetricKey(YhsmObject):
         return cls._from_command(session, COMMAND.PUT_ASYMMETRIC_KEY, msg)
 
     @classmethod
-    def generate(cls, session, object_id, label, domains, capabilities, algorithm):
+    def generate(
+        cls,
+        session: "core.AuthSession",
+        object_id: int,
+        label: str,
+        domains: int,
+        capabilities: int,
+        algorithm: ALGORITHM,
+    ) -> "AsymmetricKey":
         """Generate a new private key in the YubiHSM.
 
-        :param AuthSession session: The session to import via.
-        :param int object_id: The ID to set for the object. Set to 0 to let the
+        :param session: The session to import via.
+        :param object_id: The ID to set for the object. Set to 0 to let the
             YubiHSM designate an ID.
-        :param str label: A text label to give the object.
-        :param int domains: The set of domains to assign the object to.
-        :param int capabilities: The set of capabilities to give the object.
-        :param ALGORITHM algorithm: The algorithm to use for the private key.
+        :param label: A text label to give the object.
+        :param domains: The set of domains to assign the object to.
+        :param capabilities: The set of capabilities to give the object.
+        :param algorithm: The algorithm to use for the private key.
         :return: A reference to the newly created object.
-        :rtype: AsymmetricKey
         """
         msg = struct.pack(
             "!H%dsHQB" % LABEL_LENGTH,
@@ -537,7 +559,7 @@ class AsymmetricKey(YhsmObject):
 
         return pubkey.public_key(backend=default_backend())
 
-    def get_certificate(self):
+    def get_certificate(self) -> x509.Certificate:
         """Get the X509 certificate associated with the key.
 
         An X509 certificate is associated with an asymmetric key if it is stored
@@ -547,36 +569,35 @@ class AsymmetricKey(YhsmObject):
         Equivalent to calling `Opaque(session, key_id).get_certificate()`.
 
         :return: The certificate stored for the object.
-        :rtype: cryptography.x509.Certificate
         """
         return Opaque(self.session, self.id).get_certificate()
 
-    def put_certificate(self, label, domains, capabilities, certificate):
+    def put_certificate(
+        self, label: str, domains: int, capabilities: int, certificate: x509.Certificate
+    ) -> Opaque:
         """Store an X509 certificate associated with this key.
 
         Equivalent to calling `Opaque.put_certificate(session, key_id, ...)`.
 
-        :param str label: A text label to give the object.
-        :param int domains: The set of domains to assign the object to.
-        :param int capabilities: The set of capabilities to give the object.
-        :param cryptography.x509.Certificate certificate: A certificate to
-            import.
+        :param label: A text label to give the object.
+        :param domains: The set of domains to assign the object to.
+        :param capabilities: The set of capabilities to give the object.
+        :param certificate: A certificate to import.
         :return: A reference to the newly created object.
-        :rtype: Opaque
         """
         return Opaque.put_certificate(
             self.session, self.id, label, domains, capabilities, certificate
         )
 
-    def sign_ecdsa(self, data, hash=hashes.SHA256(), length=0):
+    def sign_ecdsa(
+        self, data: bytes, hash: hashes.HashAlgorithm = hashes.SHA256(), length: int = 0
+    ) -> bytes:
         """Sign data using ECDSA.
 
-        :param bytes data: The data to sign.
+        :param data: The data to sign.
         :param hash: (optional) The algorithm to use when hashing the data.
-        :type hash: cryptography.hazmat.primitives.hashes.HashAlgorithm
-        :param int length: (optional) length to pad/truncate the hash to.
+        :param length: (optional) length to pad/truncate the hash to.
         :return: The resulting signature.
-        :rtype: bytes
         """
         data = _calc_hash(data, hash)
 
@@ -586,59 +607,53 @@ class AsymmetricKey(YhsmObject):
         msg = struct.pack("!H%ds" % length, self.id, data.rjust(length, b"\0"))
         return self.session.send_secure_cmd(COMMAND.SIGN_ECDSA, msg)
 
-    def derive_ecdh(self, public_key):
+    def derive_ecdh(self, public_key: ec.EllipticCurvePublicKey) -> bytes:
         """Perform an ECDH key exchange as specified in SP 800-56A.
 
         :param public_key: The public key to use for the key exchange.
-        :type public_key:
-            cryptography.hazmat.primitives.asymmetric.ec.EllipticCurvePublicKey
         :return: The resulting shared key.
-        :rtype: bytes
         """
-        try:
-            point = public_key.public_bytes(
-                Encoding.X962, PublicFormat.UncompressedPoint
-            )
-        except AttributeError:  # Cryptography <2.5
-            point = public_key.public_numbers().encode_point()
+        point = public_key.public_bytes(Encoding.X962, PublicFormat.UncompressedPoint)
         msg = struct.pack("!H", self.id) + point
         return self.session.send_secure_cmd(COMMAND.DERIVE_ECDH, msg)
 
-    def sign_pkcs1v1_5(self, data, hash=hashes.SHA256()):
+    def sign_pkcs1v1_5(
+        self, data: bytes, hash: hashes.HashAlgorithm = hashes.SHA256()
+    ) -> bytes:
         """Sign data using RSASSA-PKCS1-v1_5.
 
-        :param bytes data: The data to sign.
+        :param data: The data to sign.
         :param hash: (optional) The algorithm to use when hashing the data.
-        :type hash: cryptography.hazmat.primitives.hashes.HashAlgorithm
         :return: The resulting signature.
-        :rtype: bytes
         """
         data = _calc_hash(data, hash)
 
         msg = struct.pack("!H", self.id) + data
         return self.session.send_secure_cmd(COMMAND.SIGN_PKCS1, msg)
 
-    def decrypt_pkcs1v1_5(self, data):
+    def decrypt_pkcs1v1_5(self, data: bytes) -> bytes:
         """Decrypt data encrypted with RSAES-PKCS1-v1_5.
 
-        :param bytes data: The ciphertext to decrypt.
+        :param data: The ciphertext to decrypt.
         :return: The decrypted plaintext.
-        :rtype: bytes
         """
         msg = struct.pack("!H", self.id) + data
         return self.session.send_secure_cmd(COMMAND.DECRYPT_PKCS1, msg)
 
-    def sign_pss(self, data, salt_len, hash=hashes.SHA256(), mgf_hash=hashes.SHA256()):
+    def sign_pss(
+        self,
+        data: bytes,
+        salt_len: int,
+        hash: hashes.HashAlgorithm = hashes.SHA256(),
+        mgf_hash: hashes.HashAlgorithm = hashes.SHA256(),
+    ) -> bytes:
         """Sign data using RSASSA-PSS with MGF1.
 
-        :param bytes data: The data to sign.
-        :param int salt_len: The length of the salt to use.
+        :param data: The data to sign.
+        :param salt_len: The length of the salt to use.
         :param hash: (optional) The algorithm to use when hashing the data.
-        :type hash: cryptography.hazmat.primitives.hashes.HashAlgorithm
         :param mgf_hash: (optional) The algorithm to use for MGF1.
-        :type mgf_hash: cryptography.hazmat.primitives.hashes.HashAlgorithm
         :return: The resulting signature.
-        :rtype: bytes
         """
         data = _calc_hash(data, hash)
 
@@ -648,18 +663,19 @@ class AsymmetricKey(YhsmObject):
         return self.session.send_secure_cmd(COMMAND.SIGN_PSS, msg)
 
     def decrypt_oaep(
-        self, data, label=b"", hash=hashes.SHA256(), mgf_hash=hashes.SHA256()
-    ):
+        self,
+        data: bytes,
+        label: bytes = b"",
+        hash: hashes.HashAlgorithm = hashes.SHA256(),
+        mgf_hash: hashes.HashAlgorithm = hashes.SHA256(),
+    ) -> bytes:
         """Decrypt data encrypted with RSAES-OAEP.
 
-        :param bytes data: The ciphertext to decrypt.
-        :param bytes label: (optional) OAEP label.
+        :param data: The ciphertext to decrypt.
+        :param label: (optional) OAEP label.
         :param hash: (optional) The algorithm to use when hashing the data.
-        :type hash: cryptography.hazmat.primitives.hashes.HashAlgorithm
         :param mgf_hash: (optional) The algorithm to use for MGF1.
-        :type mgf_hash: cryptography.hazmat.primitives.hashes.HashAlgorithm
         :return: The decrypted plaintext.
-        :rtype: bytes
         """
         digest = hashes.Hash(hash, backend=default_backend())
         digest.update(label)
@@ -669,17 +685,16 @@ class AsymmetricKey(YhsmObject):
         msg = struct.pack("!HB", self.id, mgf) + data + digest.finalize()
         return self.session.send_secure_cmd(COMMAND.DECRYPT_OAEP, msg)
 
-    def sign_eddsa(self, data):
+    def sign_eddsa(self, data: bytes) -> bytes:
         """Sign data using EdDSA.
 
-        :param bytes data: The data to sign.
+        :param data: The data to sign.
         :return: The resulting signature.
-        :rtype: bytes
         """
         msg = struct.pack("!H", self.id) + data
         return self.session.send_secure_cmd(COMMAND.SIGN_EDDSA, msg)
 
-    def attest(self, attesting_key_id=0):
+    def attest(self, attesting_key_id: int = 0) -> x509.Certificate:
         """Attest this asymmetric key.
 
         Creates an X509 certificate containing this key pair's public key,
@@ -687,25 +702,26 @@ class AsymmetricKey(YhsmObject):
         You also need a X509 certificate stored with the same ID as the
         attesting key in the YubiHSM, to be used as a template.
 
-        :param int attesting_key_id: (optional) The ID of the asymmetric key
+        :param attesting_key_id: (optional) The ID of the asymmetric key
             used to attest. If omitted, the built-in Yubico attestation key is
             used.
         :return: The attestation certificate.
-        :rtype: cryptography.x509.Certificate
         """
         msg = struct.pack("!HH", self.id, attesting_key_id)
         resp = self.session.send_secure_cmd(COMMAND.SIGN_ATTESTATION_CERTIFICATE, msg)
         return x509.load_der_x509_certificate(resp, default_backend())
 
     def sign_ssh_certificate(
-        self, template_id, request, algorithm=ALGORITHM.RSA_PKCS1_SHA1
-    ):
+        self,
+        template_id: int,
+        request: bytes,
+        algorithm: ALGORITHM = ALGORITHM.RSA_PKCS1_SHA1,
+    ) -> bytes:
         """Sign an SSH certificate request.
 
-        :param int template_id: The ID of the SSH TEMPLATE to use.
-        :param bytes request: The SSH certificate request.
+        :param template_id: The ID of the SSH TEMPLATE to use.
+        :param request: The SSH certificate request.
         :return: The signed SSH certificate.
-        :rtype: bytes
         """
         msg = struct.pack("!HH", self.id, template_id) + request
         return self.session.send_secure_cmd(COMMAND.SIGN_SSH_CERTIFICATE, msg)
@@ -725,25 +741,24 @@ class WrapKey(YhsmObject):
     @classmethod
     def generate(
         cls,
-        session,
-        object_id,
-        label,
-        domains,
-        capabilities,
-        algorithm,
-        delegated_capabilities,
-    ):
+        session: "core.AuthSession",
+        object_id: int,
+        label: str,
+        domains: int,
+        capabilities: int,
+        algorithm: ALGORITHM,
+        delegated_capabilities: int,
+    ) -> "WrapKey":
         """Generate a new wrap key in the YubiHSM.
 
-        :param AuthSession session: The session to import via.
-        :param int object_id: The ID to set for the object. Set to 0 to let the
+        :param session: The session to import via.
+        :param object_id: The ID to set for the object. Set to 0 to let the
             YubiHSM designate an ID.
-        :param str label: A text label to give the object.
-        :param int domains: The set of domains to assign the object to.
-        :param int capabilities: The set of capabilities to give the object.
-        :param ALGORITHM algorithm: The algorithm to use for the wrap key.
+        :param label: A text label to give the object.
+        :param domains: The set of domains to assign the object to.
+        :param capabilities: The set of capabilities to give the object.
+        :param algorithm: The algorithm to use for the wrap key.
         :return: A reference to the newly created object.
-        :rtype: WrapKey
         """
         msg = struct.pack(
             "!H%dsHQBQ" % LABEL_LENGTH,
@@ -759,29 +774,28 @@ class WrapKey(YhsmObject):
     @classmethod
     def put(
         cls,
-        session,
-        object_id,
-        label,
-        domains,
-        capabilities,
-        algorithm,
-        delegated_capabilities,
-        key,
-    ):
+        session: "core.AuthSession",
+        object_id: int,
+        label: str,
+        domains: int,
+        capabilities: int,
+        algorithm: ALGORITHM,
+        delegated_capabilities: int,
+        key: bytes,
+    ) -> "WrapKey":
         """Import a wrap key into the YubiHSM.
 
-        :param AuthSession session: The session to import via.
-        :param int object_id: The ID to set for the object. Set to 0 to let the
+        :param session: The session to import via.
+        :param object_id: The ID to set for the object. Set to 0 to let the
             YubiHSM designate an ID.
-        :param str label: A text label to give the object.
-        :param int domains: The set of domains to assign the object to.
-        :param int capabilities: The set of capabilities to give the object.
-        :param ALGORITHM algorithm: The algorithm to use for the wrap key.
-        :param int delegated_capabilities: The set of capabilities that the
+        :param label: A text label to give the object.
+        :param domains: The set of domains to assign the object to.
+        :param capabilities: The set of capabilities to give the object.
+        :param algorithm: The algorithm to use for the wrap key.
+        :param delegated_capabilities: The set of capabilities that the
             WrapKey can give to objects that it imports.
-        :param bytes key: The raw encryption key corresponding to the algorithm.
+        :param key: The raw encryption key corresponding to the algorithm.
         :return: A reference to the newly created object.
-        :rtype: WrapKey
         """
         msg = struct.pack(
             "!H%dsHQBQ" % LABEL_LENGTH,
@@ -795,42 +809,38 @@ class WrapKey(YhsmObject):
         msg += key
         return cls._from_command(session, COMMAND.PUT_WRAP_KEY, msg)
 
-    def wrap_data(self, data):
+    def wrap_data(self, data: bytes) -> bytes:
         """Wrap (encrypt) arbitrary data.
 
-        :param bytes data: The data to encrypt.
+        :param data: The data to encrypt.
         :return: The encrypted data.
-        :rtype: bytes
         """
         msg = struct.pack("!H", self.id) + data
         return self.session.send_secure_cmd(COMMAND.WRAP_DATA, msg)
 
-    def unwrap_data(self, data):
+    def unwrap_data(self, data: bytes) -> bytes:
         """Unwrap (decrypt) arbitrary data.
 
-        :param bytes data: The encrypted data to decrypt.
+        :param data: The encrypted data to decrypt.
         :return: The decrypted data.
-        :rtype: bytes
         """
         msg = struct.pack("!H", self.id) + data
         return self.session.send_secure_cmd(COMMAND.UNWRAP_DATA, msg)
 
-    def export_wrapped(self, obj):
+    def export_wrapped(self, obj: YhsmObject) -> bytes:
         """Exports an object under wrap.
 
-        :param YhsmObject obj: The object to export.
+        :param obj: The object to export.
         :return: The encrypted object data.
-        :rtype: bytes
         """
         msg = struct.pack("!HBH", self.id, obj.object_type, obj.id)
         return self.session.send_secure_cmd(COMMAND.EXPORT_WRAPPED, msg)
 
-    def import_wrapped(self, wrapped_obj):
+    def import_wrapped(self, wrapped_obj: bytes) -> YhsmObject:
         """Imports an object previously exported under wrap.
 
-        :param bytes wraped_obj: The encrypted object data.
+        :param wraped_obj: The encrypted object data.
         :return: A reference to the imported object.
-        :rtype: YhsmObject
         """
         msg = struct.pack("!H", self.id) + wrapped_obj
         ret = self.session.send_secure_cmd(COMMAND.IMPORT_WRAPPED, msg)
@@ -853,25 +863,24 @@ class HmacKey(YhsmObject):
     @classmethod
     def generate(
         cls,
-        session,
-        object_id,
-        label,
-        domains,
-        capabilities,
-        algorithm=ALGORITHM.HMAC_SHA256,
-    ):
+        session: "core.AuthSession",
+        object_id: int,
+        label: str,
+        domains: int,
+        capabilities: int,
+        algorithm: ALGORITHM = ALGORITHM.HMAC_SHA256,
+    ) -> "HmacKey":
         """Generate a new HMAC key in the YubiHSM.
 
-        :param AuthSession session: The session to import via.
-        :param int object_id: The ID to set for the object. Set to 0 to let the
+        :param session: The session to import via.
+        :param object_id: The ID to set for the object. Set to 0 to let the
             YubiHSM designate an ID.
-        :param str label: A text label to give the object.
-        :param int domains: The set of domains to assign the object to.
-        :param int capabilities: The set of capabilities to give the object.
-        :param ALGORITHM algorithm: (optional) The algorithm to use for the HMAC
+        :param label: A text label to give the object.
+        :param domains: The set of domains to assign the object to.
+        :param capabilities: The set of capabilities to give the object.
+        :param algorithm: (optional) The algorithm to use for the HMAC
             key.
         :return: A reference to the newly created object.
-        :rtype: HmacKey
         """
         msg = struct.pack(
             "!H%dsHQB" % LABEL_LENGTH,
@@ -886,27 +895,25 @@ class HmacKey(YhsmObject):
     @classmethod
     def put(
         cls,
-        session,
-        object_id,
-        label,
-        domains,
-        capabilities,
-        key,
+        session: "core.AuthSession",
+        object_id: int,
+        label: str,
+        domains: int,
+        capabilities: int,
+        key: bytes,
         algorithm=ALGORITHM.HMAC_SHA256,
-    ):
+    ) -> "HmacKey":
         """Import an HMAC key into the YubiHSM.
 
-        :param AuthSession session: The session to import via.
-        :param int object_id: The ID to set for the object. Set to 0 to let the
+        :param session: The session to import via.
+        :param object_id: The ID to set for the object. Set to 0 to let the
             YubiHSM designate an ID.
-        :param str label: A text label to give the object.
-        :param int domains: The set of domains to assign the object to.
-        :param int capabilities: The set of capabilities to give the object.
-        :param bytes key: The raw key corresponding to the algorithm.
-        :param ALGORITHM algorithm: (optional) The algorithm to use for the HMAC
-            key.
+        :param label: A text label to give the object.
+        :param domains: The set of domains to assign the object to.
+        :param capabilities: The set of capabilities to give the object.
+        :param key: The raw key corresponding to the algorithm.
+        :param algorithm: (optional) The algorithm to use for the HMAC key.
         :return: A reference to the newly created object.
-        :rtype: HmacKey
         """
         msg = (
             struct.pack(
@@ -921,24 +928,22 @@ class HmacKey(YhsmObject):
         )
         return cls._from_command(session, COMMAND.PUT_HMAC_KEY, msg)
 
-    def sign_hmac(self, data):
+    def sign_hmac(self, data: bytes) -> bytes:
         """Calculate the HMAC signature of the given data.
 
-        :param bytes data: The data to sign.
+        :param data: The data to sign.
         :return: The signature.
-        :rtype: bytes
         """
         msg = struct.pack("!H", self.id) + data
         return self.session.send_secure_cmd(COMMAND.SIGN_HMAC, msg)
 
-    def verify_hmac(self, signature, data):
+    def verify_hmac(self, signature: bytes, data: bytes) -> bool:
         """
         Verify an HMAC signature.
 
-        :param bytes signature: The signature to verify.
-        :param bytes data: The data to verify the signature against.
+        :param signature: The signature to verify.
+        :param data: The data to verify the signature against.
         :return: True if verification succeeded, False if not.
-        :rtype: bool
         """
         msg = struct.pack("!H", self.id) + signature + data
         return self.session.send_secure_cmd(COMMAND.VERIFY_HMAC, msg) == b"\1"
@@ -954,19 +959,27 @@ class Template(YhsmObject):
     object_type = OBJECT.TEMPLATE
 
     @classmethod
-    def put(cls, session, object_id, label, domains, capabilities, algorithm, data):
+    def put(
+        cls,
+        session: "core.AuthSession",
+        object_id: int,
+        label: str,
+        domains: int,
+        capabilities: int,
+        algorithm: ALGORITHM,
+        data: bytes,
+    ) -> "Template":
         """Import a Template into the YubiHSM.
 
-        :param AuthSession session: The session to import via.
-        :param int object_id: The ID to set for the object. Set to 0 to let the
+        :param session: The session to import via.
+        :param object_id: The ID to set for the object. Set to 0 to let the
             YubiHSM designate an ID.
-        :param str label: A text label to give the object.
-        :param int domains: The set of domains to assign the object to.
-        :param int capabilities: The set of capabilities to give the object.
-        :param ALGORITHM algorithm: The algorithm to use for the template.
-        :param bytes data: The template data.
+        :param label: A text label to give the object.
+        :param domains: The set of domains to assign the object to.
+        :param capabilities: The set of capabilities to give the object.
+        :param algorithm: The algorithm to use for the template.
+        :param data: The template data.
         :return: A reference to the newly created object.
-        :rtype: Template
         """
         msg = struct.pack(
             "!H%dsHQB" % LABEL_LENGTH,
@@ -979,30 +992,28 @@ class Template(YhsmObject):
         msg += data
         return cls._from_command(session, COMMAND.PUT_TEMPLATE, msg)
 
-    def get(self):
+    def get(self) -> bytes:
         """Read a Template from the YubiHSM.
 
         :return: The template data.
-        :rtype: bytes
         """
         msg = struct.pack("!H", self.id)
         return self.session.send_secure_cmd(COMMAND.GET_TEMPLATE, msg)
 
 
-class OtpData(
-    namedtuple(
-        "OtpData", ["use_counter", "session_counter", "timestamp_high", "timestamp_low"]
-    )
-):
+class OtpData(NamedTuple):
     """Decrypted OTP counter values.
 
-    :param int use_counter: 16 bit counter incremented on each power cycle.
-    :param int session_counter: 8 bit counter incremented on each touch.
-    :param int timestamp_high: 8 bit high part of the timestamp.
-    :param int timestamp_low: 16 bit low part of the timestamp.
+    :param use_counter: 16 bit counter incremented on each power cycle.
+    :param session_counter: 8 bit counter incremented on each touch.
+    :param timestamp_high: 8 bit high part of the timestamp.
+    :param timestamp_low: 16 bit low part of the timestamp.
     """
 
-    __slots__ = ()
+    use_counter: int
+    session_counter: int
+    timestamp_high: int
+    timestamp_low: int
 
 
 class OtpAeadKey(YhsmObject):
@@ -1018,21 +1029,28 @@ class OtpAeadKey(YhsmObject):
 
     @classmethod
     def put(
-        cls, session, object_id, label, domains, capabilities, algorithm, nonce_id, key
-    ):
+        cls,
+        session: "core.AuthSession",
+        object_id: int,
+        label: str,
+        domains: int,
+        capabilities: int,
+        algorithm: ALGORITHM,
+        nonce_id: int,
+        key: bytes,
+    ) -> "OtpAeadKey":
         """Import an OTP AEAD key into the YubiHSM.
 
-        :param AuthSession session: The session to import via.
-        :param int object_id: The ID to set for the object. Set to 0 to let the
+        :param session: The session to import via.
+        :param object_id: The ID to set for the object. Set to 0 to let the
             YubiHSM designate an ID.
-        :param str label: A text label to give the object.
-        :param int domains: The set of domains to assign the object to.
-        :param int capabilities: The set of capabilities to give the object.
-        :param ALGORITHM algorithm: The algorithm to use for the key.
-        :param int nonce_id: The nonce ID used for AEADs.
-        :param bytes key: The key to import, corresponding to the algorithm.
+        :param label: A text label to give the object.
+        :param domains: The set of domains to assign the object to.
+        :param capabilities: The set of capabilities to give the object.
+        :param algorithm: The algorithm to use for the key.
+        :param nonce_id: The nonce ID used for AEADs.
+        :param key: The key to import, corresponding to the algorithm.
         :return: A reference to the newly created object.
-        :rtype: AsymmetricKey
 
         """
         msg = struct.pack(
@@ -1050,19 +1068,25 @@ class OtpAeadKey(YhsmObject):
 
     @classmethod
     def generate(
-        cls, session, object_id, label, domains, capabilities, algorithm, nonce_id
-    ):
+        cls,
+        session: "core.AuthSession",
+        object_id: int,
+        label: str,
+        domains: int,
+        capabilities: int,
+        algorithm: ALGORITHM,
+        nonce_id: bytes,
+    ) -> "OtpAeadKey":
         """Generate a new OTP AEAD key in the YubiHSM.
 
-        :param AuthSession session: The session to import via.
-        :param int object_id: The ID to set for the object. Set to 0 to let the
+        :param session: The session to import via.
+        :param object_id: The ID to set for the object. Set to 0 to let the
             YubiHSM designate an ID.
-        :param str label: A text label to give the object.
-        :param int domains: The set of domains to assign the object to.
-        :param int capabilities: The set of capabilities to give the object.
-        :param ALGORITHM algorithm: The algorithm to use for the key.
+        :param label: A text label to give the object.
+        :param domains: The set of domains to assign the object to.
+        :param capabilities: The set of capabilities to give the object.
+        :param algorithm: The algorithm to use for the key.
         :return: A reference to the newly created object.
-        :rtype: OtpAeadKey
         """
         msg = struct.pack(
             "!H%dsHQBL" % LABEL_LENGTH,
@@ -1075,45 +1099,41 @@ class OtpAeadKey(YhsmObject):
         )
         return cls._from_command(session, COMMAND.GENERATE_OTP_AEAD_KEY, msg)
 
-    def create_otp_aead(self, key, identity):
+    def create_otp_aead(self, key: bytes, identity: bytes) -> bytes:
         """Create a new Yubico OTP credential AEAD.
 
-        :param bytes key: 16 byte AES key for the credential.
-        :param bytes identity: 6 byte private ID for the credential.
+        :param key: 16 byte AES key for the credential.
+        :param identity: 6 byte private ID for the credential.
         :return: A new AEAD.
-        :rtype: bytes
         """
         msg = struct.pack("!H", self.id) + key + identity
         return self.session.send_secure_cmd(COMMAND.CREATE_OTP_AEAD, msg)
 
-    def randomize_otp_aead(self):
+    def randomize_otp_aead(self) -> bytes:
         """Create a new Yubico OTP credential AEAD using random data.
 
         :return: A new AEAD.
-        :rtype: bytes
         """
         msg = struct.pack("!H", self.id)
         return self.session.send_secure_cmd(COMMAND.RANDOMIZE_OTP_AEAD, msg)
 
-    def decrypt_otp(self, aead, otp):
+    def decrypt_otp(self, aead: bytes, otp: bytes) -> OtpData:
         """Decrypt a Yubico OTP using an AEAD.
 
-        :param bytes aead: The AEAD containing encrypted credential data.
-        :param bytes otp: The 16 byte encrypted OTP payload to decrypt.
+        :param aead: The AEAD containing encrypted credential data.
+        :param otp: The 16 byte encrypted OTP payload to decrypt.
         :return: The decrypted OTP data.
-        :rtype: OtpData
         """
         msg = struct.pack("!H", self.id) + aead + otp
         resp = self.session.send_secure_cmd(COMMAND.DECRYPT_OTP, msg)
         return OtpData(*struct.unpack("<HBBH", resp))
 
-    def rewrap_otp_aead(self, new_key_id, aead):
+    def rewrap_otp_aead(self, new_key_id: int, aead: bytes) -> bytes:
         """Decrypt and re-encrypt an AEAD from one key to another.
 
-        :param int new_key_id: The ID of the OtpAeadKey to wrap to.
-        :param bytes aead: The AEAD to re-wrap.
+        :param new_key_id: The ID of the OtpAeadKey to wrap to.
+        :param aead: The AEAD to re-wrap.
         :return: The new AEAD.
-        :rtype: bytes
         """
         msg = struct.pack("!HH", self.id, new_key_id) + aead
         return self.session.send_secure_cmd(COMMAND.REWRAP_OTP_AEAD, msg)
