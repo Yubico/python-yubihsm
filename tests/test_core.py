@@ -49,7 +49,7 @@ def get_mocked_session(patch):
     the backend.transceive function
     """
     mocked_backend = get_backend()
-    mocked_backend.transceive = MagicMock(get_backend().transceive)
+    mocked_backend.transceive = MagicMock(mocked_backend.transceive)
     mocked_backend.transceive.side_effect = [
         b"\x83\x00\x11\x00\x05MV1\xc9\x18o\x802%\xed\x8a2$\xf2\xcf",
         b"\x84\x00\x00",

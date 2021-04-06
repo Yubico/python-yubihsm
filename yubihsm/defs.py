@@ -16,7 +16,7 @@
 
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography import utils  # type: ignore
-from enum import IntEnum, unique
+from enum import IntEnum, IntFlag, unique
 
 
 @utils.register_interface(ec.EllipticCurve)
@@ -262,7 +262,7 @@ class AUDIT(IntEnum):
 
 
 @unique
-class CAPABILITY(IntEnum):
+class CAPABILITY(IntFlag):
     """YubiHSM object capability flags"""
 
     GET_OPAQUE = 1 << 0x00
@@ -314,8 +314,8 @@ class CAPABILITY(IntEnum):
     CHANGE_AUTHENTICATION_KEY = 1 << 0x2E
 
 
-CAPABILITY.ALL = sum(CAPABILITY)  # type: ignore
-CAPABILITY.NONE = 0x00  # type: ignore
+CAPABILITY.NONE = CAPABILITY(0)  # type: ignore
+CAPABILITY.ALL = CAPABILITY(sum(CAPABILITY))  # type: ignore
 
 
 class ORIGIN(int):

@@ -14,7 +14,7 @@
 
 """Classes for interacting with objects on a YubiHSM."""
 
-from .defs import ALGORITHM, COMMAND, OBJECT, ORIGIN
+from .defs import ALGORITHM, CAPABILITY, COMMAND, OBJECT, ORIGIN
 from .exceptions import YubiHsmInvalidResponseError
 from .eddsa import (
     _is_ed25519_private_key,
@@ -85,7 +85,7 @@ class ObjectInfo:
     FORMAT: ClassVar[str] = "!QHHHBBBB%dsQ" % LABEL_LENGTH
     LENGTH: ClassVar[int] = struct.calcsize(FORMAT)
 
-    capabilities: int
+    capabilities: CAPABILITY
     id: int
     size: int
     domains: int
@@ -94,7 +94,7 @@ class ObjectInfo:
     sequence: int
     origin: ORIGIN
     label: Union[str, bytes]
-    delegated_capabilities: int
+    delegated_capabilities: CAPABILITY
 
     @classmethod
     def parse(cls, value: bytes) -> "ObjectInfo":
@@ -212,7 +212,7 @@ class Opaque(YhsmObject):
         object_id: int,
         label: str,
         domains: int,
-        capabilities: int,
+        capabilities: CAPABILITY,
         algorithm: ALGORITHM,
         data: bytes,
     ) -> "Opaque":
@@ -256,7 +256,7 @@ class Opaque(YhsmObject):
         object_id: int,
         label: str,
         domains: int,
-        capabilities: int,
+        capabilities: CAPABILITY,
         certificate: x509.Certificate,
     ) -> "Opaque":
         """Import an X509 certificate into the YubiHSM as an Opaque.
@@ -306,8 +306,8 @@ class AuthenticationKey(YhsmObject):
         object_id: int,
         label: str,
         domains: int,
-        capabilities: int,
-        delegated_capabilities: int,
+        capabilities: CAPABILITY,
+        delegated_capabilities: CAPABILITY,
         password: str,
     ) -> "AuthenticationKey":
         """Create an AuthenticationKey derived from a password.
@@ -343,8 +343,8 @@ class AuthenticationKey(YhsmObject):
         object_id: int,
         label: str,
         domains: int,
-        capabilities: int,
-        delegated_capabilities: int,
+        capabilities: CAPABILITY,
+        delegated_capabilities: CAPABILITY,
         key_enc: bytes,
         key_mac: bytes,
     ) -> "AuthenticationKey":
@@ -429,7 +429,7 @@ class AsymmetricKey(YhsmObject):
         object_id: int,
         label: str,
         domains: int,
-        capabilities: int,
+        capabilities: CAPABILITY,
         key,
     ) -> "AsymmetricKey":
         """Import a private key into the YubiHSM.
@@ -492,7 +492,7 @@ class AsymmetricKey(YhsmObject):
         object_id: int,
         label: str,
         domains: int,
-        capabilities: int,
+        capabilities: CAPABILITY,
         algorithm: ALGORITHM,
     ) -> "AsymmetricKey":
         """Generate a new private key in the YubiHSM.
@@ -573,7 +573,11 @@ class AsymmetricKey(YhsmObject):
         return Opaque(self.session, self.id).get_certificate()
 
     def put_certificate(
-        self, label: str, domains: int, capabilities: int, certificate: x509.Certificate
+        self,
+        label: str,
+        domains: int,
+        capabilities: CAPABILITY,
+        certificate: x509.Certificate,
     ) -> Opaque:
         """Store an X509 certificate associated with this key.
 
@@ -745,9 +749,9 @@ class WrapKey(YhsmObject):
         object_id: int,
         label: str,
         domains: int,
-        capabilities: int,
+        capabilities: CAPABILITY,
         algorithm: ALGORITHM,
-        delegated_capabilities: int,
+        delegated_capabilities: CAPABILITY,
     ) -> "WrapKey":
         """Generate a new wrap key in the YubiHSM.
 
@@ -778,9 +782,9 @@ class WrapKey(YhsmObject):
         object_id: int,
         label: str,
         domains: int,
-        capabilities: int,
+        capabilities: CAPABILITY,
         algorithm: ALGORITHM,
-        delegated_capabilities: int,
+        delegated_capabilities: CAPABILITY,
         key: bytes,
     ) -> "WrapKey":
         """Import a wrap key into the YubiHSM.
@@ -867,7 +871,7 @@ class HmacKey(YhsmObject):
         object_id: int,
         label: str,
         domains: int,
-        capabilities: int,
+        capabilities: CAPABILITY,
         algorithm: ALGORITHM = ALGORITHM.HMAC_SHA256,
     ) -> "HmacKey":
         """Generate a new HMAC key in the YubiHSM.
@@ -899,7 +903,7 @@ class HmacKey(YhsmObject):
         object_id: int,
         label: str,
         domains: int,
-        capabilities: int,
+        capabilities: CAPABILITY,
         key: bytes,
         algorithm=ALGORITHM.HMAC_SHA256,
     ) -> "HmacKey":
@@ -965,7 +969,7 @@ class Template(YhsmObject):
         object_id: int,
         label: str,
         domains: int,
-        capabilities: int,
+        capabilities: CAPABILITY,
         algorithm: ALGORITHM,
         data: bytes,
     ) -> "Template":
@@ -1034,7 +1038,7 @@ class OtpAeadKey(YhsmObject):
         object_id: int,
         label: str,
         domains: int,
-        capabilities: int,
+        capabilities: CAPABILITY,
         algorithm: ALGORITHM,
         nonce_id: int,
         key: bytes,
@@ -1073,7 +1077,7 @@ class OtpAeadKey(YhsmObject):
         object_id: int,
         label: str,
         domains: int,
-        capabilities: int,
+        capabilities: CAPABILITY,
         algorithm: ALGORITHM,
         nonce_id: bytes,
     ) -> "OtpAeadKey":
