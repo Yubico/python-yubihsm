@@ -12,30 +12,35 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from yubihsm.defs import ALGORITHM
+from yubihsm.defs import ALGORITHM, CAPABILITY
 from yubihsm.defs import BRAINPOOLP256R1, BRAINPOOLP384R1, BRAINPOOLP512R1
 from cryptography.hazmat.primitives.asymmetric import ec
 
-import unittest
+import pytest
 
 
-class TestAlgorithm(unittest.TestCase):
-    def test_to_curve(self):
-        self.assertIsInstance(ALGORITHM.EC_P224.to_curve(), ec.SECP224R1)
-        self.assertIsInstance(ALGORITHM.EC_P256.to_curve(), ec.SECP256R1)
-        self.assertIsInstance(ALGORITHM.EC_P384.to_curve(), ec.SECP384R1)
-        self.assertIsInstance(ALGORITHM.EC_P521.to_curve(), ec.SECP521R1)
-        self.assertIsInstance(ALGORITHM.EC_K256.to_curve(), ec.SECP256K1)
-        self.assertIsInstance(ALGORITHM.EC_BP256.to_curve(), BRAINPOOLP256R1)
-        self.assertIsInstance(ALGORITHM.EC_BP384.to_curve(), BRAINPOOLP384R1)
-        self.assertIsInstance(ALGORITHM.EC_BP512.to_curve(), BRAINPOOLP512R1)
+@pytest.mark.parametrize(
+    "algorithm, curve",
+    [
+        (ALGORITHM.EC_P224, ec.SECP224R1),
+        (ALGORITHM.EC_P256, ec.SECP256R1),
+        (ALGORITHM.EC_P384, ec.SECP384R1),
+        (ALGORITHM.EC_P521, ec.SECP521R1),
+        (ALGORITHM.EC_K256, ec.SECP256K1),
+        (ALGORITHM.EC_BP256, BRAINPOOLP256R1),
+        (ALGORITHM.EC_BP384, BRAINPOOLP384R1),
+        (ALGORITHM.EC_BP512, BRAINPOOLP512R1),
+    ],
+)
+def test_algorithm_to_from_curve(algorithm, curve):
+    assert isinstance(algorithm.to_curve(), curve)
+    assert algorithm == ALGORITHM.for_curve(curve())
 
-    def test_for_curve(self):
-        self.assertEqual(ALGORITHM.for_curve(ec.SECP224R1()), ALGORITHM.EC_P224)
-        self.assertEqual(ALGORITHM.for_curve(ec.SECP256R1()), ALGORITHM.EC_P256)
-        self.assertEqual(ALGORITHM.for_curve(ec.SECP384R1()), ALGORITHM.EC_P384)
-        self.assertEqual(ALGORITHM.for_curve(ec.SECP521R1()), ALGORITHM.EC_P521)
-        self.assertEqual(ALGORITHM.for_curve(ec.SECP256K1()), ALGORITHM.EC_K256)
-        self.assertEqual(ALGORITHM.for_curve(BRAINPOOLP256R1()), ALGORITHM.EC_BP256)
-        self.assertEqual(ALGORITHM.for_curve(BRAINPOOLP384R1()), ALGORITHM.EC_BP384)
-        self.assertEqual(ALGORITHM.for_curve(BRAINPOOLP512R1()), ALGORITHM.EC_BP512)
+
+def test_capability_all_includes_everything():
+    assert CAPABILITY.ALL == sum(CAPABILITY)
+    assert CAPABILITY.NONE == 0
+
+    for c in CAPABILITY:
+        assert c in CAPABILITY.ALL
+        assert c not in CAPABILITY.NONE
