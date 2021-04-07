@@ -16,20 +16,20 @@
 
 from .defs import ALGORITHM, CAPABILITY, COMMAND, OBJECT, ORIGIN
 from .exceptions import YubiHsmInvalidResponseError
-from .eddsa import (
-    _is_ed25519_private_key,
-    _serialize_ed25519_private_key,
-    _deserialize_ed25519_public_key,
-)
-from .utils import int_from_bytes, password_to_key
+from .utils import password_to_key
 from . import core
 
 from cryptography.hazmat.backends import default_backend
 from cryptography import x509
 from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.asymmetric import rsa, ec
+from cryptography.hazmat.primitives.asymmetric import rsa, ec, ed25519
+from cryptography.hazmat.primitives.serialization import (
+    Encoding,
+    PublicFormat,
+    PrivateFormat,
+    NoEncryption,
+)
 from cryptography.hazmat.primitives.asymmetric.utils import Prehashed
-from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 from dataclasses import dataclass
 from typing import ClassVar, Union, Optional, TypeVar, NamedTuple
 import copy
@@ -437,13 +437,11 @@ class AsymmetricKey(YhsmObject):
         RSA and EC keys can be created by using the cryptography APIs. You can
         then pass either a
         :class:`~cryptography.hazmat.primitives.asymmetric.rsa.RSAPrivateKey`
-        or a
+        , a
         :class:`~cryptography.hazmat.primitives.asymmetric.ec.EllipticCurvePrivateKey`
+        , or a
+        :class:`~cryptography.hazmat.primitives.asymmetric.ed25519.Ed25519PrivateKey`
         as `key`.
-
-        EdDSA keys can be created using the Cryptography APIs if available, or
-        by calling
-        :func:`~yubihsm.eddsa.load_ed25519_private_key`.
 
         :param session: The session to import via.
         :param object_id: The ID to set for the object. Set to 0 to let the
@@ -466,8 +464,10 @@ class AsymmetricKey(YhsmObject):
                 ec_numbers.private_value, (key.curve.key_size + 7) // 8, "big"
             )
             algo = ALGORITHM.for_curve(key.curve)
-        elif _is_ed25519_private_key(key):
-            serialized = _serialize_ed25519_private_key(key)
+        elif isinstance(key, ed25519.Ed25519PrivateKey):
+            serialized = key.private_bytes(
+                Encoding.Raw, PrivateFormat.Raw, NoEncryption()
+            )
             algo = ALGORITHM.EC_ED25519
         else:
             raise ValueError("Unsupported key")
@@ -538,7 +538,7 @@ class AsymmetricKey(YhsmObject):
         algo = ALGORITHM(ret[0])
         raw_key = ret[1:]
         if algo in [ALGORITHM.RSA_2048, ALGORITHM.RSA_3072, ALGORITHM.RSA_4096]:
-            num = int_from_bytes(raw_key, "big")
+            num = int.from_bytes(raw_key, "big")
             pubkey = rsa.RSAPublicNumbers(e=0x10001, n=num)
         elif algo in [
             ALGORITHM.EC_P224,
@@ -551,11 +551,11 @@ class AsymmetricKey(YhsmObject):
             ALGORITHM.EC_BP512,
         ]:
             c_len = len(raw_key) // 2
-            x = int_from_bytes(raw_key[:c_len], "big")
-            y = int_from_bytes(raw_key[c_len:], "big")
+            x = int.from_bytes(raw_key[:c_len], "big")
+            y = int.from_bytes(raw_key[c_len:], "big")
             pubkey = ec.EllipticCurvePublicNumbers(curve=algo.to_curve(), x=x, y=y)
         elif algo in [ALGORITHM.EC_ED25519]:
-            return _deserialize_ed25519_public_key(raw_key)
+            return ed25519.Ed25519PublicKey.from_public_bytes(raw_key)
 
         return pubkey.public_key(backend=default_backend())
 

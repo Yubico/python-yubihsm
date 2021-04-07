@@ -137,7 +137,7 @@ def test_export_wrap(session):
     # dec = decryptor.update(data)
 
     # numbers = eckey.private_numbers()
-    # serialized = int_from_bytes(numbers.private_value, 'big')
+    # serialized = int.from_bytes(numbers.private_value, 'big')
     # assert serialized == dec[-len(serialized):]
 
     asymkey.delete()

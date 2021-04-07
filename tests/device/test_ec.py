@@ -16,8 +16,6 @@
 
 from yubihsm.defs import ALGORITHM, CAPABILITY, COMMAND, ERROR
 from yubihsm.defs import BRAINPOOLP256R1, BRAINPOOLP384R1, BRAINPOOLP512R1
-from yubihsm.utils import int_from_bytes
-from yubihsm.eddsa import load_ed25519_private_key, serialize_ed25519_public_key
 from yubihsm.objects import AsymmetricKey
 from yubihsm.exceptions import YubiHsmDeviceError
 
@@ -160,7 +158,7 @@ def test_biased_k(session):
 
     digest = hashes.Hash(hashes.SHA256(), backend=default_backend())
     digest.update(data)
-    h = int_from_bytes(digest.finalize(), "big")
+    h = int.from_bytes(digest.finalize(), "big")
 
     # The assumption here is that for 1024 runs we should get a distribution
     # where each single bit is set between 400 and 1024 - 400 times.
@@ -223,11 +221,16 @@ EDDSA_VECTORS = [
 
 @pytest.mark.parametrize("vector", EDDSA_VECTORS)
 def test_eddsa_vectors(session, vector):
-    key = load_ed25519_private_key(vector["key"])
+    key = ed25519.Ed25519PrivateKey.from_private_bytes(vector["key"])
     k = AsymmetricKey.put(
         session, 0, "Test Ed25519", 0xFFFF, CAPABILITY.SIGN_EDDSA, key
     )
-    assert serialize_ed25519_public_key(k.get_public_key()) == vector["pubkey"]
+    assert (
+        k.get_public_key().public_bytes(
+            serialization.Encoding.Raw, serialization.PublicFormat.Raw
+        )
+        == vector["pubkey"]
+    )
     assert k.sign_eddsa(vector["msg"]) == vector["sig"]
     k.delete()
 
@@ -253,7 +256,9 @@ def eddsa_keypair(request, session):
         public_key = key.public_key()
         assert public_key.public_bytes(
             serialization.Encoding.Raw, serialization.PublicFormat.Raw
-        ) == serialize_ed25519_public_key(asymkey.get_public_key())
+        ) == asymkey.get_public_key().public_bytes(
+            serialization.Encoding.Raw, serialization.PublicFormat.Raw
+        )
 
     yield asymkey, public_key, key
 

@@ -13,7 +13,6 @@
 # limitations under the License.
 
 from yubihsm.defs import ALGORITHM, CAPABILITY, ERROR
-from yubihsm.utils import int_from_bytes
 from yubihsm.objects import AsymmetricKey
 from yubihsm.exceptions import YubiHsmDeviceError
 
@@ -108,7 +107,7 @@ def test_rsa_pkcs1_decrypt_errors(session):
     for m in rawmessages:
         error = ERROR.OK
         m = m.ljust(256, b"\xc3")
-        m_int = int_from_bytes(m, "big")
+        m_int = int.from_bytes(m, "big")
         enc = pow(m_int, numbers.e, numbers.n)
         try:
             key.decrypt_pkcs1v1_5(int_to_bytes(enc).rjust(256, b"\x00"))
