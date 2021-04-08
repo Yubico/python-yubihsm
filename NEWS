@@ -1,3 +1,14 @@
+* Version 3.0.0 (unreleased)
+ ** NOTE: Backwards incompatible release.
+ ** Dropped Python 2 support, new minimum requirement: Python 3.6.
+ ** Added type hints.
+ ** Bumped minimum supported Cryptography version to 2.6.
+ ** Dropped yubihsm.eddsa package in favor of EdDSA support in Cryptography.
+ ** Changes relevant to maintainers:
+ *** Added mypy to pre-commit checks.
+ *** Switched build and packaging system to poetry.
+ *** Switched to using pytest for testing (unittest still used in some places).
+
 * Version 2.1.0 (released 2021-04-13)
  ** Stop using deprecated functions from cryptography.io (prevents warnings).
  ** Support Prehashed data when signing.
