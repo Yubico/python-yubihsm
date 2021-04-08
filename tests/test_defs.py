@@ -13,7 +13,6 @@
 # limitations under the License.
 
 from yubihsm.defs import ALGORITHM, CAPABILITY
-from yubihsm.defs import BRAINPOOLP256R1, BRAINPOOLP384R1, BRAINPOOLP512R1
 from cryptography.hazmat.primitives.asymmetric import ec
 
 import pytest
@@ -27,9 +26,9 @@ import pytest
         (ALGORITHM.EC_P384, ec.SECP384R1),
         (ALGORITHM.EC_P521, ec.SECP521R1),
         (ALGORITHM.EC_K256, ec.SECP256K1),
-        (ALGORITHM.EC_BP256, BRAINPOOLP256R1),
-        (ALGORITHM.EC_BP384, BRAINPOOLP384R1),
-        (ALGORITHM.EC_BP512, BRAINPOOLP512R1),
+        (ALGORITHM.EC_BP256, ec.BrainpoolP256R1),
+        (ALGORITHM.EC_BP384, ec.BrainpoolP384R1),
+        (ALGORITHM.EC_BP512, ec.BrainpoolP512R1),
     ],
 )
 def test_algorithm_to_from_curve(algorithm, curve):

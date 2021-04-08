@@ -11,12 +11,3 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-from yubihsm.defs import BRAINPOOLP256R1, BRAINPOOLP384R1, BRAINPOOLP512R1
-from cryptography.hazmat.primitives.asymmetric import ec
-
-
-# Register Brainpool curves
-ec._CURVE_TYPES["brainpoolP256r1"] = BRAINPOOLP256R1
-ec._CURVE_TYPES["brainpoolP384r1"] = BRAINPOOLP384R1
-ec._CURVE_TYPES["brainpoolP512r1"] = BRAINPOOLP512R1

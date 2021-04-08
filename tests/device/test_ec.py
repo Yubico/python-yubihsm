@@ -15,7 +15,6 @@
 # limitations under the License.
 
 from yubihsm.defs import ALGORITHM, CAPABILITY, COMMAND, ERROR
-from yubihsm.defs import BRAINPOOLP256R1, BRAINPOOLP384R1, BRAINPOOLP512R1
 from yubihsm.objects import AsymmetricKey
 from yubihsm.exceptions import YubiHsmDeviceError
 
@@ -43,9 +42,9 @@ ECDSA_CURVES = [
     ec.SECP256K1,
     ec.SECP384R1,
     ec.SECP521R1,
-    BRAINPOOLP256R1,
-    BRAINPOOLP384R1,
-    BRAINPOOLP512R1,
+    ec.BrainpoolP256R1,
+    ec.BrainpoolP384R1,
+    ec.BrainpoolP512R1,
 ]
 
 HASHES = [
