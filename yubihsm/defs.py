@@ -58,6 +58,7 @@ class ERROR(IntEnum):
     INVALID_OTP = 0x0F
     DEMO_MODE = 0x10
     OBJECT_EXISTS = 0x11
+    ALGORITHM_DISABLED = 0x12
     COMMAND_UNEXECUTED = 0xFF
 
 
@@ -175,6 +176,8 @@ class ALGORITHM(IntEnum):
     EC_ECDSA_SHA512 = 45
     EC_ED25519 = 46
     EC_P224 = 47
+    RSA_PKCS1_DECRYPT = 48
+    EC_P256_YUBICO_AUTHENTICATION = 49
 
     def to_curve(self):
         """Return a Cryptography EC curve instance for a given member.
@@ -250,6 +253,8 @@ class OPTION(IntEnum):
 
     FORCE_AUDIT = 0x01
     COMMAND_AUDIT = 0x03
+    ALGORITHM_TOGGLE = 0x04
+    FIPS_MODE = 0x05
 
 
 @unique

@@ -15,7 +15,8 @@
 from yubihsm.core import MAX_MSG_SIZE
 from yubihsm.defs import ALGORITHM, CAPABILITY, OBJECT, COMMAND, ORIGIN
 from yubihsm.objects import AsymmetricKey, HmacKey, WrapKey, AuthenticationKey
-from yubihsm.exceptions import YubiHsmInvalidRequestError
+from yubihsm.exceptions import YubiHsmInvalidRequestError, YubiHsmDeviceError
+from time import sleep
 import uuid
 import os
 import pytest
@@ -121,7 +122,7 @@ class TestVarious:
         assert device_info.serial > 0
         assert device_info.log_used > 0
         assert device_info.log_size >= device_info.log_used
-        assert len(device_info.supported_algorithms) >= len(ALGORITHM)
+        assert len(device_info.supported_algorithms) >= 47
 
     def test_get_pseudo_random(self, session):
         data = session.get_pseudo_random(10)
@@ -164,3 +165,43 @@ class TestEcho:
     def test_echo_max_size(self, hsm, session):
         self.plain_echo(hsm, 2021)
         self.secure_echo(session, 2021)
+
+
+class TestFipsOptions:
+    @pytest.fixture(scope="class", autouse=True)
+    def session2(self, info, session, connect_hsm):
+        try:
+            session.get_fips_mode()
+            session.reset_device()
+            sleep(5.0)
+            hsm = connect_hsm()
+            return hsm.create_session_derived(1, "password")
+        except YubiHsmDeviceError:
+            pytest.skip("Non-FIPS YubiHSM")
+
+    def test_set_in_fips_mode(self, session2):
+        assert not session2.get_fips_mode()
+        session2.set_fips_mode(True)
+        assert session2.get_fips_mode()
+
+    def test_fips_mode_disables_algorithms(self, session2):
+        session2.set_fips_mode(True)
+        enabled = session2.get_enabled_algorithms()
+        assert not any(
+            enabled[alg]
+            for alg in (
+                ALGORITHM.RSA_PKCS1_SHA1,
+                ALGORITHM.RSA_PSS_SHA1,
+                ALGORITHM.EC_ECDSA_SHA1,
+                ALGORITHM.EC_ED25519,
+            )
+        )
+
+    def test_enabling_algorithms_disable_fips_mode(self, session2):
+        session2.set_fips_mode(True)
+        session2.set_enabled_algorithms(
+            {
+                ALGORITHM.RSA_PKCS1_SHA1: True,
+            }
+        )
+        assert not session2.get_fips_mode()

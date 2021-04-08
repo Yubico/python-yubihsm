@@ -15,7 +15,7 @@
 """Core classes for YubiHSM communication."""
 
 from . import utils
-from .defs import COMMAND, OBJECT, ALGORITHM, LIST_FILTER, OPTION, AUDIT
+from .defs import COMMAND, OBJECT, ALGORITHM, LIST_FILTER, OPTION, AUDIT, ERROR
 from .backends import get_backend, YhsmBackend
 from .objects import YhsmObject, _label_pack, LABEL_LENGTH
 from .exceptions import (
@@ -631,6 +631,72 @@ class AuthSession:
             except ValueError:
                 ret[_UnknownCommand(cmd)] = val  # type: ignore
         return ret
+
+    def set_enabled_algorithms(self, algorithms: Mapping[ALGORITHM, bool]) -> None:
+        """Set audit mode of commands.
+
+        New in YubiHSM 2.2.0.
+
+        Algorithms can only be toggled on a "fresh" device (after reset, before adding
+        objects).
+
+        Takes a dict of ALGORITHM -> bool pairs and updates the enabled algorithm
+        settings for the algorithms given.
+
+        :param algorithms: The algorithms to update.
+
+        :Example:
+
+        >>> session.set_enabled_algorithms({
+        ...     ALGORITHM.RSA_2048: False,
+        ...     ALGORITHM.RSA_OAEP_SHA256_: True,
+        ... })
+        """
+        msg = b"".join(struct.pack("!BB", k, v) for (k, v) in algorithms.items())
+        self.put_option(OPTION.ALGORITHM_TOGGLE, msg)
+
+    def get_enabled_algorithms(self) -> Mapping[ALGORITHM, bool]:
+        """Get the algorithms available, and whether or not they are enabled.
+
+        :return: A mapping of algorithms, to whether or not they are enabled.
+        """
+        try:
+            resp = self.get_option(OPTION.ALGORITHM_TOGGLE)
+            ret = {}
+            for i in range(0, len(resp), 2):
+                alg = resp[i]
+                val = bool(resp[i + 1])
+                try:
+                    ret[ALGORITHM(alg)] = val
+                except ValueError:
+                    ret[_UnknownAlgorithm(alg)] = val  # type: ignore
+            return ret
+        except YubiHsmDeviceError as e:
+            if e.code == ERROR.INVALID_DATA:
+                supported = self._hsm.get_device_info().supported_algorithms
+                return {alg: True for alg in supported}
+            raise
+
+    def set_fips_mode(self, mode: bool) -> None:
+        """Set the FIPS mode of the YubiHSM.
+
+        YubiHSM2 FIPS only.
+
+        This can only be toggled on a "fresh" device (after reset, before adding
+        objects).
+
+        :param mode: Whether to be in FIPS compliant mode or not.
+        """
+        self.put_option(OPTION.FIPS_MODE, struct.pack("!B", mode))
+
+    def get_fips_mode(self) -> bool:
+        """Get the current setting for FIPS compliant mode.
+
+        YubiHSM2 FIPS only.
+
+        :return: True if in FIPS mode, False if not.
+        """
+        return bool(self.get_option(OPTION.FIPS_MODE)[0])
 
     def __repr__(self):
         return "{0.__class__.__name__}(id={0._sid}, hsm={0._hsm})".format(self)
