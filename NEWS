@@ -1,3 +1,9 @@
+* Version 2.1.0 (unreleased)
+ ** Stop using deprecated functions from cryptogaphy.io (prevents warnings).
+ ** Support Prehashed data when signing.
+ ** Implement context manager (python with-statement) for YubiHsm and AuthSession.
+ ** Bugfix: Fix byte-order issue with AEAD nonce ID.
+
 * Version 2.0.1 (released 2019-06-19)
  ** Bugfix: ORIGIN representation was broken, causing get_info() to fail.
  ** Bugfix: Algorithm parsing in DeviceInfo fixed.
