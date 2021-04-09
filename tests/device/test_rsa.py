@@ -19,7 +19,6 @@ from yubihsm.exceptions import YubiHsmDeviceError
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa, padding
-from cryptography.utils import int_to_bytes
 from binascii import a2b_hex
 import os
 import pytest
@@ -110,7 +109,7 @@ def test_rsa_pkcs1_decrypt_errors(session):
         m_int = int.from_bytes(m, "big")
         enc = pow(m_int, numbers.e, numbers.n)
         try:
-            key.decrypt_pkcs1v1_5(int_to_bytes(enc).rjust(256, b"\x00"))
+            key.decrypt_pkcs1v1_5(int.to_bytes(enc, 256, "big"))
         except YubiHsmDeviceError as e:
             error = e.code
         assert error == ERROR.INVALID_DATA

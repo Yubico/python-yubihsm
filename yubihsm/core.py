@@ -45,7 +45,7 @@ HOST_CRYPTOGRAM = 0x01
 MAX_MSG_SIZE = 2048 - 1
 
 
-def _derive(key, t, context, L=0x80):
+def _derive(key: bytes, t: int, context: bytes, L: int = 0x80) -> bytes:
     # this only supports aes128
     if L != 0x80 and L != 0x40:
         raise ValueError("L must be 0x40 or 0x80")
@@ -57,7 +57,7 @@ def _derive(key, t, context, L=0x80):
     return c.finalize()[: L // 8]
 
 
-def _unpad_resp(resp, cmd):
+def _unpad_resp(resp: bytes, cmd: COMMAND) -> bytes:
     if len(resp) < 3:
         raise YubiHsmInvalidResponseError("Wrong length")
     rcmd, length = struct.unpack("!BH", resp[:3])
@@ -80,7 +80,7 @@ class _UnknownIntEnum(int):
         return self.name
 
     @property
-    def value(self):
+    def value(self) -> int:
         return int(self)
 
 
@@ -92,11 +92,11 @@ class _UnknownAlgorithm(_UnknownIntEnum):
     name = "ALGORITHM.UNKNOWN"
 
 
-def _algorithm(val):
+def _algorithm(val: int) -> ALGORITHM:
     try:
         return ALGORITHM(val)
     except ValueError:
-        return _UnknownAlgorithm(val)
+        return _UnknownAlgorithm(val)  # type: ignore
 
 
 class _UnknownCommand(_UnknownIntEnum):
@@ -138,14 +138,14 @@ class DeviceInfo:
         return cls(version, serial, log_size, log_used, algorithms)
 
 
-def _calculate_iv(key, counter):
+def _calculate_iv(key: bytes, counter: int) -> bytes:
     encryptor = Cipher(
         algorithms.AES(key), modes.ECB(), backend=default_backend()  # nosec ECB
     ).encryptor()
     return encryptor.update(int.to_bytes(counter, 16, "big")) + encryptor.finalize()
 
 
-def _calculate_mac(key, chain, message):
+def _calculate_mac(key: bytes, chain: bytes, message: bytes) -> Tuple[bytes, bytes]:
     c = cmac.CMAC(algorithms.AES(key), backend=default_backend())
     c.update(chain)
     c.update(message)
@@ -235,6 +235,11 @@ class LogData(NamedTuple):
     entries: Sequence[LogEntry]
 
 
+class _ClosedBackend(YhsmBackend):
+    def transceive(self, msg):
+        raise TypeError("The backend has been closed!")
+
+
 class YubiHsm:
     """An unauthenticated connection to a YubiHSM."""
 
@@ -243,7 +248,7 @@ class YubiHsm:
 
         :param backend: A backend used to communicate with a YubiHSM.
         """
-        self._backend: Optional[YhsmBackend] = backend
+        self._backend: YhsmBackend = backend
 
     def __enter__(self):
         return self
@@ -255,9 +260,9 @@ class YubiHsm:
         """Disconnect from the backend, freeing any resources in use by it."""
         if self._backend:
             self._backend.close()
-            self._backend = None
+            self._backend = _ClosedBackend()
 
-    def _transceive(self, msg):
+    def _transceive(self, msg: bytes) -> bytes:
         if len(msg) > MAX_MSG_SIZE:
             raise YubiHsmInvalidRequestError("Message too long.")
         return self._backend.transceive(msg)
@@ -379,7 +384,7 @@ class AuthSession:
                 self.send_secure_cmd(COMMAND.CLOSE_SESSION)
             finally:
                 self._sid = None
-                self._key_enc = self._key_mac = self._key_rmac = None
+                self._key_enc = self._key_mac = self._key_rmac = b""
 
     def __enter__(self):
         return self
@@ -387,7 +392,7 @@ class AuthSession:
     def __exit__(self, typ, value, traceback):
         self.close()
 
-    def _secure_transceive(self, msg):
+    def _secure_transceive(self, msg: bytes) -> bytes:
         padlen = 15 - len(msg) % 16
         msg += b"\x80"
         msg = msg.ljust(len(msg) + padlen, b"\0")
@@ -485,8 +490,8 @@ class AuthSession:
 
         objects = []
         for i in range(0, len(resp), 4):
-            object_id, typ, seq = struct.unpack("!HBB", resp[i : i + 4])
-            objects.append(YhsmObject._create(typ, self, object_id, seq))
+            obj_id, typ, seq = struct.unpack("!HBB", resp[i : i + 4])
+            objects.append(YhsmObject._create(typ, self, obj_id, seq))
         return objects
 
     def get_object(self, object_id: int, object_type: OBJECT) -> YhsmObject:
@@ -522,7 +527,7 @@ class AuthSession:
         except YubiHsmConnectionError:
             pass  # Assume reset went well, it may interrupt the connection.
         self._sid = None
-        self._key_enc = self._key_mac = self._key_rmac = None
+        self._key_enc = self._key_mac = self._key_rmac = b""
         self._hsm.close()
 
     def get_log_entries(self, previous_entry: Optional[LogEntry] = None) -> LogData:

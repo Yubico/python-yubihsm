@@ -28,6 +28,11 @@ import struct
 import pytest
 
 
+def foo():
+    bar: int = "hello"
+    return bar
+
+
 class Mode(Enum):
     IMPORT = 0
     GENERATE = 1

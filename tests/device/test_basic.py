@@ -31,7 +31,7 @@ class TestListObjects:
                 "id: ",
                 "0x%0.4X" % objlist[i].id,
                 ",type: ",
-                OBJECT(objlist[i].object_type).name,
+                objlist[i].object_type.name,
                 "\t,sequence: ",
                 objlist[i].sequence,
             )
@@ -41,7 +41,7 @@ class TestListObjects:
             "id: ",
             "0x%0.4X" % objinfo.id,
             ",type: ",
-            OBJECT(objinfo.object_type).name,
+            objinfo.object_type.name,
             "\t,sequence: ",
             objinfo.sequence,
             ",domains: 0x%0.4X" % objinfo.domains,
@@ -52,7 +52,7 @@ class TestListObjects:
 
     def key_in_list(self, session, keytype, algorithm=None):
         dom = None
-        cap = 0
+        cap = CAPABILITY.NONE
         key_label = "%s%s" % (str(uuid.uuid4()), b"\xf0\x9f\x98\x83".decode())
 
         if keytype == OBJECT.ASYMMETRIC_KEY:

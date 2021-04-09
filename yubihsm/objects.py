@@ -31,7 +31,7 @@ from cryptography.hazmat.primitives.serialization import (
 )
 from cryptography.hazmat.primitives.asymmetric.utils import Prehashed
 from dataclasses import dataclass
-from typing import ClassVar, Union, Optional, TypeVar, NamedTuple
+from typing import ClassVar, Union, Optional, TypeVar, NamedTuple, Type
 import copy
 import struct
 
@@ -39,7 +39,7 @@ import struct
 LABEL_LENGTH = 40
 
 
-def _label_pack(label):
+def _label_pack(label: Union[str, bytes]) -> bytes:
     """Pack a label into binary form."""
     if isinstance(label, str):
         label = label.encode()
@@ -48,7 +48,7 @@ def _label_pack(label):
     return label
 
 
-def _label_unpack(packed):
+def _label_unpack(packed: bytes) -> Union[str, bytes]:
     """Unpack a label from its binary form."""
     try:
         return packed.split(b"\0", 2)[0].decode()
@@ -57,7 +57,7 @@ def _label_unpack(packed):
         return packed
 
 
-def _calc_hash(data, hash):
+def _calc_hash(data: bytes, hash: hashes.HashAlgorithm) -> bytes:
     if not isinstance(hash, Prehashed):
         digest = hashes.Hash(hash, backend=default_backend())
         digest.update(data)
@@ -161,7 +161,12 @@ class YhsmObject:
             raise YubiHsmInvalidResponseError()
 
     @staticmethod
-    def _create(object_type, session, object_id, seq=None):
+    def _create(
+        object_type: OBJECT,
+        session: "core.AuthSession",
+        object_id: int,
+        seq: Optional[int] = None,
+    ) -> "YhsmObject":
         """
         Creates instance of `object_type`.
 
@@ -169,12 +174,14 @@ class YhsmObject:
         instance of `_UnknownYhsmObject`.
         """
         for cls in YhsmObject.__subclasses__():
-            if cls.object_type == object_type:
+            if getattr(cls, "object_type", None) == object_type:
                 return cls(session, object_id, seq)
         return _UnknownYhsmObject(object_type, session, object_id, seq)
 
     @classmethod
-    def _from_command(cls, session, cmd, data):
+    def _from_command(
+        cls: Type[T_Object], session: "core.AuthSession", cmd: COMMAND, data: bytes
+    ) -> T_Object:
         ret = session.send_secure_cmd(cmd, data)
         return cls(session, struct.unpack("!H", ret)[0])
 
@@ -188,11 +195,9 @@ class _UnknownYhsmObject(YhsmObject):
     set to the specified `object_type` parameter.
     """
 
-    object_type = None  # type: ignore
-
-    def __init__(self, object_type, *args, **kwargs):
+    def __init__(self, object_type: OBJECT, *args, **kwargs):
         super(_UnknownYhsmObject, self).__init__(*args, **kwargs)
-        self.object_type = object_type
+        self.object_type = object_type  # type: ignore
 
 
 class Opaque(YhsmObject):
@@ -539,7 +544,9 @@ class AsymmetricKey(YhsmObject):
         raw_key = ret[1:]
         if algo in [ALGORITHM.RSA_2048, ALGORITHM.RSA_3072, ALGORITHM.RSA_4096]:
             num = int.from_bytes(raw_key, "big")
-            pubkey = rsa.RSAPublicNumbers(e=0x10001, n=num)
+            return rsa.RSAPublicNumbers(e=0x10001, n=num).public_key(
+                backend=default_backend()
+            )
         elif algo in [
             ALGORITHM.EC_P224,
             ALGORITHM.EC_P256,
@@ -553,11 +560,13 @@ class AsymmetricKey(YhsmObject):
             c_len = len(raw_key) // 2
             x = int.from_bytes(raw_key[:c_len], "big")
             y = int.from_bytes(raw_key[c_len:], "big")
-            pubkey = ec.EllipticCurvePublicNumbers(curve=algo.to_curve(), x=x, y=y)
+            return ec.EllipticCurvePublicNumbers(
+                curve=algo.to_curve(), x=x, y=y
+            ).public_key(backend=default_backend())
         elif algo in [ALGORITHM.EC_ED25519]:
             return ed25519.Ed25519PublicKey.from_public_bytes(raw_key)
-
-        return pubkey.public_key(backend=default_backend())
+        else:
+            raise TypeError("Invalid ALGORITHM")
 
     def get_certificate(self) -> x509.Certificate:
         """Get the X509 certificate associated with the key.

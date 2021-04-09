@@ -24,7 +24,7 @@ class YhsmBackend(abc.ABC):
     def transceive(self, msg: bytes) -> bytes:
         """Send a verbatim message."""
 
-    def close(self):
+    def close(self) -> None:
         """Closes the connection to the YubiHSM."""
 
 

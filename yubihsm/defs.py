@@ -160,7 +160,7 @@ class ALGORITHM(IntEnum):
     RSA_PKCS1_DECRYPT = 48
     EC_P256_YUBICO_AUTHENTICATION = 49
 
-    def to_curve(self):
+    def to_curve(self) -> ec.EllipticCurve:
         """Return a Cryptography EC curve instance for a given member.
 
         :return: The corresponding curve.
@@ -172,10 +172,10 @@ class ALGORITHM(IntEnum):
         True
         """
 
-        return _curve_table[self]()
+        return _curve_table[self]()  # type: ignore
 
     @staticmethod
-    def for_curve(curve):
+    def for_curve(curve: ec.EllipticCurve) -> "ALGORITHM":
         """Returns a member corresponding to a Cryptography curve instance.
 
         :Example:
@@ -247,6 +247,15 @@ class AUDIT(IntEnum):
     FIXED = 0x02
 
 
+class _enum_prop:
+    # Static property for use with enums.
+    def __init__(self, getter):
+        self.getter = getter
+
+    def __get__(self, instance, cls):
+        return self.getter(cls)
+
+
 @unique
 class CAPABILITY(IntFlag):
     """YubiHSM object capability flags"""
@@ -299,9 +308,13 @@ class CAPABILITY(IntFlag):
     DELETE_OTP_AEAD_KEY = 1 << 0x2D
     CHANGE_AUTHENTICATION_KEY = 1 << 0x2E
 
+    @_enum_prop
+    def NONE(cls) -> "CAPABILITY":
+        return cls(0)  # type: ignore
 
-CAPABILITY.NONE = CAPABILITY(0)  # type: ignore
-CAPABILITY.ALL = CAPABILITY(sum(CAPABILITY))  # type: ignore
+    @_enum_prop
+    def ALL(cls) -> "CAPABILITY":
+        return cls(sum(cls))  # type: ignore
 
 
 class ORIGIN(int):
@@ -310,13 +323,13 @@ class ORIGIN(int):
     IMPORTED_WRAPPED = 0x10  # Used in combination with GENERATED/IMPORTED
 
     @property
-    def generated(self):
+    def generated(self) -> bool:
         return ORIGIN.GENERATED & self != 0
 
     @property
-    def imported(self):
+    def imported(self) -> bool:
         return ORIGIN.IMPORTED & self != 0
 
     @property
-    def wrapped(self):
+    def wrapped(self) -> bool:
         return ORIGIN.IMPORTED_WRAPPED & self != 0
