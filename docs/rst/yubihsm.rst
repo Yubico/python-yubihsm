@@ -27,14 +27,6 @@ yubihsm.defs module
     :undoc-members:
     :show-inheritance:
 
-yubihsm.eddsa module
---------------------
-
-.. automodule:: yubihsm.eddsa
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
 yubihsm.exceptions module
 -------------------------
 

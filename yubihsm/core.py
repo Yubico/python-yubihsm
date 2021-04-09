@@ -320,9 +320,8 @@ class YubiHsm:
         If no URL is given this will attempt to connect to a YubiHSM connector
         running on localhost, using the default port.
 
-        :param url: (optional) A http(s):// or yhusb:// backend URL.
-        :return: A YubiHsm instance connected to the backend referenced by the
-            url.
+        :param url: A http(s):// or yhusb:// backend URL.
+        :return: A YubiHsm instance connected to the backend referenced by the url.
         """
         return cls(get_backend(url))
 
@@ -459,15 +458,12 @@ class AuthSession:
         which are accessible by this session. The arguments to this method can
         be used to filter the results returned.
 
-        :param object_id: (optional) Return only objects with this ID.
-        :param object_type: (optional) Return only objects of this type.
-        :param domains: (optional) Return only objects belonging to one or
-            more of these domains.
-        :param capabilities: (optional) Return only objects with one or more
-            of these capabilities.
-        :param algorithm: (optional) Return only objects with this
-            algorithm.
-        :param : (optional) Return only objects with this label.
+        :param object_id: Return only objects with this ID.
+        :param object_type: Return only objects of this type.
+        :param domains: Return only objects belonging to one or more of these domains.
+        :param capabilities: Return only objects with one or more of these capabilities.
+        :param algorithm: Return only objects with this algorithm.
+        :param label: Return only objects with this label.
         :return: A list of matched objects.
         """
         msg = b""
@@ -538,10 +534,9 @@ class AuthSession:
         The chain of entry digests will be validated, starting from the first
         entry returned, or the one supplied as previous_entry.
 
-        :param previous_entry: (optional) Entry to start verification
-            against.
-        :return: A tuple consisting of the number of unlogged boot and
-            authentication events, and the list of log entries.
+        :param previous_entry: Entry to start verification against.
+        :return: A tuple consisting of the number of unlogged boot and authentication
+            events, and the list of log entries.
         """
         resp = self.send_secure_cmd(COMMAND.GET_LOG_ENTRIES)
         boot, auth, num = struct.unpack("!HHB", resp[:5])

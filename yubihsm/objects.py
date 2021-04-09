@@ -715,9 +715,8 @@ class AsymmetricKey(YhsmObject):
         You also need a X509 certificate stored with the same ID as the
         attesting key in the YubiHSM, to be used as a template.
 
-        :param attesting_key_id: (optional) The ID of the asymmetric key
-            used to attest. If omitted, the built-in Yubico attestation key is
-            used.
+        :param attesting_key_id: (optional) The ID of the asymmetric key used to attest.
+            If omitted, the built-in Yubico attestation key is used.
         :return: The attestation certificate.
         """
         msg = struct.pack("!HH", self.id, attesting_key_id)
@@ -765,8 +764,8 @@ class WrapKey(YhsmObject):
         """Generate a new wrap key in the YubiHSM.
 
         :param session: The session to import via.
-        :param object_id: The ID to set for the object. Set to 0 to let the
-            YubiHSM designate an ID.
+        :param object_id: The ID to set for the object. Set to 0 to let the YubiHSM
+            designate an ID.
         :param label: A text label to give the object.
         :param domains: The set of domains to assign the object to.
         :param capabilities: The set of capabilities to give the object.
@@ -799,14 +798,14 @@ class WrapKey(YhsmObject):
         """Import a wrap key into the YubiHSM.
 
         :param session: The session to import via.
-        :param object_id: The ID to set for the object. Set to 0 to let the
-            YubiHSM designate an ID.
+        :param object_id: The ID to set for the object. Set to 0 to let the YubiHSM
+            designate an ID.
         :param label: A text label to give the object.
         :param domains: The set of domains to assign the object to.
         :param capabilities: The set of capabilities to give the object.
         :param algorithm: The algorithm to use for the wrap key.
-        :param delegated_capabilities: The set of capabilities that the
-            WrapKey can give to objects that it imports.
+        :param delegated_capabilities: The set of capabilities that the WrapKey can give
+            to objects that it imports.
         :param key: The raw encryption key corresponding to the algorithm.
         :return: A reference to the newly created object.
         """
@@ -886,13 +885,12 @@ class HmacKey(YhsmObject):
         """Generate a new HMAC key in the YubiHSM.
 
         :param session: The session to import via.
-        :param object_id: The ID to set for the object. Set to 0 to let the
-            YubiHSM designate an ID.
+        :param object_id: The ID to set for the object. Set to 0 to let the YubiHSM
+            designate an ID.
         :param label: A text label to give the object.
         :param domains: The set of domains to assign the object to.
         :param capabilities: The set of capabilities to give the object.
-        :param algorithm: (optional) The algorithm to use for the HMAC
-            key.
+        :param algorithm: (optional) The algorithm to use for the HMAC key.
         :return: A reference to the newly created object.
         """
         msg = struct.pack(
@@ -919,8 +917,8 @@ class HmacKey(YhsmObject):
         """Import an HMAC key into the YubiHSM.
 
         :param session: The session to import via.
-        :param object_id: The ID to set for the object. Set to 0 to let the
-            YubiHSM designate an ID.
+        :param object_id: The ID to set for the object. Set to 0 to let the YubiHSM
+            designate an ID.
         :param label: A text label to give the object.
         :param domains: The set of domains to assign the object to.
         :param capabilities: The set of capabilities to give the object.
@@ -1088,7 +1086,7 @@ class OtpAeadKey(YhsmObject):
         domains: int,
         capabilities: CAPABILITY,
         algorithm: ALGORITHM,
-        nonce_id: bytes,
+        nonce_id: int,
     ) -> "OtpAeadKey":
         """Generate a new OTP AEAD key in the YubiHSM.
 
@@ -1099,6 +1097,7 @@ class OtpAeadKey(YhsmObject):
         :param domains: The set of domains to assign the object to.
         :param capabilities: The set of capabilities to give the object.
         :param algorithm: The algorithm to use for the key.
+        :param nonce_id: The nonce ID used for AEADs.
         :return: A reference to the newly created object.
         """
         msg = struct.pack(

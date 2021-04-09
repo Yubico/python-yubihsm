@@ -19,7 +19,15 @@ import time
 
 
 def test_reset(hsm, session, connect_hsm):
-    Opaque.put(session, 0, "Test opaque data", 1, 0, OBJECT.OPAQUE, b"dummyobject")
+    Opaque.put(
+        session,
+        0,
+        "Test opaque data",
+        1,
+        CAPABILITY.NONE,
+        ALGORITHM.OPAQUE_DATA,
+        b"dummyobject",
+    )
     session.reset_device()
     hsm.close()
 

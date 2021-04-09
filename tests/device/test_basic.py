@@ -14,7 +14,13 @@
 
 from yubihsm.core import MAX_MSG_SIZE
 from yubihsm.defs import ALGORITHM, CAPABILITY, OBJECT, COMMAND, ORIGIN
-from yubihsm.objects import AsymmetricKey, HmacKey, WrapKey, AuthenticationKey
+from yubihsm.objects import (
+    YhsmObject,
+    AsymmetricKey,
+    HmacKey,
+    WrapKey,
+    AuthenticationKey,
+)
 from yubihsm.exceptions import YubiHsmInvalidRequestError, YubiHsmDeviceError
 from time import sleep
 import uuid
@@ -55,6 +61,7 @@ class TestListObjects:
         cap = CAPABILITY.NONE
         key_label = "%s%s" % (str(uuid.uuid4()), b"\xf0\x9f\x98\x83".decode())
 
+        key: YhsmObject
         if keytype == OBJECT.ASYMMETRIC_KEY:
             dom = 0xFFFF
             key = AsymmetricKey.generate(session, 0, key_label, dom, cap, algorithm)
@@ -72,8 +79,8 @@ class TestListObjects:
                 key_label,
                 dom,
                 cap,
-                0,
-                b"\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa" b"\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa",
+                cap,
+                "password",
             )
 
         objlist = session.list_objects(object_id=key.id, object_type=key.object_type)

@@ -317,7 +317,7 @@ class CAPABILITY(IntFlag):
         return cls(sum(cls))  # type: ignore
 
 
-class ORIGIN(int):
+class ORIGIN(IntFlag):
     GENERATED = 0x01
     IMPORTED = 0x02
     IMPORTED_WRAPPED = 0x10  # Used in combination with GENERATED/IMPORTED

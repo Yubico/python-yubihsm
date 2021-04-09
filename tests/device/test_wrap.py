@@ -171,7 +171,7 @@ def test_wrap_data(session):
         1,
         CAPABILITY.WRAP_DATA | CAPABILITY.UNWRAP_DATA,
         ALGORITHM.AES256_CCM_WRAP,
-        0,
+        CAPABILITY.NONE,
     )
 
     for size in (1, 16, 128, 1024, 1989):
@@ -199,7 +199,7 @@ def test_more_wrap_data(session):
             1,
             CAPABILITY.WRAP_DATA | CAPABILITY.UNWRAP_DATA,
             a,
-            0,
+            CAPABILITY.NONE,
             os.urandom(size),
         )
 
@@ -221,7 +221,7 @@ def test_wrap_data_many(session):
         1,
         CAPABILITY.WRAP_DATA,
         ALGORITHM.AES192_CCM_WRAP,
-        0,
+        CAPABILITY.NONE,
         raw_key,
     )
     u_key = WrapKey.put(
@@ -231,7 +231,7 @@ def test_wrap_data_many(session):
         1,
         CAPABILITY.UNWRAP_DATA,
         ALGORITHM.AES192_CCM_WRAP,
-        0,
+        CAPABILITY.NONE,
         raw_key,
     )
 
@@ -267,7 +267,7 @@ def test_import_wrap_permissions(session):
         1,
         CAPABILITY.EXPORT_WRAPPED | CAPABILITY.IMPORT_WRAPPED,
         ALGORITHM.AES192_CCM_WRAP,
-        0,
+        CAPABILITY.NONE,
         raw_key,
     )
 

@@ -24,7 +24,7 @@ from yubihsm.objects import (
     OtpAeadKey,
 )
 from yubihsm.core import AuthSession
-from yubihsm.defs import ORIGIN, ALGORITHM, OBJECT
+from yubihsm.defs import ORIGIN, ALGORITHM, OBJECT, CAPABILITY
 from binascii import a2b_hex
 from unittest.mock import MagicMock
 from random import randint
@@ -71,7 +71,7 @@ class TestYhsmObject(unittest.TestCase):
 
         # The expected ObjectInfo is below
         info = ObjectInfo(
-            capabilities=140737488355327,
+            capabilities=CAPABILITY(140737488355327),
             id=5,
             size=256,
             domains=41,

@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from yubihsm.defs import ALGORITHM, CAPABILITY, OBJECT, ERROR
+from yubihsm.defs import ALGORITHM, CAPABILITY, ERROR
 from yubihsm.objects import (
     AuthenticationKey,
     HmacKey,
@@ -24,15 +24,14 @@ from yubihsm.objects import (
 from yubihsm.exceptions import YubiHsmDeviceError
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.backends import default_backend
-from binascii import b2a_hex
 import os
 import pytest
 
 
 def _set_up_key(hsm, session, capability):
-    password = b2a_hex(session.get_pseudo_random(32))
+    password = session.get_pseudo_random(32).hex()
     key = AuthenticationKey.put_derived(
-        session, 0, "Test Delete authkey", 1, capability, 0, password
+        session, 0, "Test Delete authkey", 1, capability, CAPABILITY.NONE, password
     )
     session = hsm.create_session_derived(key.id, password)
     return key, session
@@ -55,7 +54,15 @@ def _test_delete(hsm, session, obj, capability):
 
 
 def test_opaque(hsm, session):
-    obj = Opaque.put(session, 0, "Test opaque data", 1, 0, OBJECT.OPAQUE, b"data")
+    obj = Opaque.put(
+        session,
+        0,
+        "Test opaque data",
+        1,
+        CAPABILITY.NONE,
+        ALGORITHM.OPAQUE_DATA,
+        b"data",
+    )
     _test_delete(hsm, session, obj, CAPABILITY.DELETE_OPAQUE)
 
 
@@ -66,8 +73,8 @@ def test_authentication_key(hsm, session):
         "Test delete authkey",
         1,
         CAPABILITY.GET_LOG_ENTRIES,
-        0,
-        b2a_hex(session.get_pseudo_random(32)),
+        CAPABILITY.NONE,
+        session.get_pseudo_random(32).hex(),
     )
     _test_delete(hsm, session, obj, CAPABILITY.DELETE_AUTHENTICATION_KEY)
 
@@ -92,7 +99,7 @@ def test_wrap_key(hsm, session):
         1,
         CAPABILITY.IMPORT_WRAPPED,
         ALGORITHM.AES192_CCM_WRAP,
-        0,
+        CAPABILITY.NONE,
         os.urandom(24),
     )
     _test_delete(hsm, session, obj, CAPABILITY.DELETE_WRAP_KEY)

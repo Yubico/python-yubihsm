@@ -82,7 +82,12 @@ ASYM_ALGOS = [
 def generated_key(request, session):
     algorithm = request.param
     key = AsymmetricKey.generate(
-        session, 0, "Test Attestation %x" % algorithm, 0xFFFF, 0, algorithm
+        session,
+        0,
+        "Test Attestation %x" % algorithm,
+        0xFFFF,
+        CAPABILITY.NONE,
+        algorithm,
     )
     yield key
     key.delete()

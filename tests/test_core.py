@@ -265,7 +265,7 @@ class TestYubiHsm(unittest.TestCase):
 
         # Note: backend doesn't do anything here; it's just required by the
         # function's signature
-        hsm = YubiHsm(backend="")
+        hsm = YubiHsm(backend=None)
         hsm.create_session_derived(auth_key_id, password)
 
         hsm.create_session.assert_called_once_with(auth_key_id, expect_enc, expect_mac)
