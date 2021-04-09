@@ -320,16 +320,4 @@ class CAPABILITY(IntFlag):
 class ORIGIN(IntFlag):
     GENERATED = 0x01
     IMPORTED = 0x02
-    IMPORTED_WRAPPED = 0x10  # Used in combination with GENERATED/IMPORTED
-
-    @property
-    def generated(self) -> bool:
-        return ORIGIN.GENERATED & self != 0
-
-    @property
-    def imported(self) -> bool:
-        return ORIGIN.IMPORTED & self != 0
-
-    @property
-    def wrapped(self) -> bool:
-        return ORIGIN.IMPORTED_WRAPPED & self != 0
+    IMPORTED_WRAPPED = 0x10  # Set in combination with GENERATED/IMPORTED

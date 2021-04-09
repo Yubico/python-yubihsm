@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from yubihsm.defs import ALGORITHM, CAPABILITY, ERROR
+from yubihsm.defs import ALGORITHM, CAPABILITY, ERROR, ORIGIN
 from yubihsm.objects import AsymmetricKey, WrapKey, Opaque
 from yubihsm.exceptions import YubiHsmDeviceError
 
@@ -47,10 +47,7 @@ def test_generate_wrap(session):
         ALGORITHM.EC_P256,
     )
     origin = asymkey.get_info().origin
-    assert origin == 0x01
-    assert origin.generated
-    assert not origin.imported
-    assert not origin.wrapped
+    assert origin == ORIGIN.GENERATED
 
     pub = asymkey.get_public_key()
 
@@ -71,10 +68,7 @@ def test_generate_wrap(session):
 
     asymkey = wrapkey.import_wrapped(wrapped)
     origin = asymkey.get_info().origin
-    assert origin == 0x11
-    assert origin.generated
-    assert not origin.imported
-    assert origin.wrapped
+    assert origin == ORIGIN.IMPORTED_WRAPPED | ORIGIN.GENERATED
 
     data = os.urandom(64)
     resp = asymkey.sign_ecdsa(data)
@@ -110,10 +104,7 @@ def test_export_wrap(session):
         eckey,
     )
     origin = asymkey.get_info().origin
-    assert origin == 0x02
-    assert not origin.generated
-    assert origin.imported
-    assert not origin.wrapped
+    assert origin == ORIGIN.IMPORTED
 
     data = os.urandom(64)
     resp = asymkey.sign_ecdsa(data, hash=hashes.SHA384())
@@ -150,10 +141,7 @@ def test_export_wrap(session):
     eckey.public_key().verify(resp, data, ec.ECDSA(hashes.SHA384()))
 
     origin = asymkey.get_info().origin
-    assert origin == 0x12
-    assert not origin.generated
-    assert origin.imported
-    assert origin.wrapped
+    assert origin == ORIGIN.IMPORTED_WRAPPED | ORIGIN.IMPORTED
 
     asymkey.delete()
 

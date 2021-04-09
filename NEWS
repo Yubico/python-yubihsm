@@ -5,6 +5,8 @@
  ** Bumped minimum supported Cryptography version to 2.6.
  ** Dropped yubihsm.eddsa package, in favor of EdDSA support in Cryptography.
  ** Dropped custom constants for Brainpool curves, in favor of those in Cryptography.
+ ** Dropped `.generated`, `.imported`, and `.wrapped` from ORIGIN.
+    Instead use: `ORIGIN.GENERATED in origin`, etc.
  ** Changes relevant to maintainers:
  *** Added mypy to pre-commit checks.
  *** Switched build and packaging system to poetry.
