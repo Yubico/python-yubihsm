@@ -1,4 +1,4 @@
-* Version 2.1.0 (unreleased)
+* Version 2.1.0 (released 2021-04-13)
  ** Stop using deprecated functions from cryptography.io (prevents warnings).
  ** Support Prehashed data when signing.
  ** Implement context manager (python with-statement) for YubiHsm and AuthSession.
