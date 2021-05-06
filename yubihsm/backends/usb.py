@@ -40,9 +40,15 @@ class UsbBackend(YhsmBackend):
             raise YubiHsmConnectionError("No YubiHSM found.")
 
         try:
-            device.set_configuration()
-        except usb.core.USBError as e:
-            raise YubiHsmConnectionError(e)
+            cfg = device.get_active_configuration()
+        except usb.core.USBError:
+            cfg = None
+
+        if cfg is None or cfg.bConfigurationValue != 0x01:
+            try:
+                device.set_configuration(0x01)
+            except usb.core.USBError as e:
+                raise YubiHsmConnectionError(e)
 
         # Flush any data waiting to be read
         try:
