@@ -78,7 +78,7 @@ def test_certificate(session):
         ALGORITHM.EC_P256.to_curve(), default_backend()
     )
     name = x509.Name(
-        [x509.NameAttribute(x509.oid.NameOID.COMMON_NAME, u"Test Certificate")]
+        [x509.NameAttribute(x509.oid.NameOID.COMMON_NAME, "Test Certificate")]
     )
     one_day = datetime.timedelta(1, 0, 0)
     certificate = (
