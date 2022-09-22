@@ -39,7 +39,7 @@ setup(
     ],
     packages=find_packages(exclude=["test", "test.*"]),
     test_suite="test",
-    install_requires=["six", "cryptography>=1.8"],
+    install_requires=["six", "cryptography>=1.8,<38"],
     extras_require={"http": ["requests"], "usb": ["pyusb"]},
     tests_require=["mock", "cryptography>=2.6"],
 )
