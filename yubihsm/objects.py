@@ -735,7 +735,7 @@ class AsymmetricKey(YhsmObject):
         :param request: The SSH certificate request.
         :return: The SSH certificate signature.
         """
-        msg = struct.pack("!HHB", self.id, template_id, algorithm.value) + request
+        msg = struct.pack("!HHB", self.id, template_id, algorithm) + request
         return self.session.send_secure_cmd(COMMAND.SIGN_SSH_CERTIFICATE, msg)
 
 
