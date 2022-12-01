@@ -708,10 +708,10 @@ class AsymmetricKey(YhsmObject):
 
         :param int template_id: The ID of the SSH TEMPLATE to use.
         :param bytes request: The SSH certificate request.
-        :return: The signed SSH certificate.
+        :return: The SSH certificate signature.
         :rtype: bytes
         """
-        msg = struct.pack("!HH", self.id, template_id) + request
+        msg = struct.pack("!HHB", self.id, template_id, algorithm) + request
         return self.session.send_secure_cmd(COMMAND.SIGN_SSH_CERTIFICATE, msg)
 
 
