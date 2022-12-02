@@ -239,6 +239,9 @@ class _ClosedBackend(YhsmBackend):
     def transceive(self, msg):
         raise TypeError("The backend has been closed!")
 
+    def close(self):
+        pass
+
 
 class YubiHsm:
     """An unauthenticated connection to a YubiHSM."""

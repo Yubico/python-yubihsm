@@ -21,9 +21,11 @@ from typing import Optional
 class YhsmBackend(abc.ABC):
     """Provides low-level communication with a YubiHSM."""
 
+    @abc.abstractmethod
     def transceive(self, msg: bytes) -> bytes:
         """Send a verbatim message."""
 
+    @abc.abstractmethod
     def close(self) -> None:
         """Closes the connection to the YubiHSM."""
 
