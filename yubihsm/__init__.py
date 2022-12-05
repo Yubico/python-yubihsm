@@ -29,4 +29,4 @@ from __future__ import absolute_import
 from .core import YubiHsm  # noqa F401
 
 
-__version__ = "2.1.1"
+__version__ = "2.1.2"

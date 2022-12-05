@@ -1,3 +1,6 @@
+* Version 2.1.2 (released 2022-12-05)
+ ** Bugfix: Fix broken sign_ssh_certificate command.
+
 * Version 2.1.1 (released 2022-09-22)
  ** Dependency fix: Require Cryptography <38.
 
