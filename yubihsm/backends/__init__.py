@@ -41,9 +41,9 @@ def get_backend(url: Optional[str] = None) -> YhsmBackend:
 
             serial = re.match(r"serial=(\d+)", parsed.netloc)
             if serial:
-                return UsbBackend(serial=int(serial.group(1)), timeout=300)
+                return UsbBackend(serial=int(serial.group(1)), timeout=600)
             elif not parsed.netloc:  # On anything else, fall through to error.
-                return UsbBackend(serial=None, timeout=300)
+                return UsbBackend(serial=None, timeout=600)
         elif parsed.scheme in ("http", "https"):
             from .http import HttpBackend
 
