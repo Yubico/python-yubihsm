@@ -70,9 +70,7 @@ class UsbBackend(YhsmBackend):
             if sent % 64 == 0:
                 if self._device.write(0x01, b"", self.timeout) != 0:
                     raise YubiHsmConnectionError("Error sending data over USB.")
-            return bytes(
-                bytearray(self._device.read(0x81, 0xFFFF, self.timeout))
-            )
+            return bytes(bytearray(self._device.read(0x81, 0xFFFF, self.timeout)))
         except usb.core.USBError as e:
             raise YubiHsmConnectionError(e)
 
