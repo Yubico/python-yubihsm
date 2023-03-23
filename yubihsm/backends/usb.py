@@ -26,10 +26,11 @@ YUBIHSM_PID = 0x0030
 class UsbBackend(YhsmBackend):
     """A backend for communicating with a YubiHSM directly over USB."""
 
-    def __init__(self, serial: Optional[int] = None):
+    def __init__(self, serial: Optional[int] = None, timeout: Optional[int] = None):
         """Construct a UsbBackend, connected to a YubiHSM via USB.
 
         :param serial: (optional) The serial number of the YubiHSM to connect to.
+        :param timeout: (optional) A read/write timeout in seconds.
         """
         for device in usb.core.find(
             find_all=True, idVendor=YUBIHSM_VID, idProduct=YUBIHSM_PID
@@ -57,19 +58,19 @@ class UsbBackend(YhsmBackend):
             pass  # Errors here are expected, and ignored
 
         self._device = device
-        self.timeout = 300
+
+        # pyusb expects milliseconds or None if no timeout
+        self.timeout = None if timeout is None else timeout * 1000
 
     def transceive(self, msg):
         try:
-            sent = self._device.write(0x01, msg, self.timeout * 1000)
+            sent = self._device.write(0x01, msg, self.timeout)
             if sent != len(msg):
                 raise YubiHsmConnectionError("Error sending data over USB.")
             if sent % 64 == 0:
-                if self._device.write(0x01, b"", self.timeout * 1000) != 0:
+                if self._device.write(0x01, b"", self.timeout) != 0:
                     raise YubiHsmConnectionError("Error sending data over USB.")
-            return bytes(
-                bytearray(self._device.read(0x81, 0xFFFF, self.timeout * 1000))
-            )
+            return bytes(bytearray(self._device.read(0x81, 0xFFFF, self.timeout)))
         except usb.core.USBError as e:
             raise YubiHsmConnectionError(e)
 
