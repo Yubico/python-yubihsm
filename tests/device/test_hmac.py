@@ -96,10 +96,7 @@ def test_generate_hmac(session, algorithm, expect_len):
     ],
 )
 def test_hmac_vectors(session, vector):
-    key1_id = random.randint(1, 0xFFFE)
-    key2_id = random.randint(1, 0xFFFE)
-    key3_id = random.randint(1, 0xFFFE)
-    key4_id = random.randint(1, 0xFFFE)
+    key1_id, key2_id, key3_id, key4_id = random.sample(range(1, 0xFFFE), 4)
 
     caps = CAPABILITY.SIGN_HMAC | CAPABILITY.VERIFY_HMAC
 
