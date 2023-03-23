@@ -271,7 +271,6 @@ class TestYubiHsm(unittest.TestCase):
         hsm.create_session.assert_called_once_with(auth_key_id, expect_enc, expect_mac)
 
     def test_get_device_info_mock_transceive(self):
-
         """
         Test get_device_info function by mocking the transceive function
         """
