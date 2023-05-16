@@ -18,7 +18,6 @@ from __future__ import absolute_import, division
 
 from .utils import YubiHsmTestCase
 from yubihsm.defs import ALGORITHM, CAPABILITY, COMMAND, ERROR
-from yubihsm.defs import BRAINPOOLP256R1, BRAINPOOLP384R1, BRAINPOOLP512R1
 from yubihsm.utils import int_from_bytes
 from yubihsm.eddsa import load_ed25519_private_key, serialize_ed25519_public_key
 from yubihsm.objects import AsymmetricKey
@@ -242,22 +241,22 @@ class TestBpR1Ecdsa(YubiHsmTestCase):
         asymkey.delete()
 
     def test_bp256r1_ecdsa_sign(self):
-        self.bp_r1_ecdsa_sign(BRAINPOOLP256R1(), hashes.SHA256())
+        self.bp_r1_ecdsa_sign(ec.BrainpoolP256R1(), hashes.SHA256())
 
     def test_bp384r1_ecdsa_sign(self):
-        self.bp_r1_ecdsa_sign(BRAINPOOLP384R1(), hashes.SHA384())
+        self.bp_r1_ecdsa_sign(ec.BrainpoolP384R1(), hashes.SHA384())
 
     def test_bp512r1_ecdsa_sign(self):
-        self.bp_r1_ecdsa_sign(BRAINPOOLP512R1(), hashes.SHA512())
+        self.bp_r1_ecdsa_sign(ec.BrainpoolP512R1(), hashes.SHA512())
 
     def test_bp256r1_derive_ecdh(self):
-        self.bp_r1_derive_ecdh(BRAINPOOLP256R1())
+        self.bp_r1_derive_ecdh(ec.BrainpoolP256R1())
 
     def test_bp384r1_derive_ecdh(self):
-        self.bp_r1_derive_ecdh(BRAINPOOLP384R1())
+        self.bp_r1_derive_ecdh(ec.BrainpoolP384R1())
 
     def test_bp512r1_derive_ecdh(self):
-        self.bp_r1_derive_ecdh(BRAINPOOLP512R1())
+        self.bp_r1_derive_ecdh(ec.BrainpoolP512R1())
 
 
 class TestBpR1(YubiHsmTestCase):

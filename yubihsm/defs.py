@@ -18,7 +18,6 @@
 from __future__ import absolute_import, division
 
 from cryptography.hazmat.primitives.asymmetric import ec
-from cryptography import utils
 from enum import IntEnum, unique
 import six
 
@@ -31,24 +30,6 @@ if six.PY2:
         """Like IntEnum, but supports larger values"""
 
     IntEnum = _LongEnum  # Use instead of IntEnum  # noqa F811
-
-
-@utils.register_interface(ec.EllipticCurve)
-class BRAINPOOLP256R1(object):
-    name = "brainpoolP256r1"
-    key_size = 256
-
-
-@utils.register_interface(ec.EllipticCurve)
-class BRAINPOOLP384R1(object):
-    name = "brainpoolP384r1"
-    key_size = 384
-
-
-@utils.register_interface(ec.EllipticCurve)
-class BRAINPOOLP512R1(object):
-    name = "brainpoolP512r1"
-    key_size = 512
 
 
 @unique
@@ -227,9 +208,9 @@ _curve_table = {
     ALGORITHM.EC_P384: ec.SECP384R1,
     ALGORITHM.EC_P521: ec.SECP521R1,
     ALGORITHM.EC_K256: ec.SECP256K1,
-    ALGORITHM.EC_BP256: BRAINPOOLP256R1,
-    ALGORITHM.EC_BP384: BRAINPOOLP384R1,
-    ALGORITHM.EC_BP512: BRAINPOOLP512R1,
+    ALGORITHM.EC_BP256: ec.BrainpoolP256R1,
+    ALGORITHM.EC_BP384: ec.BrainpoolP384R1,
+    ALGORITHM.EC_BP512: ec.BrainpoolP512R1,
 }
 
 

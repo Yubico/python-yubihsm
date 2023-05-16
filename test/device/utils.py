@@ -15,17 +15,11 @@
 from __future__ import print_function, division
 
 from yubihsm import YubiHsm
-from yubihsm.defs import BRAINPOOLP256R1, BRAINPOOLP384R1, BRAINPOOLP512R1
 from cryptography.hazmat.primitives.asymmetric import ec
 
 import unittest
 import time
 import os
-
-# Register Brainpool curves
-ec._CURVE_TYPES["brainpoolP256r1"] = BRAINPOOLP256R1
-ec._CURVE_TYPES["brainpoolP384r1"] = BRAINPOOLP384R1
-ec._CURVE_TYPES["brainpoolP512r1"] = BRAINPOOLP512R1
 
 
 DEFAULT_KEY = "password"

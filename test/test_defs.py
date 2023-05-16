@@ -15,7 +15,6 @@
 from __future__ import absolute_import, division
 
 from yubihsm.defs import ALGORITHM
-from yubihsm.defs import BRAINPOOLP256R1, BRAINPOOLP384R1, BRAINPOOLP512R1
 from cryptography.hazmat.primitives.asymmetric import ec
 
 import unittest
@@ -28,9 +27,9 @@ class TestAlgorithm(unittest.TestCase):
         self.assertIsInstance(ALGORITHM.EC_P384.to_curve(), ec.SECP384R1)
         self.assertIsInstance(ALGORITHM.EC_P521.to_curve(), ec.SECP521R1)
         self.assertIsInstance(ALGORITHM.EC_K256.to_curve(), ec.SECP256K1)
-        self.assertIsInstance(ALGORITHM.EC_BP256.to_curve(), BRAINPOOLP256R1)
-        self.assertIsInstance(ALGORITHM.EC_BP384.to_curve(), BRAINPOOLP384R1)
-        self.assertIsInstance(ALGORITHM.EC_BP512.to_curve(), BRAINPOOLP512R1)
+        self.assertIsInstance(ALGORITHM.EC_BP256.to_curve(), ec.BrainpoolP256R1)
+        self.assertIsInstance(ALGORITHM.EC_BP384.to_curve(), ec.BrainpoolP384R1)
+        self.assertIsInstance(ALGORITHM.EC_BP512.to_curve(), ec.BrainpoolP512R1)
 
     def test_for_curve(self):
         self.assertEqual(ALGORITHM.for_curve(ec.SECP224R1()), ALGORITHM.EC_P224)
@@ -38,6 +37,6 @@ class TestAlgorithm(unittest.TestCase):
         self.assertEqual(ALGORITHM.for_curve(ec.SECP384R1()), ALGORITHM.EC_P384)
         self.assertEqual(ALGORITHM.for_curve(ec.SECP521R1()), ALGORITHM.EC_P521)
         self.assertEqual(ALGORITHM.for_curve(ec.SECP256K1()), ALGORITHM.EC_K256)
-        self.assertEqual(ALGORITHM.for_curve(BRAINPOOLP256R1()), ALGORITHM.EC_BP256)
-        self.assertEqual(ALGORITHM.for_curve(BRAINPOOLP384R1()), ALGORITHM.EC_BP384)
-        self.assertEqual(ALGORITHM.for_curve(BRAINPOOLP512R1()), ALGORITHM.EC_BP512)
+        self.assertEqual(ALGORITHM.for_curve(ec.BrainpoolP256R1()), ALGORITHM.EC_BP256)
+        self.assertEqual(ALGORITHM.for_curve(ec.BrainpoolP384R1()), ALGORITHM.EC_BP384)
+        self.assertEqual(ALGORITHM.for_curve(ec.BrainpoolP512R1()), ALGORITHM.EC_BP512)
