@@ -41,7 +41,7 @@ class TestAttestation(YubiHsmTestCase):
 
         builder = x509.CertificateBuilder()
         name = x509.Name(
-            [x509.NameAttribute(NameOID.COMMON_NAME, u"Test Attestation Certificate")]
+            [x509.NameAttribute(NameOID.COMMON_NAME, "Test Attestation Certificate")]
         )
         builder = builder.subject_name(name)
         builder = builder.issuer_name(name)

@@ -22,7 +22,6 @@ import os
 
 
 class TestHmac(YubiHsmTestCase):
-
     vectors = [
         {
             "key": b"\x0b" * 20,

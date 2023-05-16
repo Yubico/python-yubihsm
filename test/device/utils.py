@@ -15,7 +15,6 @@
 from __future__ import print_function, division
 
 from yubihsm import YubiHsm
-from cryptography.hazmat.primitives.asymmetric import ec
 
 import unittest
 import time

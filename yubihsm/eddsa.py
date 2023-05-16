@@ -54,7 +54,6 @@ try:
     def _deserialize_ed25519_public_key(raw_key):
         return ed25519.Ed25519PublicKey.from_public_bytes(raw_key)
 
-
 except (ImportError, UnsupportedAlgorithm):
 
     class _Ed25519PrivateKey(object):
