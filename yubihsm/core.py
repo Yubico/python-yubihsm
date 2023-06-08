@@ -315,7 +315,7 @@ class YubiHsm:
         :param key_mac: Static K-MAC used to establish session.
         :return: An authenticated session.
         """
-        return AuthSession(self, auth_key_id, key_enc, key_mac)
+        return AuthSession.create_session(self, auth_key_id, key_enc, key_mac)
 
     def create_session_derived(self, auth_key_id: int, password: str) -> "AuthSession":
         """Creates an authenticated session with the YubiHSM.
@@ -353,7 +353,27 @@ class AuthSession:
     :func:`~YubiHsm.create_session` or :func:`~YubiHsm.create_session_derived`.
     """
 
-    def __init__(self, hsm: YubiHsm, auth_key_id: int, key_enc: bytes, key_mac: bytes):
+    def __init__(
+        self,
+        hsm: YubiHsm,
+        sid: int,
+        key_enc: bytes,
+        key_mac: bytes,
+        key_rmac: bytes,
+        mac_chain: bytes,
+    ):
+        self._hsm = hsm
+        self._sid: Optional[int] = sid
+        self._key_enc = key_enc
+        self._key_mac = key_mac
+        self._key_rmac = key_rmac
+        self._mac_chain = mac_chain
+        self._ctr = 1
+
+    @classmethod
+    def create_session(
+        cls, hsm: YubiHsm, auth_key_id: int, key_enc: bytes, key_mac: bytes
+    ) -> "AuthSession":
         """Constructs an authenticated session.
 
         :param hsm: The YubiHSM connection.
@@ -362,32 +382,31 @@ class AuthSession:
         :param key_enc: Static `K-ENC` used to establish the session.
         :param key_mac: Static `K-MAC` used to establish the session.
         """
-        self._hsm = hsm
-
         context = os.urandom(8)
 
-        data = self._hsm.send_cmd(
+        data = hsm.send_cmd(
             COMMAND.CREATE_SESSION, struct.pack("!H", auth_key_id) + context
         )
 
-        self._sid: Optional[int] = data[0]
+        sid = data[0]
         context += data[1 : 1 + 8]
         card_crypto = data[9 : 9 + 8]
-        self._key_enc = _derive(key_enc, KEY_ENC, context)
-        self._key_mac = _derive(key_mac, KEY_MAC, context)
-        self._key_rmac = _derive(key_mac, KEY_RMAC, context)
-        gen_card_crypto = _derive(self._key_mac, CARD_CRYPTOGRAM, context, 0x40)
+        key_senc = _derive(key_enc, KEY_ENC, context)
+        key_smac = _derive(key_mac, KEY_MAC, context)
+        key_srmac = _derive(key_mac, KEY_RMAC, context)
+        gen_card_crypto = _derive(key_smac, CARD_CRYPTOGRAM, context, 0x40)
 
         if not constant_time.bytes_eq(gen_card_crypto, card_crypto):
             raise YubiHsmAuthenticationError()
 
-        msg = struct.pack("!BHB", COMMAND.AUTHENTICATE_SESSION, 1 + 8 + 8, self.sid)
-        msg += _derive(self._key_mac, HOST_CRYPTOGRAM, context, 0x40)
-        self._ctr = 1
-        self._mac_chain, mac = _calculate_mac(self._key_mac, b"\0" * 16, msg)
+        msg = struct.pack("!BHB", COMMAND.AUTHENTICATE_SESSION, 1 + 8 + 8, sid)
+        msg += _derive(key_smac, HOST_CRYPTOGRAM, context, 0x40)
+        mac_chain, mac = _calculate_mac(key_smac, b"\0" * 16, msg)
         msg += mac
-        if _unpad_resp(self._hsm._transceive(msg), COMMAND.AUTHENTICATE_SESSION) != b"":
+        if _unpad_resp(hsm._transceive(msg), COMMAND.AUTHENTICATE_SESSION) != b"":
             raise YubiHsmInvalidResponseError("Non-empty response")
+
+        return cls(hsm, sid, key_senc, key_smac, key_srmac, mac_chain)
 
     def close(self) -> None:
         """Close this session with the YubiHSM.
