@@ -190,3 +190,38 @@ class TestAymmetricAuthenticationKey:
                 assert message == resp
         finally:
             authkey.delete()
+
+    def test_change_public_key(self, hsm, session):
+        first_private_key = ec.generate_private_key(
+            ec.SECP256R1(), backend=default_backend()
+        )
+        second_private_key = ec.generate_private_key(
+            ec.SECP256R1(), backend=default_backend()
+        )
+
+        authkey = AuthenticationKey.put_public_key(
+            session,
+            0,
+            "Test PUT asym authkey",
+            1,
+            CAPABILITY.CHANGE_AUTHENTICATION_KEY,
+            CAPABILITY.NONE,
+            first_private_key.public_key(),
+        )
+
+        with hsm.create_session_asymmetric(
+            authkey.id, first_private_key
+        ) as asymmetric_session:
+            authkey.with_session(asymmetric_session).change_public_key(
+                second_private_key.public_key()
+            )
+
+        try:
+            with hsm.create_session_asymmetric(
+                authkey.id, second_private_key
+            ) as asymmetric_session:
+                message = os.urandom(256)
+                resp = asymmetric_session.send_secure_cmd(COMMAND.ECHO, message)
+                assert message == resp
+        finally:
+            authkey.delete()

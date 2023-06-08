@@ -448,6 +448,22 @@ class AuthenticationKey(YhsmObject):
         if struct.unpack("!H", resp)[0] != self.id:
             raise YubiHsmInvalidResponseError("Wrong ID returned")
 
+    def change_public_key(self, public_key: ec.EllipticCurvePublicKey) -> None:
+        """Change an asymmetric AuthenticationKey's public key
+
+        :param public_key: The new public key.
+        """
+        if not isinstance(public_key.curve, ec.SECP256R1):
+            raise ValueError("Unsupported curve")
+
+        msg = struct.pack("!HB", self.id, ALGORITHM.EC_P256_YUBICO_AUTHENTICATION)
+        numbers = public_key.public_numbers()
+        msg += int.to_bytes(numbers.x, public_key.key_size // 8, "big")
+        msg += int.to_bytes(numbers.y, public_key.key_size // 8, "big")
+        resp = self.session.send_secure_cmd(COMMAND.CHANGE_AUTHENTICATION_KEY, msg)
+        if struct.unpack("!H", resp)[0] != self.id:
+            raise YubiHsmInvalidResponseError("Wrong ID returned")
+
 
 class AsymmetricKey(YhsmObject):
     """Used to sign/decrypt data with the private key of an asymmetric key pair.
