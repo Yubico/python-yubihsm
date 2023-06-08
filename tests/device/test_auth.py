@@ -16,6 +16,8 @@ from yubihsm.defs import COMMAND, CAPABILITY, ERROR
 from yubihsm.objects import AuthenticationKey
 from yubihsm.exceptions import YubiHsmAuthenticationError, YubiHsmDeviceError
 from yubihsm.utils import password_to_key
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives.asymmetric import ec
 from binascii import a2b_hex
 import pytest
 import os
@@ -158,3 +160,24 @@ class TestSessions:
         authkey1.delete()
         authkey2.delete()
         authkey3.delete()
+
+
+class TestAymmetricAuthenticationKey:
+    @pytest.fixture(autouse=True)
+    def prerequisites(self, info):
+        if info.version < (2, 3, 0):
+            pytest.skip("Asymmetric authentication requires 2.3.0")
+
+    def test_put_public_key(self, session):
+        private_key = ec.generate_private_key(ec.SECP256R1(), backend=default_backend())
+
+        authkey = AuthenticationKey.put_public_key(
+            session,
+            0,
+            "Test PUT asym authkey",
+            1,
+            CAPABILITY.NONE,
+            CAPABILITY.NONE,
+            private_key.public_key(),
+        )
+        authkey.delete()

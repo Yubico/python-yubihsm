@@ -291,8 +291,6 @@ class YubiHsm:
     def get_device_public_key(self) -> ec.EllipticCurvePublicKey:
         """Retrieve the device's public key.
 
-        Device public keys are only available on YubiHSM 2.3.0 and later.
-
         :return: The device public key.
         """
         resp = self.send_cmd(COMMAND.GET_DEVICE_PUBLIC_KEY)
