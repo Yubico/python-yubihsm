@@ -27,9 +27,10 @@ from .exceptions import (
 )
 
 from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives import cmac, constant_time
+from cryptography.hazmat.primitives import cmac, constant_time, hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from cryptography.hazmat.primitives.kdf.x963kdf import X963KDF
 from hashlib import sha256
 from dataclasses import dataclass, astuple
 from typing import Optional, Sequence, Mapping, Tuple, ClassVar, Set, NamedTuple
@@ -330,6 +331,21 @@ class YubiHsm:
         key_enc, key_mac = utils.password_to_key(password)
         return self.create_session(auth_key_id, key_enc, key_mac)
 
+    def create_session_asymmetric(
+        self,
+        auth_key_id: int,
+        private_key: ec.EllipticCurvePrivateKey,
+    ) -> "AuthSession":
+        """Creates an authenticated session with the YubiHSM.
+
+        :param auth_key_id: The ID of the Authentication key used to
+            authenticate the session.
+        :param private_key: Private key corresponding to the public
+            authentication key object.
+        :return: An authenticated session.
+        """
+        return AuthSession.create_session_asymmetric(self, auth_key_id, private_key)
+
     @classmethod
     def connect(cls, url: Optional[str] = None) -> "YubiHsm":
         """Return a YubiHsm connected to the backend specified by the URL.
@@ -407,6 +423,60 @@ class AuthSession:
             raise YubiHsmInvalidResponseError("Non-empty response")
 
         return cls(hsm, sid, key_senc, key_smac, key_srmac, mac_chain)
+
+    @classmethod
+    def create_session_asymmetric(
+        cls, hsm: YubiHsm, auth_key_id: int, private_key: ec.EllipticCurvePrivateKey
+    ):
+        """Constructs an authenticated session.
+
+        :param hsm: The YubiHSM connection.
+        :param auth_key_id: The ID of the Authentication key used to
+            authenticate the session.
+        :param private_key: Private key corresponding to the public
+            authentication key object.
+        """
+        # Calculate shared secret from the two static keys.
+        shsss = private_key.exchange(ec.ECDH(), hsm.get_device_public_key())
+
+        # Generate an ephemeral key.
+        esk_oce = ec.generate_private_key(private_key.curve, backend=default_backend())
+        epk_oce = esk_oce.public_key().public_bytes(
+            encoding=serialization.Encoding.X962,
+            format=serialization.PublicFormat.UncompressedPoint,
+        )
+
+        # Exchange ephemeral keys with the HSM.
+        public_key_len = len(epk_oce)
+        msg = struct.pack("!H", auth_key_id) + epk_oce
+        resp = hsm.send_cmd(COMMAND.CREATE_SESSION, msg)
+        sid, epk_hsm, receipt = (
+            resp[0],
+            resp[1 : 1 + public_key_len],
+            resp[1 + public_key_len :],
+        )
+
+        # Calculate shared secret from the two ephemeral keys.
+        shsee = esk_oce.exchange(
+            ec.ECDH(),
+            ec.EllipticCurvePublicKey.from_encoded_point(private_key.curve, epk_hsm),
+        )
+
+        # Derive session keys. Note that this generates four keys, the
+        # first of which is used to verify the receipt.
+        shs = X963KDF(
+            hashes.SHA256(), 4 * 16, b"\x3c\x88\x10", backend=default_backend()
+        ).derive(shsee + shsss)
+        keys = (shs[i : i + 16] for i in range(0, len(shs), 16))
+
+        # Verify the receipt.
+        c = cmac.CMAC(algorithms.AES(next(keys)), backend=default_backend())
+        c.update(epk_hsm)
+        c.update(epk_oce)
+        if not constant_time.bytes_eq(c.finalize(), receipt):
+            raise YubiHsmAuthenticationError()
+
+        return cls(hsm, sid, next(keys), next(keys), next(keys), receipt)
 
     def close(self) -> None:
         """Close this session with the YubiHSM.

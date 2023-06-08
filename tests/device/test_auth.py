@@ -168,7 +168,7 @@ class TestAymmetricAuthenticationKey:
         if info.version < (2, 3, 0):
             pytest.skip("Asymmetric authentication requires 2.3.0")
 
-    def test_put_public_key(self, session):
+    def test_put_public_key(self, hsm, session):
         private_key = ec.generate_private_key(ec.SECP256R1(), backend=default_backend())
 
         authkey = AuthenticationKey.put_public_key(
@@ -180,4 +180,13 @@ class TestAymmetricAuthenticationKey:
             CAPABILITY.NONE,
             private_key.public_key(),
         )
-        authkey.delete()
+
+        try:
+            with hsm.create_session_asymmetric(
+                authkey.id, private_key
+            ) as asymmetric_session:
+                message = os.urandom(256)
+                resp = asymmetric_session.send_secure_cmd(COMMAND.ECHO, message)
+                assert message == resp
+        finally:
+            authkey.delete()
