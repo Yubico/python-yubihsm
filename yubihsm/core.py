@@ -28,6 +28,7 @@ from .exceptions import (
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import cmac, constant_time
+from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from hashlib import sha256
 from dataclasses import dataclass, astuple
@@ -286,6 +287,21 @@ class YubiHsm:
         :return: Device information.
         """
         return DeviceInfo.parse(self.send_cmd(COMMAND.DEVICE_INFO))
+
+    def get_device_public_key(self) -> ec.EllipticCurvePublicKey:
+        """Retrieve the device's public key.
+
+        Device public keys are only available on YubiHSM 2.3.0 and later.
+
+        :return: The device public key.
+        """
+        resp = self.send_cmd(COMMAND.GET_DEVICE_PUBLIC_KEY)
+        algorithm, public_key = resp[0], resp[1:]
+        if algorithm != ALGORITHM.EC_P256_YUBICO_AUTHENTICATION:
+            raise YubiHsmInvalidResponseError()
+        return ec.EllipticCurvePublicKey.from_encoded_point(
+            ec.SECP256R1(), b"\x04" + public_key
+        )
 
     def create_session(
         self, auth_key_id: int, key_enc: bytes, key_mac: bytes
