@@ -373,7 +373,8 @@ class AuthSession:
     """An authenticated secure session with a YubiHSM.
 
     Typically you get an instance of this class by calling
-    :func:`~YubiHsm.create_session` or :func:`~YubiHsm.create_session_derived`.
+    :func:`~YubiHsm.create_session`, :func:`~YubiHsm.create_session_derived`,
+    or :func:`~YubiHsm.create_session_asymmetric`.
     """
 
     def __init__(
