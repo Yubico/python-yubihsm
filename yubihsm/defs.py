@@ -99,6 +99,12 @@ class COMMAND(IntEnum):
     SIGN_EDDSA = 0x6A
     BLINK_DEVICE = 0x6B
     CHANGE_AUTHENTICATION_KEY = 0x6C
+    PUT_SYMMETRIC_KEY = 0x6D
+    GENERATE_SYMMETRIC_KEY = 0x6E
+    DECRYPT_ECB = 0x6F
+    ENCRYPT_ECB = 0x70
+    DECRYPT_CBC = 0x71
+    ENCRYPT_CBC = 0x72
 
     ERROR = 0x7F
 
@@ -161,6 +167,12 @@ class ALGORITHM(IntEnum):
     RSA_PKCS1_DECRYPT = 48
     EC_P256_YUBICO_AUTHENTICATION = 49
 
+    AES128 = 50
+    AES192 = 51
+    AES256 = 52
+    AES_ECB = 53
+    AES_CBC = 54
+
     def to_curve(self) -> ec.EllipticCurve:
         """Return a Cryptography EC curve instance for a given member.
 
@@ -191,6 +203,19 @@ class ALGORITHM(IntEnum):
                 return key
         raise ValueError("Unsupported curve type: %s" % curve.name)
 
+    def to_key_size(self) -> int:
+        """Return the expected size (in bytes) of a key corresponding to an algorithm.
+
+        :return: The corresponding key size (in bytes) to an algorithm.
+
+        :Example:
+
+        >>> ALGORITHM.AES128.to_key_size()
+        16
+        """
+
+        return _key_size_table[self]
+
 
 _curve_table = {
     ALGORITHM.EC_P224: ec.SECP224R1,
@@ -202,6 +227,8 @@ _curve_table = {
     ALGORITHM.EC_BP384: ec.BrainpoolP384R1,
     ALGORITHM.EC_BP512: ec.BrainpoolP512R1,
 }
+
+_key_size_table = {ALGORITHM.AES128: 16, ALGORITHM.AES192: 24, ALGORITHM.AES256: 32}
 
 
 @unique
@@ -227,6 +254,7 @@ class OBJECT(IntEnum):
     HMAC_KEY = 0x05
     TEMPLATE = 0x06
     OTP_AEAD_KEY = 0x07
+    SYMMETRIC_KEY = 0x08
 
 
 @unique
@@ -308,6 +336,13 @@ class CAPABILITY(IntFlag):
     DELETE_TEMPLATE = 1 << 0x2C
     DELETE_OTP_AEAD_KEY = 1 << 0x2D
     CHANGE_AUTHENTICATION_KEY = 1 << 0x2E
+    PUT_SYMMETRIC_KEY = 1 << 0x2F
+    GENERATE_SYMMETRIC_KEY = 1 << 0x30
+    DELETE_SYMMETRIC_KEY = 1 << 0x31
+    DECRYPT_ECB = 1 << 0x32
+    ENCRYPT_ECB = 1 << 0x33
+    DECRYPT_CBC = 1 << 0x34
+    ENCRYPT_CBC = 1 << 0x35
 
     @_enum_prop
     def NONE(cls) -> "CAPABILITY":
