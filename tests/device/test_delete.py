@@ -20,6 +20,7 @@ from yubihsm.objects import (
     AsymmetricKey,
     OtpAeadKey,
     WrapKey,
+    SymmetricKey,
 )
 from yubihsm.exceptions import YubiHsmDeviceError
 from cryptography.hazmat.primitives.asymmetric import ec
@@ -122,3 +123,19 @@ def test_otp_aead_key(hsm, session):
         os.urandom(32),
     )
     _test_delete(hsm, session, obj, CAPABILITY.DELETE_OTP_AEAD_KEY)
+
+
+def test_symmetric_key(hsm, session, info):
+    if info.version < (2, 3, 0):
+        pytest.skip("Symmetric keys require YubiHSM 2.3.0")
+
+    obj = SymmetricKey.put(
+        session,
+        0,
+        "Test delete symmetric",
+        0xFFFF,
+        CAPABILITY.DECRYPT_ECB,
+        ALGORITHM.AES128,
+        os.urandom(16),
+    )
+    _test_delete(hsm, session, obj, CAPABILITY.DELETE_SYMMETRIC_KEY)
