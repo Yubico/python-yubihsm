@@ -16,6 +16,8 @@ from yubihsm.defs import COMMAND, CAPABILITY, ERROR
 from yubihsm.objects import AuthenticationKey
 from yubihsm.exceptions import YubiHsmAuthenticationError, YubiHsmDeviceError
 from yubihsm.utils import password_to_key
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives.asymmetric import ec
 from binascii import a2b_hex
 import pytest
 import os
@@ -158,3 +160,94 @@ class TestSessions:
         authkey1.delete()
         authkey2.delete()
         authkey3.delete()
+
+
+class TestAymmetricAuthenticationKey:
+    @pytest.fixture(autouse=True)
+    def prerequisites(self, info):
+        if info.version < (2, 3, 0):
+            pytest.skip("Asymmetric authentication requires 2.3.0")
+
+    def test_put_public_key(self, hsm, session):
+        private_key = ec.generate_private_key(ec.SECP256R1(), backend=default_backend())
+
+        authkey = AuthenticationKey.put_public_key(
+            session,
+            0,
+            "Test PUT asym authkey",
+            1,
+            CAPABILITY.NONE,
+            CAPABILITY.NONE,
+            private_key.public_key(),
+        )
+
+        try:
+            with hsm.create_session_asymmetric(
+                authkey.id, private_key
+            ) as asymmetric_session:
+                message = os.urandom(256)
+                resp = asymmetric_session.send_secure_cmd(COMMAND.ECHO, message)
+                assert message == resp
+        finally:
+            authkey.delete()
+
+    def test_change_public_key(self, hsm, session):
+        first_private_key = ec.generate_private_key(
+            ec.SECP256R1(), backend=default_backend()
+        )
+        second_private_key = ec.generate_private_key(
+            ec.SECP256R1(), backend=default_backend()
+        )
+
+        authkey = AuthenticationKey.put_public_key(
+            session,
+            0,
+            "Test PUT asym authkey",
+            1,
+            CAPABILITY.CHANGE_AUTHENTICATION_KEY,
+            CAPABILITY.NONE,
+            first_private_key.public_key(),
+        )
+
+        with hsm.create_session_asymmetric(
+            authkey.id, first_private_key
+        ) as asymmetric_session:
+            authkey.with_session(asymmetric_session).change_public_key(
+                second_private_key.public_key()
+            )
+
+        try:
+            with hsm.create_session_asymmetric(
+                authkey.id, second_private_key
+            ) as asymmetric_session:
+                message = os.urandom(256)
+                resp = asymmetric_session.send_secure_cmd(COMMAND.ECHO, message)
+                assert message == resp
+        finally:
+            authkey.delete()
+
+    def test_cached_device_public_key(self, hsm, session):
+        private_key = ec.generate_private_key(ec.SECP256R1(), backend=default_backend())
+
+        authkey = AuthenticationKey.put_public_key(
+            session,
+            0,
+            "Test PUT asym authkey",
+            1,
+            CAPABILITY.NONE,
+            CAPABILITY.NONE,
+            private_key.public_key(),
+        )
+
+        right_public_key = hsm.get_device_public_key()
+        wrong_public_key = ec.generate_private_key(
+            ec.SECP256R1(), backend=default_backend()
+        ).public_key()
+
+        with pytest.raises(YubiHsmAuthenticationError):
+            hsm.create_session_asymmetric(authkey.id, private_key, wrong_public_key)
+
+        try:
+            hsm.create_session_asymmetric(authkey.id, private_key, right_public_key)
+        finally:
+            authkey.delete()

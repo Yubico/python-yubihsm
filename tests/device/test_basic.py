@@ -21,6 +21,7 @@ from yubihsm.objects import (
     WrapKey,
     AuthenticationKey,
 )
+from cryptography.hazmat.primitives.asymmetric import ec
 from yubihsm.exceptions import YubiHsmInvalidRequestError, YubiHsmDeviceError
 from time import sleep
 import uuid
@@ -142,6 +143,17 @@ class TestVarious:
         buf = os.urandom(MAX_MSG_SIZE - 3 + 1)  # Message 1 byte too large
         with pytest.raises(YubiHsmInvalidRequestError):
             hsm.send_cmd(COMMAND.ECHO, buf)
+
+
+class TestDevicePublicKey:
+    @pytest.fixture(autouse=True)
+    def prerequisites(self, info):
+        if info.version < (2, 3, 0):
+            pytest.skip("Device public keys requires 2.3.0")
+
+    def test_get_device_public_key(self, hsm):
+        public_key = hsm.get_device_public_key()
+        assert isinstance(public_key, ec.EllipticCurvePublicKey)
 
 
 class TestEcho:

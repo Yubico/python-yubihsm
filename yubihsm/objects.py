@@ -380,6 +380,48 @@ class AuthenticationKey(YhsmObject):
         msg += key_enc + key_mac
         return cls._from_command(session, COMMAND.PUT_AUTHENTICATION_KEY, msg)
 
+    @classmethod
+    def put_public_key(
+        cls,
+        session: "core.AuthSession",
+        object_id: int,
+        label: str,
+        domains: int,
+        capabilities: CAPABILITY,
+        delegated_capabilities: CAPABILITY,
+        public_key: ec.EllipticCurvePublicKey,
+    ) -> "AuthenticationKey":
+        """Create an asymmetric AuthenticationKey by providing a public key
+
+        :param session: The session to import via.
+        :param object_id: The ID to set for the object. Set to 0 to let the
+            YubiHSM designate an ID.
+        :param label: A text label to give the object.
+        :param domains: The set of domains to assign the object to.
+        :param capabilities: The set of capabilities to give the object.
+        :param delegated_capabilities: The set of capabilities that the
+            AuthenticationKey can give to objects created when authenticated
+            using it.
+        :param public_key: The public key to import.
+        :return: A reference to the newly created object.
+        """
+        if not isinstance(public_key.curve, ec.SECP256R1):
+            raise ValueError("Unsupported curve")
+
+        msg = struct.pack(
+            "!H%dsHQBQ" % LABEL_LENGTH,
+            object_id,
+            _label_pack(label),
+            domains,
+            capabilities,
+            ALGORITHM.EC_P256_YUBICO_AUTHENTICATION,
+            delegated_capabilities,
+        )
+        numbers = public_key.public_numbers()
+        msg += int.to_bytes(numbers.x, public_key.key_size // 8, "big")
+        msg += int.to_bytes(numbers.y, public_key.key_size // 8, "big")
+        return cls._from_command(session, COMMAND.PUT_AUTHENTICATION_KEY, msg)
+
     def change_password(self, password: str) -> None:
         """Change the password used to authenticate a session.
 
@@ -402,6 +444,22 @@ class AuthenticationKey(YhsmObject):
             + key_enc
             + key_mac
         )
+        resp = self.session.send_secure_cmd(COMMAND.CHANGE_AUTHENTICATION_KEY, msg)
+        if struct.unpack("!H", resp)[0] != self.id:
+            raise YubiHsmInvalidResponseError("Wrong ID returned")
+
+    def change_public_key(self, public_key: ec.EllipticCurvePublicKey) -> None:
+        """Change an asymmetric AuthenticationKey's public key
+
+        :param public_key: The new public key.
+        """
+        if not isinstance(public_key.curve, ec.SECP256R1):
+            raise ValueError("Unsupported curve")
+
+        msg = struct.pack("!HB", self.id, ALGORITHM.EC_P256_YUBICO_AUTHENTICATION)
+        numbers = public_key.public_numbers()
+        msg += int.to_bytes(numbers.x, public_key.key_size // 8, "big")
+        msg += int.to_bytes(numbers.y, public_key.key_size // 8, "big")
         resp = self.session.send_secure_cmd(COMMAND.CHANGE_AUTHENTICATION_KEY, msg)
         if struct.unpack("!H", resp)[0] != self.id:
             raise YubiHsmInvalidResponseError("Wrong ID returned")
