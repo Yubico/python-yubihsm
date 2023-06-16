@@ -335,6 +335,7 @@ class YubiHsm:
         self,
         auth_key_id: int,
         private_key: ec.EllipticCurvePrivateKey,
+        public_key: Optional[ec.EllipticCurvePublicKey] = None,
     ) -> "AuthSession":
         """Creates an authenticated session with the YubiHSM.
 
@@ -342,9 +343,15 @@ class YubiHsm:
             authenticate the session.
         :param private_key: Private key corresponding to the public
             authentication key object.
+        :param public_key: The device's public key. If omitted, the public key
+            is fetched from the YubiHSM.
         :return: An authenticated session.
         """
-        return AuthSession.create_session_asymmetric(self, auth_key_id, private_key)
+        if public_key is None:
+            public_key = self.get_device_public_key()
+        return AuthSession.create_session_asymmetric(
+            self, auth_key_id, private_key, public_key
+        )
 
     @classmethod
     def connect(cls, url: Optional[str] = None) -> "YubiHsm":
@@ -426,7 +433,11 @@ class AuthSession:
 
     @classmethod
     def create_session_asymmetric(
-        cls, hsm: YubiHsm, auth_key_id: int, private_key: ec.EllipticCurvePrivateKey
+        cls,
+        hsm: YubiHsm,
+        auth_key_id: int,
+        private_key: ec.EllipticCurvePrivateKey,
+        public_key: ec.EllipticCurvePublicKey,
     ):
         """Constructs an authenticated session.
 
@@ -435,9 +446,10 @@ class AuthSession:
             authenticate the session.
         :param private_key: Private key corresponding to the public
             authentication key object.
+        :param public_key: The device's public key.
         """
         # Calculate shared secret from the two static keys.
-        shsss = private_key.exchange(ec.ECDH(), hsm.get_device_public_key())
+        shsss = private_key.exchange(ec.ECDH(), public_key)
 
         # Generate an ephemeral key.
         esk_oce = ec.generate_private_key(private_key.curve, backend=default_backend())

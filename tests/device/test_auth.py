@@ -225,3 +225,29 @@ class TestAymmetricAuthenticationKey:
                 assert message == resp
         finally:
             authkey.delete()
+
+    def test_cached_device_public_key(self, hsm, session):
+        private_key = ec.generate_private_key(ec.SECP256R1(), backend=default_backend())
+
+        authkey = AuthenticationKey.put_public_key(
+            session,
+            0,
+            "Test PUT asym authkey",
+            1,
+            CAPABILITY.NONE,
+            CAPABILITY.NONE,
+            private_key.public_key(),
+        )
+
+        right_public_key = hsm.get_device_public_key()
+        wrong_public_key = ec.generate_private_key(
+            ec.SECP256R1(), backend=default_backend()
+        ).public_key()
+
+        with pytest.raises(YubiHsmAuthenticationError):
+            hsm.create_session_asymmetric(authkey.id, private_key, wrong_public_key)
+
+        try:
+            hsm.create_session_asymmetric(authkey.id, private_key, right_public_key)
+        finally:
+            authkey.delete()
