@@ -1207,3 +1207,135 @@ class OtpAeadKey(YhsmObject):
         """
         msg = struct.pack("!HH", self.id, new_key_id) + aead
         return self.session.send_secure_cmd(COMMAND.REWRAP_OTP_AEAD, msg)
+
+
+class SymmetricKey(YhsmObject):
+    """Used to encrypt/decrypt data using a symmetric key.
+
+    Supported algorithms:
+        - :class: `~yubihsm.defs.ALGORITHM.AES128`
+        - :class: `~yubihsm.defs.ALGORITHM.AES192`
+        - :class: `~yubihsm.defs.ALGORITHM.AES256`
+    """
+
+    object_type = OBJECT.SYMMETRIC_KEY
+
+    @classmethod
+    def put(
+        cls,
+        session: "core.AuthSession",
+        object_id: int,
+        label: str,
+        domains: int,
+        capabilities: CAPABILITY,
+        algorithm: ALGORITHM,
+        key: bytes,
+    ) -> "SymmetricKey":
+        """Import a symmetric key into the YubiHSM.
+
+        :param session: The session to import via.
+        :param object_id: The ID to set for the object. Set to 0 to let the
+            YubiHSM designate an ID.
+        :param label: A text label to give the object.
+        :param domains: The set of domains to assign the object to.
+        :param capabilities: The set of capabilities to give the object.
+        :param algorithm: The algorithm to use for the symmetric key.
+        :param key: The raw encryption key corresponding to the algorithm.
+        :return: A reference to the newly created object.
+        """
+
+        if algorithm not in [ALGORITHM.AES128, ALGORITHM.AES192, ALGORITHM.AES256]:
+            raise ValueError("Invalid algorithm")
+
+        if len(key) != algorithm.to_key_size():
+            raise ValueError(
+                "Key length (%d) not matching algorithm (%s)"
+                % (len(key), algorithm.name)
+            )
+
+        msg = struct.pack(
+            "!H%dsHQB" % LABEL_LENGTH,
+            object_id,
+            _label_pack(label),
+            domains,
+            capabilities,
+            algorithm,
+        )
+        msg += key
+
+        return cls._from_command(session, COMMAND.PUT_SYMMETRIC_KEY, msg)
+
+    @classmethod
+    def generate(
+        cls,
+        session: "core.AuthSession",
+        object_id: int,
+        label: str,
+        domains: int,
+        capabilities: CAPABILITY,
+        algorithm: ALGORITHM,
+    ) -> "SymmetricKey":
+        """Generate a new symmetric key in the YubiHSM.
+
+        :param session: The session to import via.
+        :param object_id: The ID to set for the object. Set to 0 to let the YubiHSM
+            designate an ID.
+        :param label: A text label to give the object.
+        :param domains: The set of domains to assign the object to.
+        :param capabilities: The set of capabilities to give the object.
+        :param algorithm: The algorithm to use for the symmetric key.
+        :return: A reference to the newly created object.
+
+        """
+
+        if algorithm not in [ALGORITHM.AES128, ALGORITHM.AES192, ALGORITHM.AES256]:
+            raise ValueError("Invalid algorithm")
+
+        msg = struct.pack(
+            "!H%dsHQB" % LABEL_LENGTH,
+            object_id,
+            _label_pack(label),
+            domains,
+            capabilities,
+            algorithm,
+        )
+        return cls._from_command(session, COMMAND.GENERATE_SYMMETRIC_KEY, msg)
+
+    def encrypt_ecb(self, data: bytes) -> bytes:
+        """Encrypt data in ECB mode.
+
+        :param data: The data to encrypt.
+        :return: The encrypted data.
+        """
+        msg = struct.pack("!H", self.id) + data
+        return self.session.send_secure_cmd(COMMAND.ENCRYPT_ECB, msg)
+
+    def decrypt_ecb(self, data: bytes) -> bytes:
+        """Decrypt data in ECB mode.
+
+        :param data: The data to decrypt.
+        :return: The decrypted data.
+        """
+        msg = struct.pack("!H", self.id) + data
+        return self.session.send_secure_cmd(COMMAND.DECRYPT_ECB, msg)
+
+    def encrypt_cbc(self, iv: bytes, data: bytes) -> bytes:
+        """Encrypt data in CBC mode.
+
+        :param iv: The initialization vector.
+        :param data: The data to encrypt.
+        :return: The encrypted data.
+        """
+
+        msg = struct.pack("!H", self.id) + iv + data
+        return self.session.send_secure_cmd(COMMAND.ENCRYPT_CBC, msg)
+
+    def decrypt_cbc(self, iv: bytes, data: bytes) -> bytes:
+        """Decrypt data in CBC mode.
+
+        :param iv: The initialization vector.
+        :param data: The data to decrypt.
+        :return: The decrypted data.
+        """
+        msg = struct.pack("!H", self.id) + iv + data
+        return self.session.send_secure_cmd(COMMAND.DECRYPT_CBC, msg)
