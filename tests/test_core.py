@@ -316,7 +316,7 @@ class TestAuthsession(unittest.TestCase):
         # from send_secure_cmd
         session.send_secure_cmd.assert_called_with(
             72,
-            b"\x01\x00\x02\x02\x01\x03\xff\xff\x04\x00?\xff\xff\xff\xff\xff\xff\x05\x15",  # noqa E501
+            b"\x01\x00\x02\x02\x01\x03\xff\xff\x04\x00\x3f\xff\xff\xff\xff\xff\xff\x05\x15",  # noqa E501
         )
 
     def test_list_objects2(self):
