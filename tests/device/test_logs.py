@@ -25,6 +25,24 @@ import struct
 import pytest
 
 
+@pytest.fixture(autouse=True, scope="module")
+def turn_on_logging(session, info):
+    # Enable command audit logging for all commands on YubiHSM versions >= 2.3.1
+    # This ensures test independence across different YubiHSM versions
+    if info.version >= (2, 3, 1):
+        ignored_cmds = [
+            COMMAND.ERROR,
+            COMMAND.DEVICE_INFO,
+            COMMAND.GET_LOG_ENTRIES,
+            COMMAND.ECHO,
+            COMMAND.SESSION_MESSAGE,
+        ]
+
+        session.set_command_audit(
+            {cmd: AUDIT.ON for cmd in COMMAND if cmd not in ignored_cmds}
+        )
+
+
 def test_get_log_entries(session):
     boot, auth, logs = session.get_log_entries()
 
@@ -132,7 +150,7 @@ def test_forced_log(hsm, session):
         assert hmackey.verify_hmac(resp, data)
 
 
-def test_logs_after_reset(hsm, connect_hsm, session):
+def test_logs_after_reset(hsm, connect_hsm, session, info):
     session.reset_device()
     hsm.close()
 
@@ -141,7 +159,16 @@ def test_logs_after_reset(hsm, connect_hsm, session):
     with connect_hsm() as hsm:
         with hsm.create_session_derived(1, DEFAULT_KEY) as session:
             boot, auth, logs = session.get_log_entries()
-    assert 4 == len(logs)
+
+    # Check the version of the YubiHSM and verify the number of log entries.
+    # YubiHSM versions >= 2.3.1 have command audit logging disabled per default,
+    # so they will only have two initial logs: the boot and reset line.
+    # Versions below 2.3.1 are expected to have four log entries: the boot line,
+    # reset line, create_session and authenticate_session cmd.
+    if info.version < (2, 3, 1):
+        assert 4 == len(logs)
+    else:
+        assert 2 == len(logs)
 
     # Reset line
     assert logs.pop(0).data == b"\0\1" + b"\xff" * 14
@@ -149,5 +176,6 @@ def test_logs_after_reset(hsm, connect_hsm, session):
     # Boot line
     assert logs.pop(0).data == struct.pack("!HBHHHHBL", 2, 0, 0, 0xFFFF, 0, 0, 0, 0)
 
-    assert logs.pop(0).command == COMMAND.CREATE_SESSION
-    assert logs.pop(0).command == COMMAND.AUTHENTICATE_SESSION
+    if info.version < (2, 3, 1):
+        assert logs.pop(0).command == COMMAND.CREATE_SESSION
+        assert logs.pop(0).command == COMMAND.AUTHENTICATE_SESSION
