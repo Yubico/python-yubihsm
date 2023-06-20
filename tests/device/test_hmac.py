@@ -150,3 +150,31 @@ def test_hmac_vectors(session, vector):
     key2.delete()
     key3.delete()
     key4.delete()
+
+
+def test_import_invalid_key_size(session):
+    # Key length must match algorithm
+    with pytest.raises(ValueError):
+        HmacKey.put(
+            session,
+            0,
+            "Test PUT invalid algorithm",
+            0xFFFF,
+            CAPABILITY.SIGN_HMAC,
+            os.urandom(65),
+            ALGORITHM.HMAC_SHA256,
+        )
+
+
+def test_import_invalid_algorithm(session):
+    # Algorithm must be HMAC_SHA1, HMAC_SHA256, HMAC_SHA384 or HMAC_SHA512
+    with pytest.raises(ValueError):
+        HmacKey.put(
+            session,
+            0,
+            "Test PUT invalid algorithm",
+            0xFFFF,
+            CAPABILITY.SIGN_HMAC,
+            os.urandom(64),
+            ALGORITHM.RSA_PSS_SHA256,
+        )

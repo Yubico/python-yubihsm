@@ -201,3 +201,37 @@ def test_otp_vectors(session):
     key1.delete()
     key2.delete()
     key3.delete()
+
+
+def test_import_invalid_key_size(session):
+    # Key length must match algorithm
+    with pytest.raises(ValueError):
+        OtpAeadKey.put(
+            session,
+            0,
+            "Test PUT invalid key length",
+            0xFFFF,
+            CAPABILITY.CREATE_OTP_AEAD
+            | CAPABILITY.REWRAP_FROM_OTP_AEAD_KEY
+            | CAPABILITY.DECRYPT_OTP,
+            ALGORITHM.AES128_YUBICO_OTP,
+            0x12345678,
+            os.urandom(24),
+        )
+
+
+def test_import_invalid_algorithm(session):
+    # Algorithm must be AES128_YUBICO_OTP, AES192_YUBICO_OTP or AES256_YUBICO_OTP
+    with pytest.raises(ValueError):
+        OtpAeadKey.put(
+            session,
+            0,
+            "Test PUT invalid algorithm",
+            0xFFFF,
+            CAPABILITY.CREATE_OTP_AEAD
+            | CAPABILITY.REWRAP_FROM_OTP_AEAD_KEY
+            | CAPABILITY.DECRYPT_OTP,
+            ALGORITHM.AES128,
+            0x12345678,
+            os.urandom(16),
+        )

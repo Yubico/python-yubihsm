@@ -68,17 +68,31 @@ def imported_key(session, request):
     key.delete()
 
 
-def test_import_unsupported_key(session):
+def test_import_invalid_key_size(session):
     # Key length must match algorithm
     with pytest.raises(ValueError):
         SymmetricKey.put(
             session,
             0,
-            "Test PUT unsupported key",
+            "Test PUT invalid key length",
             0xFFFF,
             AES_CAPABILITIES,
             ALGORITHM.AES128,
             os.urandom(24),
+        )
+
+
+def test_import_invalid_algorithm(session):
+    # Algorithm must be AES128, AES192 or AES256
+    with pytest.raises(ValueError):
+        SymmetricKey.put(
+            session,
+            0,
+            "Test PUT invalid algorithm",
+            0xFFFF,
+            AES_CAPABILITIES,
+            ALGORITHM.AES128_CCM_WRAP,
+            os.urandom(16),
         )
 
 
