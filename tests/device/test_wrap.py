@@ -374,3 +374,33 @@ def test_import_wrap_overwrite(session):
     with pytest.raises(YubiHsmDeviceError) as context:
         opaque = w_key.import_wrapped(opaque_wrapped)
     assert context.value.code == ERROR.OBJECT_EXISTS
+
+
+def test_import_invalid_key_size(session):
+    # Key length must match algorithm
+    with pytest.raises(ValueError):
+        WrapKey.put(
+            session,
+            0,
+            "Test PUT invalid algorithm",
+            0xFFFF,
+            CAPABILITY.EXPORT_WRAPPED | CAPABILITY.IMPORT_WRAPPED,
+            ALGORITHM.AES128_CCM_WRAP,
+            CAPABILITY.NONE,
+            os.urandom(24),
+        )
+
+
+def test_import_invalid_algorithm(session):
+    # Algorithm must be AES128_CCM_WRAP, AES192_CCM_WRAP or AES256_CCM_WRAP
+    with pytest.raises(ValueError):
+        WrapKey.put(
+            session,
+            0,
+            "Test PUT invalid algorithm",
+            0xFFFF,
+            CAPABILITY.EXPORT_WRAPPED | CAPABILITY.IMPORT_WRAPPED,
+            ALGORITHM.AES128_YUBICO_OTP,
+            CAPABILITY.NONE,
+            os.urandom(16),
+        )

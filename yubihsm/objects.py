@@ -830,6 +830,14 @@ class WrapKey(YhsmObject):
         :param algorithm: The algorithm to use for the wrap key.
         :return: A reference to the newly created object.
         """
+
+        if algorithm not in [
+            ALGORITHM.AES128_CCM_WRAP,
+            ALGORITHM.AES192_CCM_WRAP,
+            ALGORITHM.AES256_CCM_WRAP,
+        ]:
+            raise ValueError("Invalid algorithm")
+
         msg = struct.pack(
             "!H%dsHQBQ" % LABEL_LENGTH,
             object_id,
@@ -867,6 +875,19 @@ class WrapKey(YhsmObject):
         :param key: The raw encryption key corresponding to the algorithm.
         :return: A reference to the newly created object.
         """
+        if algorithm not in [
+            ALGORITHM.AES128_CCM_WRAP,
+            ALGORITHM.AES192_CCM_WRAP,
+            ALGORITHM.AES256_CCM_WRAP,
+        ]:
+            raise ValueError("Invalid algorithm")
+
+        if len(key) != algorithm.to_key_size():
+            raise ValueError(
+                "Key length (%d) not matching algorithm (%s)"
+                % (len(key), algorithm.name)
+            )
+
         msg = struct.pack(
             "!H%dsHQBQ" % LABEL_LENGTH,
             object_id,
@@ -951,6 +972,14 @@ class HmacKey(YhsmObject):
         :param algorithm: (optional) The algorithm to use for the HMAC key.
         :return: A reference to the newly created object.
         """
+        if algorithm not in [
+            ALGORITHM.HMAC_SHA1,
+            ALGORITHM.HMAC_SHA256,
+            ALGORITHM.HMAC_SHA384,
+            ALGORITHM.HMAC_SHA512,
+        ]:
+            raise ValueError("Invalid algorithm")
+
         msg = struct.pack(
             "!H%dsHQB" % LABEL_LENGTH,
             object_id,
@@ -984,6 +1013,21 @@ class HmacKey(YhsmObject):
         :param algorithm: (optional) The algorithm to use for the HMAC key.
         :return: A reference to the newly created object.
         """
+
+        if algorithm not in [
+            ALGORITHM.HMAC_SHA1,
+            ALGORITHM.HMAC_SHA256,
+            ALGORITHM.HMAC_SHA384,
+            ALGORITHM.HMAC_SHA512,
+        ]:
+            raise ValueError("Invalid algorithm")
+
+        if len(key) > algorithm.to_key_size():
+            raise ValueError(
+                "Key length (%d) not matching algorithm (%s)"
+                % (len(key), algorithm.name)
+            )
+
         msg = (
             struct.pack(
                 "!H%dsHQB" % LABEL_LENGTH,
@@ -1122,6 +1166,19 @@ class OtpAeadKey(YhsmObject):
         :return: A reference to the newly created object.
 
         """
+        if algorithm not in [
+            ALGORITHM.AES128_YUBICO_OTP,
+            ALGORITHM.AES192_YUBICO_OTP,
+            ALGORITHM.AES256_YUBICO_OTP,
+        ]:
+            raise ValueError("Invalid algorithm")
+
+        if len(key) != algorithm.to_key_size():
+            raise ValueError(
+                "Key length (%d) not matching algorithm (%s)"
+                % (len(key), algorithm.name)
+            )
+
         msg = struct.pack(
             "!H%dsHQB" % LABEL_LENGTH,
             object_id,
@@ -1158,6 +1215,14 @@ class OtpAeadKey(YhsmObject):
         :param nonce_id: The nonce ID used for AEADs.
         :return: A reference to the newly created object.
         """
+
+        if algorithm not in [
+            ALGORITHM.AES128_YUBICO_OTP,
+            ALGORITHM.AES192_YUBICO_OTP,
+            ALGORITHM.AES256_YUBICO_OTP,
+        ]:
+            raise ValueError("Invalid algorithm")
+
         msg = struct.pack(
             "!H%dsHQBL" % LABEL_LENGTH,
             object_id,
