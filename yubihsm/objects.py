@@ -37,6 +37,8 @@ import struct
 
 
 LABEL_LENGTH = 40
+MAX_AES_PAYLOAD_SIZE = 2026
+AES_BLOCK_SIZE = 16
 
 
 def _label_pack(label: Union[str, bytes]) -> bytes:
@@ -1372,8 +1374,28 @@ class SymmetricKey(YhsmObject):
         :param data: The data to encrypt.
         :return: The encrypted data.
         """
-        msg = struct.pack("!H", self.id) + data
-        return self.session.send_secure_cmd(COMMAND.ENCRYPT_ECB, msg)
+
+        if len(data) % AES_BLOCK_SIZE != 0:
+            raise ValueError("Invalid argument")
+
+        chunk_size = MAX_AES_PAYLOAD_SIZE // AES_BLOCK_SIZE * AES_BLOCK_SIZE
+
+        encrypted_data = b""
+        remaining_data = data
+
+        while remaining_data:
+            if len(remaining_data) <= chunk_size:
+                chunk = remaining_data
+                remaining_data = b""
+            else:
+                chunk = remaining_data[:chunk_size]
+                remaining_data = remaining_data[chunk_size:]
+
+            msg = struct.pack("!H", self.id) + chunk
+            encrypted_chunk = self.session.send_secure_cmd(COMMAND.ENCRYPT_ECB, msg)
+            encrypted_data += encrypted_chunk
+
+        return encrypted_data
 
     def decrypt_ecb(self, data: bytes) -> bytes:
         """Decrypt data in ECB mode.
@@ -1381,8 +1403,28 @@ class SymmetricKey(YhsmObject):
         :param data: The data to decrypt.
         :return: The decrypted data.
         """
-        msg = struct.pack("!H", self.id) + data
-        return self.session.send_secure_cmd(COMMAND.DECRYPT_ECB, msg)
+
+        if len(data) % AES_BLOCK_SIZE != 0:
+            raise ValueError("Invalid argument")
+
+        chunk_size = MAX_AES_PAYLOAD_SIZE // AES_BLOCK_SIZE * AES_BLOCK_SIZE
+
+        decrypted_data = b""
+        remaining_data = data
+
+        while remaining_data:
+            if len(remaining_data) <= chunk_size:
+                chunk = remaining_data
+                remaining_data = b""
+            else:
+                chunk = remaining_data[:chunk_size]
+                remaining_data = remaining_data[chunk_size:]
+
+            msg = struct.pack("!H", self.id) + chunk
+            decrypted_chunk = self.session.send_secure_cmd(COMMAND.DECRYPT_ECB, msg)
+            decrypted_data += decrypted_chunk
+
+        return decrypted_data
 
     def encrypt_cbc(self, iv: bytes, data: bytes) -> bytes:
         """Encrypt data in CBC mode.
@@ -1392,8 +1434,28 @@ class SymmetricKey(YhsmObject):
         :return: The encrypted data.
         """
 
-        msg = struct.pack("!H", self.id) + iv + data
-        return self.session.send_secure_cmd(COMMAND.ENCRYPT_CBC, msg)
+        if len(iv) != AES_BLOCK_SIZE or len(data) % AES_BLOCK_SIZE != 0:
+            raise ValueError("Invalid argument")
+
+        chunk_size = (MAX_AES_PAYLOAD_SIZE - len(iv)) // AES_BLOCK_SIZE * AES_BLOCK_SIZE
+
+        encrypted_data = b""
+        remaining_data = data
+
+        while remaining_data:
+            if len(remaining_data) <= chunk_size:
+                chunk = remaining_data
+                remaining_data = b""
+            else:
+                chunk = remaining_data[:chunk_size]
+                remaining_data = remaining_data[chunk_size:]
+
+            msg = struct.pack("!H", self.id) + iv + chunk
+            encrypted_chunk = self.session.send_secure_cmd(COMMAND.ENCRYPT_CBC, msg)
+            encrypted_data += encrypted_chunk
+            iv = encrypted_data[-AES_BLOCK_SIZE:]
+
+        return encrypted_data
 
     def decrypt_cbc(self, iv: bytes, data: bytes) -> bytes:
         """Decrypt data in CBC mode.
@@ -1402,5 +1464,26 @@ class SymmetricKey(YhsmObject):
         :param data: The data to decrypt.
         :return: The decrypted data.
         """
-        msg = struct.pack("!H", self.id) + iv + data
-        return self.session.send_secure_cmd(COMMAND.DECRYPT_CBC, msg)
+
+        if len(iv) != AES_BLOCK_SIZE or len(data) % AES_BLOCK_SIZE != 0:
+            raise ValueError("Invalid argument")
+
+        chunk_size = (MAX_AES_PAYLOAD_SIZE - len(iv)) // AES_BLOCK_SIZE * AES_BLOCK_SIZE
+
+        decrypted_data = b""
+        remaining_data = data
+
+        while remaining_data:
+            if len(remaining_data) <= chunk_size:
+                chunk = remaining_data
+                remaining_data = b""
+            else:
+                chunk = remaining_data[:chunk_size]
+                remaining_data = remaining_data[chunk_size:]
+
+            msg = struct.pack("!H", self.id) + iv + chunk
+            decrypted_chunk = self.session.send_secure_cmd(COMMAND.DECRYPT_CBC, msg)
+            decrypted_data += decrypted_chunk
+            iv = chunk[-AES_BLOCK_SIZE:]
+
+        return decrypted_data
