@@ -37,6 +37,8 @@ import struct
 
 
 LABEL_LENGTH = 40
+MAX_AES_PAYLOAD_SIZE = 2026
+AES_BLOCK_SIZE = 16
 
 
 def _label_pack(label: Union[str, bytes]) -> bytes:
@@ -1366,14 +1368,68 @@ class SymmetricKey(YhsmObject):
         )
         return cls._from_command(session, COMMAND.GENERATE_SYMMETRIC_KEY, msg)
 
+    def _chain_ecb(self, cmd: COMMAND, data: bytes) -> bytes:
+        if len(data) % AES_BLOCK_SIZE != 0:
+            raise ValueError("Data is not a multiple of %d bytes" % AES_BLOCK_SIZE)
+
+        chunk_size = MAX_AES_PAYLOAD_SIZE // AES_BLOCK_SIZE * AES_BLOCK_SIZE
+
+        out = b""
+        rem = data
+
+        while rem:
+            if len(rem) <= chunk_size:
+                chunk_in = rem
+                rem = b""
+            else:
+                chunk_in = rem[:chunk_size]
+                rem = rem[chunk_size:]
+
+            msg = struct.pack("!H", self.id) + chunk_in
+            chunk_out = self.session.send_secure_cmd(cmd, msg)
+
+            out += chunk_out
+
+        return out
+
+    def _chain_cbc(self, cmd: COMMAND, iv: bytes, data: bytes) -> bytes:
+        if len(iv) != AES_BLOCK_SIZE:
+            raise ValueError("IV is not 16 bytes")
+        if len(data) % AES_BLOCK_SIZE != 0:
+            raise ValueError("Data is not a multiple of %d bytes" % AES_BLOCK_SIZE)
+
+        chunk_size = (MAX_AES_PAYLOAD_SIZE - len(iv)) // AES_BLOCK_SIZE * AES_BLOCK_SIZE
+
+        out = b""
+        rem = data
+
+        while rem:
+            if len(rem) <= chunk_size:
+                chunk_in = rem
+                rem = b""
+            else:
+                chunk_in = rem[:chunk_size]
+                rem = rem[chunk_size:]
+
+            msg = struct.pack("!H", self.id) + iv + chunk_in
+            chunk_out = self.session.send_secure_cmd(cmd, msg)
+            out += chunk_out
+            iv = (
+                out[-AES_BLOCK_SIZE:]
+                if cmd == COMMAND.ENCRYPT_CBC
+                else chunk_in[-AES_BLOCK_SIZE:]
+            )
+
+        return out
+
     def encrypt_ecb(self, data: bytes) -> bytes:
         """Encrypt data in ECB mode.
 
         :param data: The data to encrypt.
         :return: The encrypted data.
         """
-        msg = struct.pack("!H", self.id) + data
-        return self.session.send_secure_cmd(COMMAND.ENCRYPT_ECB, msg)
+
+        return self._chain_ecb(COMMAND.ENCRYPT_ECB, data)
 
     def decrypt_ecb(self, data: bytes) -> bytes:
         """Decrypt data in ECB mode.
@@ -1381,8 +1437,8 @@ class SymmetricKey(YhsmObject):
         :param data: The data to decrypt.
         :return: The decrypted data.
         """
-        msg = struct.pack("!H", self.id) + data
-        return self.session.send_secure_cmd(COMMAND.DECRYPT_ECB, msg)
+
+        return self._chain_ecb(COMMAND.DECRYPT_ECB, data)
 
     def encrypt_cbc(self, iv: bytes, data: bytes) -> bytes:
         """Encrypt data in CBC mode.
@@ -1392,8 +1448,7 @@ class SymmetricKey(YhsmObject):
         :return: The encrypted data.
         """
 
-        msg = struct.pack("!H", self.id) + iv + data
-        return self.session.send_secure_cmd(COMMAND.ENCRYPT_CBC, msg)
+        return self._chain_cbc(COMMAND.ENCRYPT_CBC, iv, data)
 
     def decrypt_cbc(self, iv: bytes, data: bytes) -> bytes:
         """Decrypt data in CBC mode.
@@ -1402,5 +1457,5 @@ class SymmetricKey(YhsmObject):
         :param data: The data to decrypt.
         :return: The decrypted data.
         """
-        msg = struct.pack("!H", self.id) + iv + data
-        return self.session.send_secure_cmd(COMMAND.DECRYPT_CBC, msg)
+
+        return self._chain_cbc(COMMAND.DECRYPT_CBC, iv, data)

@@ -97,8 +97,9 @@ def test_import_invalid_algorithm(session):
 
 
 class TestSymmetricECB:
-    def validate_ecb(self, keyobj: SymmetricKey, key: Optional[bytes] = None):
-        pt = os.urandom(256)
+    def validate_ecb(
+        self, pt: bytes, keyobj: SymmetricKey, key: Optional[bytes] = None
+    ):
         ct = keyobj.encrypt_ecb(pt)
         if key:
             encryptor = Cipher(algorithms.AES(key), modes.ECB()).encryptor()
@@ -106,15 +107,26 @@ class TestSymmetricECB:
         assert pt == keyobj.decrypt_ecb(ct)
 
     def test_ecb_generated_key(self, generated_key):
-        self.validate_ecb(generated_key)
+        pt = os.urandom(256)
+        self.validate_ecb(pt, generated_key)
 
     def test_ecb_imported_key(self, imported_key):
-        self.validate_ecb(*imported_key)
+        pt = os.urandom(256)
+        self.validate_ecb(pt, *imported_key)
+
+    def test_ecb_large_pt_generated_key(self, generated_key):
+        pt = os.urandom(4096)
+        self.validate_ecb(pt, generated_key)
+
+    def test_ecb_large_pt_imported_key(self, imported_key):
+        pt = os.urandom(4096)
+        self.validate_ecb(pt, *imported_key)
 
 
 class TestSymmetricCBC:
-    def validate_cbc(self, keyobj: SymmetricKey, key: Optional[bytes] = None):
-        pt = os.urandom(256)
+    def validate_cbc(
+        self, pt: bytes, keyobj: SymmetricKey, key: Optional[bytes] = None
+    ):
         iv = os.urandom(16)
         ct = keyobj.encrypt_cbc(iv, pt)
         if key:
@@ -123,7 +135,17 @@ class TestSymmetricCBC:
         assert pt == keyobj.decrypt_cbc(iv, ct)
 
     def test_cbc_generated_key(self, generated_key):
-        self.validate_cbc(generated_key)
+        pt = os.urandom(256)
+        self.validate_cbc(pt, generated_key)
 
     def test_cbc_imported_key(self, imported_key):
-        self.validate_cbc(*imported_key)
+        pt = os.urandom(256)
+        self.validate_cbc(pt, *imported_key)
+
+    def test_cbc_large_pt_generated_key(self, generated_key):
+        pt = os.urandom(4096)
+        self.validate_cbc(pt, generated_key)
+
+    def test_cbc_large_pt_imported_key(self, imported_key):
+        pt = os.urandom(4096)
+        self.validate_cbc(pt, *imported_key)
