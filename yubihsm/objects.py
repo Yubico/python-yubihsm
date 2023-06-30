@@ -1280,9 +1280,9 @@ class SymmetricKey(YhsmObject):
     """Used to encrypt/decrypt data using a symmetric key.
 
     Supported algorithms:
-        - :class: `~yubihsm.defs.ALGORITHM.AES128`
-        - :class: `~yubihsm.defs.ALGORITHM.AES192`
-        - :class: `~yubihsm.defs.ALGORITHM.AES256`
+        - :class:`~yubihsm.defs.ALGORITHM.AES128`
+        - :class:`~yubihsm.defs.ALGORITHM.AES192`
+        - :class:`~yubihsm.defs.ALGORITHM.AES256`
     """
 
     object_type = OBJECT.SYMMETRIC_KEY
