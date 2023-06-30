@@ -37,8 +37,16 @@ import struct
 
 
 LABEL_LENGTH = 40
+
 MAX_AES_PAYLOAD_SIZE = 2026
 AES_BLOCK_SIZE = 16
+
+RSA_PUBLIC_EXPONENT = 65537
+RSA_SIZES = [
+    2048,
+    3072,
+    4096,
+]
 
 
 def _label_pack(label: Union[str, bytes]) -> bytes:
@@ -518,6 +526,12 @@ class AsymmetricKey(YhsmObject):
         :return: A reference to the newly created object.
         """
         if isinstance(key, rsa.RSAPrivateKeyWithSerialization):
+            public_key = key.public_key()
+            public_numbers = public_key.public_numbers()
+            if public_numbers.e != RSA_PUBLIC_EXPONENT:
+                raise ValueError("Unsupported public exponent")
+            if key.key_size not in RSA_SIZES:
+                raise ValueError("Unsupported key size")
             rsa_numbers = key.private_numbers()
             serialized = int.to_bytes(
                 rsa_numbers.p, key.key_size // 8 // 2, "big"
