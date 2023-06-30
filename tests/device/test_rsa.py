@@ -355,3 +355,35 @@ def test_rsa_oaep_vectors(session, vector):
     assert vector["msg"] == dec
 
     asymkey.delete()
+
+
+def test_import_invalid_public_exponent(session):
+    key = rsa.generate_private_key(
+        public_exponent=3, key_size=2048, backend=default_backend()
+    )
+
+    with pytest.raises(ValueError):
+        AsymmetricKey.put(
+            session,
+            0,
+            "Test PUT invalid exponent",
+            0xFFFF,
+            CAPABILITY.SIGN_PKCS,
+            key,
+        )
+
+
+def test_import_invalid_key_size(session):
+    key = rsa.generate_private_key(
+        public_exponent=0x10001, key_size=512, backend=default_backend()
+    )
+
+    with pytest.raises(ValueError):
+        AsymmetricKey.put(
+            session,
+            0,
+            "Test PUT invalid key size",
+            0xFFFF,
+            CAPABILITY.SIGN_PKCS,
+            key,
+        )
