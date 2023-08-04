@@ -339,7 +339,7 @@ class YubiHsm:
         :param key_mac: Static K-MAC used to establish session.
         :return: An authenticated session.
         """
-        return AuthSession.create_session(self, auth_key_id, key_enc, key_mac)
+        return SymmetricAuth.create_session(self, auth_key_id, key_enc, key_mac)
 
     def create_session_derived(self, auth_key_id: int, password: str) -> "AuthSession":
         """Creates an authenticated session with the YubiHSM.
@@ -372,9 +372,7 @@ class YubiHsm:
         """
         if public_key is None:
             public_key = self.get_device_public_key()
-        return AuthSession.create_session_asymmetric(
-            self, auth_key_id, private_key, public_key
-        )
+        return AsymmetricAuth.create_session(self, auth_key_id, private_key, public_key)
 
     @classmethod
     def connect(cls, url: Optional[str] = None) -> "YubiHsm":
@@ -439,13 +437,34 @@ class SymmetricAuth:
 
         return cls(hsm, sid, context, card_crypto)
 
+    @classmethod
+    def create_session(
+        cls, hsm: YubiHsm, auth_key_id: int, key_enc: bytes, key_mac: bytes
+    ) -> "AuthSession":
+        """Constructs an authenticated session.
+
+        :param hsm: The YubiHSM connection.
+        :param auth_key_id: The ID of the Authentication key used to
+            authenticate the session.
+        :param key_enc: Static `K-ENC` used to establish the session.
+        :param key_mac: Static `K-MAC` used to establish the session.
+        """
+
+        symmetric_auth = cls.init_session(hsm, auth_key_id)
+
+        key_senc = _derive(key_enc, KEY_ENC, symmetric_auth.context)
+        key_smac = _derive(key_mac, KEY_MAC, symmetric_auth.context)
+        key_srmac = _derive(key_mac, KEY_RMAC, symmetric_auth.context)
+
+        return symmetric_auth.authenticate(key_senc, key_smac, key_srmac)
+
     def authenticate(
         self, key_senc: bytes, key_smac: bytes, key_srmac: bytes
     ) -> "AuthSession":
         """Constructs an authenticated session.
 
         :param key_senc: `S-ENC` used for data confidentiality.
-        :param key_smac: `S_MAC` used for data and protocol integrity.
+        :param key_smac: `S-MAC` used for data and protocol integrity.
         :param key_srmac: `S-RMAC` used for data and protocol integrity.
         :return An authenticated session.
         """
@@ -528,6 +547,60 @@ class AsymmetricAuth:
 
         return cls(hsm, sid, context, receipt)
 
+    @classmethod
+    def create_session(
+        cls,
+        hsm: YubiHsm,
+        auth_key_id: int,
+        private_key: ec.EllipticCurvePrivateKey,
+        public_key: ec.EllipticCurvePublicKey,
+    ) -> "AuthSession":
+        """Constructs an authenticated session.
+
+        :param hsm: The YubiHSM connection.
+        :param auth_key_id: The ID of the Authentication key used to
+            authenticate the session.
+        :param private_key: Private key corresponding to the public
+            authentication key object.
+        :param public_key: The device's public key.
+        """
+        # Calculate shared secret from the two static keys.
+        shsss = private_key.exchange(ec.ECDH(), public_key)
+
+        # Generate an ephemeral key.
+        esk_oce = ec.generate_private_key(private_key.curve, backend=default_backend())
+        epk_oce = esk_oce.public_key().public_bytes(
+            encoding=serialization.Encoding.X962,
+            format=serialization.PublicFormat.UncompressedPoint,
+        )
+
+        # Exchange ephemereal keys with the HSM
+        asymmetric_auth = cls.init_session(hsm, auth_key_id, epk_oce)
+
+        # Calculate shared secret from the two ephemeral keys.
+        shsee = esk_oce.exchange(
+            ec.ECDH(),
+            ec.EllipticCurvePublicKey.from_encoded_point(
+                private_key.curve, asymmetric_auth.epk_hsm
+            ),
+        )
+
+        # Derive session keys. Note that this generates four keys, the
+        # first of which is used to verify the receipt.
+        shs = X963KDF(
+            hashes.SHA256(), 4 * 16, b"\x3c\x88\x10", backend=default_backend()
+        ).derive(shsee + shsss)
+        keys = (shs[i : i + 16] for i in range(0, len(shs), 16))
+
+        # Verify the receipt.
+        c = cmac.CMAC(algorithms.AES(next(keys)), backend=default_backend())
+        c.update(asymmetric_auth.epk_hsm)
+        c.update(epk_oce)
+        if not constant_time.bytes_eq(c.finalize(), asymmetric_auth.receipt):
+            raise YubiHsmAuthenticationError()
+
+        return asymmetric_auth.authenticate(next(keys), next(keys), next(keys))
+
     def authenticate(
         self, key_senc: bytes, key_smac: bytes, key_srmac: bytes
     ) -> "AuthSession":
@@ -567,81 +640,6 @@ class AuthSession:
         self._key_rmac = key_rmac
         self._mac_chain = mac_chain
         self._ctr = 1
-
-    @classmethod
-    def create_session(
-        cls, hsm: YubiHsm, auth_key_id: int, key_enc: bytes, key_mac: bytes
-    ) -> "AuthSession":
-        """Constructs an authenticated session.
-
-        :param hsm: The YubiHSM connection.
-        :param auth_key_id: The ID of the Authentication key used to
-            authenticate the session.
-        :param key_enc: Static `K-ENC` used to establish the session.
-        :param key_mac: Static `K-MAC` used to establish the session.
-        """
-
-        symmetric_auth = SymmetricAuth.init_session(hsm, auth_key_id)
-
-        key_senc = _derive(key_enc, KEY_ENC, symmetric_auth.context)
-        key_smac = _derive(key_mac, KEY_MAC, symmetric_auth.context)
-        key_srmac = _derive(key_mac, KEY_RMAC, symmetric_auth.context)
-
-        return symmetric_auth.authenticate(key_senc, key_smac, key_srmac)
-
-    @classmethod
-    def create_session_asymmetric(
-        cls,
-        hsm: YubiHsm,
-        auth_key_id: int,
-        private_key: ec.EllipticCurvePrivateKey,
-        public_key: ec.EllipticCurvePublicKey,
-    ):
-        """Constructs an authenticated session.
-
-        :param hsm: The YubiHSM connection.
-        :param auth_key_id: The ID of the Authentication key used to
-            authenticate the session.
-        :param private_key: Private key corresponding to the public
-            authentication key object.
-        :param public_key: The device's public key.
-        """
-        # Calculate shared secret from the two static keys.
-        shsss = private_key.exchange(ec.ECDH(), public_key)
-
-        # Generate an ephemeral key.
-        esk_oce = ec.generate_private_key(private_key.curve, backend=default_backend())
-        epk_oce = esk_oce.public_key().public_bytes(
-            encoding=serialization.Encoding.X962,
-            format=serialization.PublicFormat.UncompressedPoint,
-        )
-
-        # Exchange ephemereal keys with the HSM
-        asymmetric_auth = AsymmetricAuth.init_session(hsm, auth_key_id, epk_oce)
-
-        # Calculate shared secret from the two ephemeral keys.
-        shsee = esk_oce.exchange(
-            ec.ECDH(),
-            ec.EllipticCurvePublicKey.from_encoded_point(
-                private_key.curve, asymmetric_auth.epk_hsm
-            ),
-        )
-
-        # Derive session keys. Note that this generates four keys, the
-        # first of which is used to verify the receipt.
-        shs = X963KDF(
-            hashes.SHA256(), 4 * 16, b"\x3c\x88\x10", backend=default_backend()
-        ).derive(shsee + shsss)
-        keys = (shs[i : i + 16] for i in range(0, len(shs), 16))
-
-        # Verify the receipt.
-        c = cmac.CMAC(algorithms.AES(next(keys)), backend=default_backend())
-        c.update(asymmetric_auth.epk_hsm)
-        c.update(epk_oce)
-        if not constant_time.bytes_eq(c.finalize(), asymmetric_auth.receipt):
-            raise YubiHsmAuthenticationError()
-
-        return asymmetric_auth.authenticate(next(keys), next(keys), next(keys))
 
     def close(self) -> None:
         """Close this session with the YubiHSM.
