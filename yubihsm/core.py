@@ -308,7 +308,7 @@ class YubiHsm:
 
         :param auth_key_id: The ID of the Authentication key used to
             authenticate the session.
-        :return A negotiation of an authenticated Session with a YubiHSM.
+        :return: A negotiation of an authenticated Session with a YubiHSM.
         """
         return SymmetricAuth.init_session(self, auth_key_id)
 
@@ -407,10 +407,12 @@ class SymmetricAuth:
 
     @property
     def context(self) -> bytes:
+        """The authentication context (host challenge + card challenge)."""
         return self._context
 
     @property
     def card_crypto(self) -> bytes:
+        """The card cryptogram."""
         return self._card_crypto
 
     @classmethod
@@ -466,7 +468,7 @@ class SymmetricAuth:
         :param key_senc: `S-ENC` used for data confidentiality.
         :param key_smac: `S-MAC` used for data and protocol integrity.
         :param key_srmac: `S-RMAC` used for data and protocol integrity.
-        :return An authenticated session.
+        :return: An authenticated session.
         """
 
         gen_card_crypto = _derive(key_smac, CARD_CRYPTOGRAM, self._context, 0x40)
@@ -509,14 +511,17 @@ class AsymmetricAuth:
 
     @property
     def context(self) -> bytes:
+        """The authentication context (EPK.OCE + EPK.SD)."""
         return self._context
 
     @property
     def receipt(self) -> bytes:
+        """The receipt."""
         return self._receipt
 
     @property
     def epk_hsm(self) -> bytes:
+        """The ephemeral public key of the YubiHSM."""
         return self._context[65:]
 
     @classmethod
@@ -607,9 +612,9 @@ class AsymmetricAuth:
         """Constructs an authenticated session.
 
         :param key_senc: `S-ENC` used for data confidentiality.
-        :param key_smac: `S_MAC` used for data and protocol integrity.
+        :param key_smac: `S-MAC` used for data and protocol integrity.
         :param key_srmac: `S-RMAC` used for data and protocol integrity.
-        :return An authenticated session.
+        :return: An authenticated session.
         """
         return AuthSession(
             self._hsm, self._sid, key_senc, key_smac, key_srmac, self._receipt

@@ -5,8 +5,8 @@ Subpackages
 -----------
 
 .. toctree::
-
-    yubihsm.backends
+   
+   yubihsm.backends
 
 Submodules
 ----------
