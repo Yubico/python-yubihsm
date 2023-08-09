@@ -1,0 +1,3 @@
+== Example scripts
+The files in this repository are examples of scripts using the `python-yubihsm`
+SDK. 
