@@ -30,14 +30,6 @@ class TestUtils(unittest.TestCase):
             password_to_key("password"),
         )
 
-        self.assertEqual(
-            (
-                a2b_hex("090b47dbed595654901dee1cc655e420"),
-                a2b_hex("592fd483f759e29909a04c4505d2ce0a"),
-            ),
-            password_to_key(b"password"),
-        )
-
     def test_password_to_key_utf8(self):
         self.assertEqual(
             (
@@ -47,10 +39,11 @@ class TestUtils(unittest.TestCase):
             password_to_key("κόσμε"),
         )
 
-        self.assertEqual(
-            (
-                a2b_hex("f320972c667ba5cd4d35119a6b0271a1"),
-                a2b_hex("f10050ca688e5a6ce62b1ffb0f6f6869"),
-            ),
-            password_to_key(a2b_hex("cebae1bdb9cf83cebcceb5")),
-        )
+    def test_password_to_key_bytes_fails(self):
+        with self.assertRaises(AttributeError):
+            self.assertRaises(AttributeError, password_to_key(b"password"))
+
+        with self.assertRaises(AttributeError):
+            self.assertRaises(
+                AttributeError, password_to_key(a2b_hex("cebae1bdb9cf83cebcceb5"))
+            )
