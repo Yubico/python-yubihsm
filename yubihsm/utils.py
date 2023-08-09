@@ -17,18 +17,16 @@
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-from typing import Tuple, Union
+from typing import Tuple
 
 
-def password_to_key(password: Union[str, bytes]) -> Tuple[bytes, bytes]:
+def password_to_key(password: str) -> Tuple[bytes, bytes]:
     """Derive keys for establishing a YubiHSM session from a password.
 
     :return: A tuple containing the encryption key, and MAC key.
     """
-    if isinstance(password, str):
-        pw_bytes = password.encode()
-    else:
-        pw_bytes = password
+    pw_bytes = password.encode()
+
     key = PBKDF2HMAC(
         algorithm=hashes.SHA256(),
         length=32,
