@@ -25,16 +25,20 @@ from yubihsm.core import (
     _derive,
     _unpad_resp,
     LogEntry,
-    get_backend,
     YubiHsm,
     AuthSession,
 )
 from yubihsm.defs import COMMAND, CAPABILITY, ALGORITHM
+from yubihsm.backends import YhsmBackend
 from unittest.mock import patch, MagicMock, call
 from yubihsm.exceptions import YubiHsmDeviceError, YubiHsmInvalidResponseError
 
 _DEVICE_INFO = b"\x02\x00\x00\x00s5m>>\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0b\x0c\r\x0e\x0f\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f !\"#$%&'()*+,-./"  # noqa
 _TRANSCEIVE_DEVICE_INFO = b"\x86\x008\x02\x00\x00\x00s4\xbc>\x04\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0b\x0c\r\x0e\x0f\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f !\"#$%&'()*+,-./"  # noqa
+
+
+def get_backend():
+    return MagicMock(YhsmBackend)
 
 
 def simple_urandom(length):
@@ -49,7 +53,6 @@ def get_mocked_session(patch):
     the backend.transceive function
     """
     mocked_backend = get_backend()
-    mocked_backend.transceive = MagicMock(mocked_backend.transceive)
     mocked_backend.transceive.side_effect = [
         b"\x83\x00\x11\x00\x05MV1\xc9\x18o\x802%\xed\x8a2$\xf2\xcf",
         b"\x84\x00\x00",
@@ -276,9 +279,7 @@ class TestYubiHsm(unittest.TestCase):
         """
 
         backend = get_backend()
-        backend.transceive = MagicMock(
-            backend.transceive, return_value=_TRANSCEIVE_DEVICE_INFO
-        )
+        backend.transceive.return_value = _TRANSCEIVE_DEVICE_INFO
 
         hsm = YubiHsm(backend)
 
