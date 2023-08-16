@@ -5,7 +5,8 @@ Subpackages
 -----------
 
 .. toctree::
-   
+   :maxdepth: 1
+
    yubihsm.backends
 
 Submodules

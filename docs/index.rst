@@ -9,6 +9,8 @@ Welcome to python-yubihsm's documentation!
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
+
+   rst/packages
    
 
 Indices and tables
