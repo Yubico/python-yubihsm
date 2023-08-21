@@ -15,6 +15,7 @@
 """Named constants used in YubiHSM commands."""
 
 from cryptography.hazmat.primitives.asymmetric import ec
+from cryptography.hazmat.primitives import hashes
 from enum import IntEnum, IntFlag, unique
 
 
@@ -216,6 +217,19 @@ class ALGORITHM(IntEnum):
 
         return _key_size_table[self]
 
+    def to_hash_algorithm(self) -> hashes.HashAlgorithm:
+        """Return the cryptography hash algorithm object corresponding to the algorithm.
+
+        :return The corresponding cryptography hash algorithm object.
+
+        :Example:
+
+        >>> ALGORITHM.HMAC_SHA1.to_hash_algorithm()
+        hashes.SHA1
+        """
+
+        return _hash_table[self]()
+
 
 _curve_table = {
     ALGORITHM.EC_P224: ec.SECP224R1,
@@ -242,6 +256,13 @@ _key_size_table = {
     ALGORITHM.AES128: 16,
     ALGORITHM.AES192: 24,
     ALGORITHM.AES256: 32,
+}
+
+_hash_table = {
+    ALGORITHM.HMAC_SHA1: hashes.SHA1,
+    ALGORITHM.HMAC_SHA256: hashes.SHA256,
+    ALGORITHM.HMAC_SHA384: hashes.SHA384,
+    ALGORITHM.HMAC_SHA512: hashes.SHA512,
 }
 
 

@@ -152,18 +152,52 @@ def test_hmac_vectors(session, vector):
     key4.delete()
 
 
-def test_import_invalid_key_size(session):
-    # Key length must match algorithm
-    with pytest.raises(ValueError):
-        HmacKey.put(
-            session,
-            0,
-            "Test PUT invalid algorithm",
-            0xFFFF,
-            CAPABILITY.SIGN_HMAC,
-            os.urandom(65),
-            ALGORITHM.HMAC_SHA256,
-        )
+@pytest.mark.parametrize(
+    "vector",
+    [
+        {
+            "key": b"\x0b" * 65,  # Larger than SHA1 block size (64)
+            "chal": b"\xdd" * 50,
+            "algorithm": ALGORITHM.HMAC_SHA1,
+            "exp_sha": b"<D\x87\x828\x8eW&\x03\xa1\xa8\x9a\x0bmy\x81\xfa\xffD\xed",  # noqa: E501
+        },
+        {
+            "key": b"\xcd" * 65,  # Larger than SHA256 block size (64),
+            "chal": b"\xab" * 50,
+            "algorithm": ALGORITHM.HMAC_SHA256,
+            "exp_sha": b"T\x15\xaf\xc0\xb8\xda\x95\x97pb_\xe6$\xea\xe1rR\xfe\\\r\x11(\xbe\x02\x06\x1a&l\xc9\x94\x95\x13",  # noqa: E501
+        },
+        {
+            "key": b"\xde" * 129,  # Larger than SHA384 block size (128)
+            "chal": b"\xbb" * 50,
+            "algorithm": ALGORITHM.HMAC_SHA384,
+            "exp_sha": b'`H\x9f\xfd\x99"\x86\x15\x1e\x80O\x0c\x19\xe9gH\xbck\xb57\x82\x16G42%6\xdcs\x82\xc8I\xcb|1\x1ftU\xfbb\x1c\x8b\xfb;"\xb6A\xb4',  # noqa: E501
+        },
+        {
+            "key": b"\xcc" * 129,  # Larger than SHA512 block size (128)
+            "chal": b"\xac" * 50,
+            "algorithm": ALGORITHM.HMAC_SHA512,
+            "exp_sha": b"1\xe2\x94\x08\xa0\xefF\x01Y\xeb\x9e\xc7\xe5\x807\xc9\xd7~Y\xd9\x83pM\xe5\x0eU\x94\xe4\xf1/\xa9J\xb97r\xf5\x16\x0f\xe62\x88\xcd\x14\xee\xd7\x1b|I\xe7\xbd\x8a\x12*H\x9b\xeb\x00\xa0-V\x05dn\x16",  # noqa: E501
+        },
+    ],
+)
+def test_import_large_keys(session, vector):
+    key_id = random.randint(1, 0xFFFE)
+
+    caps = CAPABILITY.SIGN_HMAC | CAPABILITY.VERIFY_HMAC
+
+    key = HmacKey.put(
+        session,
+        key_id,
+        "Test import large key 0x%04x" % key_id,
+        1,
+        caps,
+        vector["key"],
+        vector["algorithm"],
+    )
+
+    assert key.sign_hmac(vector["chal"]) == vector["exp_sha"]
+    assert key.verify_hmac(vector["exp_sha"], vector["chal"])
 
 
 def test_import_invalid_algorithm(session):
