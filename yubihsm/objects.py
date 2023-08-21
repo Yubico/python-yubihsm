@@ -1037,10 +1037,8 @@ class HmacKey(YhsmObject):
             raise ValueError("Invalid algorithm")
 
         if len(key) > algorithm.to_key_size():
-            raise ValueError(
-                "Key length (%d) not matching algorithm (%s)"
-                % (len(key), algorithm.name)
-            )
+            # Hash key using corresponding hash algorithm
+            key = _calc_hash(key, algorithm.to_hash_algorithm())
 
         msg = (
             struct.pack(
