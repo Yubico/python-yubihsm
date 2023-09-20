@@ -32,24 +32,28 @@ class UsbBackend(YhsmBackend):
         :param serial: (optional) The serial number of the YubiHSM to connect to.
         :param timeout: (optional) A read/write timeout in seconds.
         """
+        err = None
         for device in usb.core.find(
             find_all=True, idVendor=YUBIHSM_VID, idProduct=YUBIHSM_PID
         ):
+            try:
+                cfg = device.get_active_configuration()
+            except usb.core.USBError:
+                cfg = None
+
+            if cfg is None or cfg.bConfigurationValue != 0x01:
+                try:
+                    device.set_configuration(0x01)
+                except usb.core.USBError as e:
+                    err = YubiHsmConnectionError(e)
+                    continue
+
             if serial is None or int(device.serial_number) == serial:
                 break
+
+            usb.util.dispose_resources(device)
         else:
-            raise YubiHsmConnectionError("No YubiHSM found.")
-
-        try:
-            cfg = device.get_active_configuration()
-        except usb.core.USBError:
-            cfg = None
-
-        if cfg is None or cfg.bConfigurationValue != 0x01:
-            try:
-                device.set_configuration(0x01)
-            except usb.core.USBError as e:
-                raise YubiHsmConnectionError(e)
+            raise err or YubiHsmConnectionError("No YubiHSM found.")
 
         # Flush any data waiting to be read
         try:
