@@ -41,7 +41,7 @@ class HttpBackend(YhsmBackend):
         """
         if not url.endswith("/"):
             url = url + "/"
-            
+
         self._url = parse.urljoin(url, "connector/api")
         self._timeout = timeout
 
