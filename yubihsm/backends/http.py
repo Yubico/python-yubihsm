@@ -39,6 +39,9 @@ class HttpBackend(YhsmBackend):
             values to use as connection timeout and request timeout.
         :type timeout: int or tuple[int, int]
         """
+        if not url.endswith("/"):
+            url = url + "/"
+
         self._url = parse.urljoin(url, "connector/api")
         self._timeout = timeout
 
