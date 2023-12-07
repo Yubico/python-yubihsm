@@ -2,9 +2,7 @@
 
 Python library and tests for the YubiHSM 2.
 
-The current version (2.1) supports Python 2.7 and later.
-
-NOTE: The next major version (3.x) will require Python 3.7 or later.
+The current version (3.0) supports Python 3.8 and later.
 
 Communicates with the YubiHSM 2 connector daemon, which must already be running.
 It can also communicate directly with the YubiHSM 2 via USB (requires libusb).
@@ -12,7 +10,7 @@ It can also communicate directly with the YubiHSM 2 via USB (requires libusb).
 === License
 
 ....
-Copyright 2018-2021 Yubico AB
+Copyright 2023 Yubico AB
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
