@@ -106,6 +106,11 @@ class COMMAND(IntEnum):
     ENCRYPT_ECB = 0x70
     DECRYPT_CBC = 0x71
     ENCRYPT_CBC = 0x72
+    PUT_PUBLIC_WRAP_KEY = 0x73
+    WRAP_KEY_RSA = 0x74
+    UNWRAP_KEY_RSA = 0x75
+    EXPORT_WRAPPED_RSA = 0x76
+    IMPORT_WRAPPED_RSA = 0x77
 
     ERROR = 0x7F
 
@@ -173,6 +178,7 @@ class ALGORITHM(IntEnum):
     AES256 = 52
     AES_ECB = 53
     AES_CBC = 54
+    AES_KWP = 55
 
     def to_curve(self) -> ec.EllipticCurve:
         """Return a Cryptography EC curve instance for a given member.
@@ -290,6 +296,7 @@ class OBJECT(IntEnum):
     TEMPLATE = 0x06
     OTP_AEAD_KEY = 0x07
     SYMMETRIC_KEY = 0x08
+    PUBLIC_WRAP_KEY = 0x09
 
 
 @unique
@@ -378,6 +385,8 @@ class CAPABILITY(IntFlag):
     ENCRYPT_ECB = 1 << 0x33
     DECRYPT_CBC = 1 << 0x34
     ENCRYPT_CBC = 1 << 0x35
+    PUBLIC_WRAP_KEY_WRITE = 1 << 0x36
+    PUBLIC_WRAP_KEY_DELETE = 1 << 0x37
 
     @_enum_prop
     def NONE(cls) -> "CAPABILITY":
