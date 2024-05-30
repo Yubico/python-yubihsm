@@ -818,6 +818,9 @@ class WrapKey(YhsmObject):
         - :class:`~yubihsm.defs.ALGORITHM.AES128_CCM_WRAP`
         - :class:`~yubihsm.defs.ALGORITHM.AES192_CCM_WRAP`
         - :class:`~yubihsm.defs.ALGORITHM.AES256_CCM_WRAP`
+        - :class:`~yubihsm.defs.ALGORITHM.RSA_2048`
+        - :class:`~yubihsm.defs.ALGORITHM.RSA_3072`
+        - :class:`~yubihsm.defs.ALGORITHM.RSA_40956`
     """
 
     object_type = OBJECT.WRAP_KEY
@@ -849,6 +852,9 @@ class WrapKey(YhsmObject):
             ALGORITHM.AES128_CCM_WRAP,
             ALGORITHM.AES192_CCM_WRAP,
             ALGORITHM.AES256_CCM_WRAP,
+            ALGORITHM.RSA_2048,
+            ALGORITHM.RSA_3072,
+            ALGORITHM.RSA_4096,
         ]:
             raise ValueError("Invalid algorithm")
 
@@ -893,6 +899,9 @@ class WrapKey(YhsmObject):
             ALGORITHM.AES128_CCM_WRAP,
             ALGORITHM.AES192_CCM_WRAP,
             ALGORITHM.AES256_CCM_WRAP,
+            ALGORITHM.RSA_2048,
+            ALGORITHM.RSA_3072,
+            ALGORITHM.RSA_4096,
         ]:
             raise ValueError("Invalid algorithm")
 
@@ -913,6 +922,56 @@ class WrapKey(YhsmObject):
         )
         msg += key
         return cls._from_command(session, COMMAND.PUT_WRAP_KEY, msg)
+
+    @classmethod
+    def put_asymmetric(
+        cls,
+        session: "core.AuthSession",
+        object_id: int,
+        label: str,
+        domains: int,
+        capabilities: CAPABILITY,
+        delegated_capabilities: CAPABILITY,
+        key: rsa.RSAPrivateKeyWithSerialization,
+    ) -> "WrapKey":
+        """Import an asymmetric wrap key into the YubiHSM.
+
+        The RSA key can be created by using the cryptography API. You can
+        then pass a
+        :class:`~cryptography.hazmat.primitives.asymmetric.rsa.RSAPrivateKey`
+        as `key`.
+
+        :param session: The session to import via.
+        :param object_id: The ID to set for the object. Set to 0 to let the YubiHSM
+            designate an ID.
+        :param label: A text label to give the object.
+        :param domains: The set of domains to assign the object to.
+        :param capabilities: The set of capabilities to give the object.
+        :param delegated_capabilities: The set of capabilities that the WrapKey can give
+            to objects that it imports.
+        :param key: The private key to import.
+        :return: A reference to the newly created object.
+        """
+        rsa_numbers = key.private_numbers()
+        if rsa_numbers.public_numbers.e != RSA_PUBLIC_EXPONENT:
+            raise ValueError("Unsupported public exponent")
+        if key.key_size not in RSA_SIZES:
+            raise ValueError("Unsupported key size")
+        serialized = int.to_bytes(
+            rsa_numbers.p, key.key_size // 8 // 2, "big"
+        ) + int.to_bytes(rsa_numbers.q, key.key_size // 8 // 2, "big")
+        algo = getattr(ALGORITHM, "RSA_%d" % key.key_size)
+
+        return cls.put(
+            session,
+            object_id,
+            label,
+            domains,
+            capabilities,
+            algo,
+            delegated_capabilities,
+            serialized,
+        )
 
     def wrap_data(self, data: bytes) -> bytes:
         """Wrap (encrypt) arbitrary data.
@@ -951,6 +1010,157 @@ class WrapKey(YhsmObject):
         ret = self.session.send_secure_cmd(COMMAND.IMPORT_WRAPPED, msg)
         object_type, object_id = struct.unpack("!BH", ret)
         return YhsmObject._create(object_type, self.session, object_id)
+
+    def unwrap_key_rsa(
+        self,
+        object_id: int,
+        object_type: OBJECT,
+        label: str,
+        domains: int,
+        capabilities: CAPABILITY,
+        algorithm: ALGORITHM,
+        wrapped: bytes,
+        oaep_label: bytes = b"",
+        oaep_hash: hashes.HashAlgorithm = hashes.SHA256(),
+        mgf_hash: hashes.HashAlgorithm = hashes.SHA256(),
+    ) -> YhsmObject:
+        """Unwrap an (a)symmetric key object.
+
+        :param object_id: The ID to set for the object. Set to 0 to let the YubiHSM
+            designate an ID.
+        :object_type: The key object type (`OBJECT.ASYMMETRIC_KEY`
+            or `OBJECT.SYMMETRIC_KEY`).
+        :param label: A text label to give the object.
+        :param domains: The set of domains to assign the object to.
+        :param capabilities: The set of capabilities to give the object.
+        :param algorithm: The algorithm to use for the wrap key.
+        :wrapped: The wrapped key object.
+        :oaep_label: (optional) OAEP label.
+        :oaep_hash: The hash algorithm to use for OAEP label.
+        :mgf_hash: The hash algorithm to use for MGF1.
+        """
+
+        digest = hashes.Hash(oaep_hash, backend=default_backend())
+        digest.update(oaep_label)
+
+        hash = getattr(ALGORITHM, "RSA_OAEP_%s" % oaep_hash.name.upper())
+        mgf = getattr(ALGORITHM, "RSA_MGF1_%s" % mgf_hash.name.upper())
+
+        msg = (
+            struct.pack(
+                "!HBH%dsHQBBB" % LABEL_LENGTH,
+                self.id,
+                object_type,
+                object_id,
+                _label_pack(label),
+                domains,
+                capabilities,
+                algorithm,
+                hash,
+                mgf,
+            )
+            + wrapped
+            + digest.finalize()
+        )
+        ret = self.session.send_secure_cmd(COMMAND.UNWRAP_KEY_RSA, msg)
+        object_type, object_id = struct.unpack("!BH", ret)
+        return YhsmObject._create(object_type, self.session, object_id)
+
+
+class PublicWrapKey(YhsmObject):
+    """Used to export other objects under wrap with a RSA public key.
+
+    Supported algorithms:
+    - :class:`~yubihsm.defs.ALGORITHM.RSA_2048`
+    - :class:`~yubihsm.defs.ALGORITHM.RSA_3072`
+    - :class:`~yubihsm.defs.ALGORITHM.RSA_40956`
+    """
+
+    object_type = OBJECT.PUBLIC_WRAP_KEY
+
+    @classmethod
+    def put(
+        cls,
+        session: "core.AuthSession",
+        object_id: int,
+        label: str,
+        domains: int,
+        capabilities: CAPABILITY,
+        delegated_capabilities: CAPABILITY,
+        public_key: rsa.RSAPublicKey,
+    ) -> "PublicWrapKey":
+        """Import a public RSA wrapkey into the YubiHSM.
+
+        The RSA public key can be supplied using the cryptography API. You can
+        then pass a
+        :class:`~cryptography.hazmat.primitives.asymmetric.rsa.RSAPublicKey`
+        as `public_key`.
+
+        :param session: The session to import via.
+        :param object_id: The ID to set for the object. Set to 0 to let the YubiHSM
+            designate an ID.
+        :param label: A text label to give the object.
+        :param domains: The set of domains to assign the object to.
+        :param capabilities: The set of capabilities to give the object.
+        :param delegated_capabilities: The set of capabilities that the WrapKey can give
+            to objects that it imports.
+        :param public_key: The public key to import.
+        :return: A reference to the newly created object.
+        """
+
+        public_numbers = public_key.public_numbers()
+        if public_numbers.e != RSA_PUBLIC_EXPONENT:
+            raise ValueError("Unsupported public exponent")
+        serialized = public_numbers.n.to_bytes((public_key.key_size + 7) // 8, "big")
+        algorithm = getattr(ALGORITHM, "RSA_%d" % public_key.key_size)
+
+        msg = (
+            struct.pack(
+                "!H%dsHQBQ" % LABEL_LENGTH,
+                object_id,
+                _label_pack(label),
+                domains,
+                capabilities,
+                algorithm,
+                delegated_capabilities,
+            )
+            + serialized
+        )
+
+        return cls._from_command(session, COMMAND.PUT_PUBLIC_WRAP_KEY, msg)
+
+    def wrap_key_rsa(
+        self,
+        key: Union[AsymmetricKey, "SymmetricKey"],
+        algorithm: ALGORITHM = ALGORITHM.AES256,
+        oaep_hash: hashes.HashAlgorithm = hashes.SHA256(),
+        mgf_hash: hashes.HashAlgorithm = hashes.SHA256(),
+        label: bytes = b"",
+    ) -> bytes:
+        """Wrap an (a)symmetric key object.
+
+        :key: The (a)symmetric key object to wrap.
+        :algorithm: The algorithm for the ephemeral key.
+        :oaep_hash: The hash algorithm to use for OAEP label.
+        :mgf_hash: The hash algorithm to use for MGF1.
+        :label: (optional) OAEP label.
+        :return: The encrypted data.
+        """
+
+        digest = hashes.Hash(oaep_hash, backend=default_backend())
+        digest.update(label)
+
+        hash = getattr(ALGORITHM, "RSA_OAEP_%s" % oaep_hash.name.upper())
+        mgf = getattr(ALGORITHM, "RSA_MGF1_%s" % mgf_hash.name.upper())
+
+        msg = (
+            struct.pack(
+                "!HBHBBB", self.id, key.object_type, key.id, algorithm, hash, mgf
+            )
+            + digest.finalize()
+        )
+
+        return self.session.send_secure_cmd(COMMAND.WRAP_KEY_RSA, msg)
 
 
 class HmacKey(YhsmObject):

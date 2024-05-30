@@ -262,6 +262,9 @@ _key_size_table = {
     ALGORITHM.AES128: 16,
     ALGORITHM.AES192: 24,
     ALGORITHM.AES256: 32,
+    ALGORITHM.RSA_2048: 256,
+    ALGORITHM.RSA_3072: 384,
+    ALGORITHM.RSA_4096: 512,
 }
 
 _hash_table = {
