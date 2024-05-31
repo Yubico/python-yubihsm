@@ -1011,6 +1011,33 @@ class WrapKey(YhsmObject):
         object_type, object_id = struct.unpack("!BH", ret)
         return YhsmObject._create(object_type, self.session, object_id)
 
+    def import_wrapped_rsa(
+        self,
+        wrapped_obj: bytes,
+        oaep_label: bytes = b"",
+        oaep_hash: hashes.HashAlgorithm = hashes.SHA256(),
+        mgf_hash: hashes.HashAlgorithm = hashes.SHA256(),
+    ) -> YhsmObject:
+        """Imports an object previously exported under asymmetric wrap.
+
+        :wrapped_obj: The encrypted object data.
+        :oaep_hash: (optional) OAEP label.
+        :oaep_hash: The hash algorithm to use for OAEP label.
+        :mgf_hash: The hash algorithm to use for MGF1.
+        :return: A reference to the imported object.
+        """
+
+        digest = hashes.Hash(oaep_hash, backend=default_backend())
+        digest.update(oaep_label)
+
+        hash = getattr(ALGORITHM, "RSA_OAEP_%s" % oaep_hash.name.upper())
+        mgf = getattr(ALGORITHM, "RSA_MGF1_%s" % mgf_hash.name.upper())
+
+        msg = struct.pack("!HBB", self.id, hash, mgf) + wrapped_obj + digest.finalize()
+        ret = self.session.send_secure_cmd(COMMAND.IMPORT_WRAPPED_RSA, msg)
+        object_type, object_id = struct.unpack("!BH", ret)
+        return YhsmObject._create(object_type, self.session, object_id)
+
     def unwrap_key_rsa(
         self,
         object_id: int,
@@ -1129,13 +1156,52 @@ class PublicWrapKey(YhsmObject):
 
         return cls._from_command(session, COMMAND.PUT_PUBLIC_WRAP_KEY, msg)
 
+    def export_wrapped_rsa(
+        self,
+        obj: YhsmObject,
+        algorithm: ALGORITHM = ALGORITHM.AES256,
+        oaep_label: bytes = b"",
+        oaep_hash: hashes.HashAlgorithm = hashes.SHA256(),
+        mgf_hash: hashes.HashAlgorithm = hashes.SHA256(),
+    ) -> bytes:
+        """Exports an object under asymmetric wrap.
+
+        :obj: The object to export.
+        :algorithm: The algorithm for the ephemeral key.
+        :oaep_hash: The hash algorithm to use for OAEP label.
+        :mgf_hash: The hash algorithm to use for MGF1.
+        :oaep_label: (optional) OAEP label.
+        :return: The encrypted data.
+        """
+
+        digest = hashes.Hash(oaep_hash, backend=default_backend())
+        digest.update(oaep_label)
+
+        hash = getattr(ALGORITHM, "RSA_OAEP_%s" % oaep_hash.name.upper())
+        mgf = getattr(ALGORITHM, "RSA_MGF1_%s" % mgf_hash.name.upper())
+
+        msg = (
+            struct.pack(
+                "!HBHBBB",
+                self.id,
+                obj.object_type,
+                obj.id,
+                algorithm,
+                hash,
+                mgf,
+            )
+            + digest.finalize()
+        )
+
+        return self.session.send_secure_cmd(COMMAND.EXPORT_WRAPPED_RSA, msg)
+
     def wrap_key_rsa(
         self,
         key: Union[AsymmetricKey, "SymmetricKey"],
         algorithm: ALGORITHM = ALGORITHM.AES256,
+        oaep_label: bytes = b"",
         oaep_hash: hashes.HashAlgorithm = hashes.SHA256(),
         mgf_hash: hashes.HashAlgorithm = hashes.SHA256(),
-        label: bytes = b"",
     ) -> bytes:
         """Wrap an (a)symmetric key object.
 
@@ -1143,19 +1209,25 @@ class PublicWrapKey(YhsmObject):
         :algorithm: The algorithm for the ephemeral key.
         :oaep_hash: The hash algorithm to use for OAEP label.
         :mgf_hash: The hash algorithm to use for MGF1.
-        :label: (optional) OAEP label.
+        :oaep_label: (optional) OAEP label.
         :return: The encrypted data.
         """
 
         digest = hashes.Hash(oaep_hash, backend=default_backend())
-        digest.update(label)
+        digest.update(oaep_label)
 
         hash = getattr(ALGORITHM, "RSA_OAEP_%s" % oaep_hash.name.upper())
         mgf = getattr(ALGORITHM, "RSA_MGF1_%s" % mgf_hash.name.upper())
 
         msg = (
             struct.pack(
-                "!HBHBBB", self.id, key.object_type, key.id, algorithm, hash, mgf
+                "!HBHBBB",
+                self.id,
+                key.object_type,
+                key.id,
+                algorithm,
+                hash,
+                mgf,
             )
             + digest.finalize()
         )
