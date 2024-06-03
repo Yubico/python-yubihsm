@@ -17,7 +17,7 @@ from yubihsm.objects import AsymmetricKey, SymmetricKey, WrapKey, Opaque, Public
 from yubihsm.exceptions import YubiHsmDeviceError
 
 from cryptography.hazmat.primitives.asymmetric import ec, rsa
-from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.backends import default_backend
 import os
 import random
@@ -601,3 +601,27 @@ class TestAsymmetricWrap:
 
         import_wrapkey.delete()
         export_wrapkey.delete()
+
+    def test_get_public_key(self, session):
+        key = rsa.generate_private_key(
+            public_exponent=0x10001, key_size=2048, backend=default_backend()
+        )
+
+        wrapkey = WrapKey.put_asymmetric(
+            session,
+            0,
+            "Test Get Public Key",
+            1,
+            CAPABILITY.EXPORT_WRAPPED,
+            CAPABILITY.NONE,
+            key,
+        )
+
+        pub = wrapkey.get_public_key()
+        assert pub.public_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo,
+        ) == key.public_key().public_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo,
+        )

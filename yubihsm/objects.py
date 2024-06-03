@@ -841,7 +841,7 @@ class WrapKey(YhsmObject):
         :param session: The session to import via.
         :param object_id: The ID to set for the object. Set to 0 to let the YubiHSM
             designate an ID.
-        :param label: A text label to give the object.
+            :param label: A text label to give the object.
         :param domains: The set of domains to assign the object to.
         :param capabilities: The set of capabilities to give the object.
         :param algorithm: The algorithm to use for the wrap key.
@@ -971,6 +971,17 @@ class WrapKey(YhsmObject):
             algo,
             delegated_capabilities,
             serialized,
+        )
+
+    def get_public_key(self) -> rsa.RSAPublicKey:
+        """Get the public key of the wrapkey pair."""
+
+        msg = struct.pack("!HB", self.id, self.object_type)
+        ret = self.session.send_secure_cmd(COMMAND.GET_PUBLIC_KEY, msg)
+        raw_key = ret[1:]
+        num = int.from_bytes(raw_key, "big")
+        return rsa.RSAPublicNumbers(e=0x10001, n=num).public_key(
+            backend=default_backend()
         )
 
     def wrap_data(self, data: bytes) -> bytes:
