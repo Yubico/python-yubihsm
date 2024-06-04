@@ -319,6 +319,7 @@ class AUDIT(IntEnum):
     OFF = 0x00
     ON = 0x01
     FIXED = 0x02
+    PENDING = 0x03
 
 
 class _enum_prop:

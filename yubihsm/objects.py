@@ -1002,13 +1002,19 @@ class WrapKey(YhsmObject):
         msg = struct.pack("!H", self.id) + data
         return self.session.send_secure_cmd(COMMAND.UNWRAP_DATA, msg)
 
-    def export_wrapped(self, obj: YhsmObject) -> bytes:
+    def export_wrapped(self, obj: YhsmObject, seed: bool = False) -> bytes:
         """Exports an object under wrap.
 
         :param obj: The object to export.
+        :seed: (optional) Export key with seed. Only applicable
+            for ed25519 keys.
         :return: The encrypted object data.
         """
-        msg = struct.pack("!HBH", self.id, obj.object_type, obj.id)
+        if seed:
+            self.session.require_version((2, 4, 0))
+            msg = struct.pack("!HBHB", self.id, obj.object_type, obj.id, 1)
+        else:
+            msg = struct.pack("!HBH", self.id, obj.object_type, obj.id)
         return self.session.send_secure_cmd(COMMAND.EXPORT_WRAPPED, msg)
 
     def import_wrapped(self, wrapped_obj: bytes) -> YhsmObject:

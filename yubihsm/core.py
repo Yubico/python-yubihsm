@@ -24,6 +24,7 @@ from .exceptions import (
     YubiHsmInvalidResponseError,
     YubiHsmAuthenticationError,
     YubiHsmConnectionError,
+    YubiHsmNotSupportedError,
 )
 
 from cryptography.hazmat.backends import default_backend
@@ -118,6 +119,7 @@ class DeviceInfo:
     :ivar log_size: Log entry storage capacity.
     :ivar log_used: Log entries currently stored.
     :ivar supported_algorithms: List of supported algorithms.
+    :ivar part_number: Chip designator.
     """
 
     FORMAT: ClassVar[str] = "!BBBIBB"
@@ -128,16 +130,22 @@ class DeviceInfo:
     log_size: int
     log_used: int
     supported_algorithms: Set[ALGORITHM]
+    part_number: Optional[str]
 
     @classmethod
-    def parse(cls, value: bytes) -> "DeviceInfo":
+    def parse(
+        cls, first_page: bytes, second_page: Optional[bytes] = None
+    ) -> "DeviceInfo":
         """Parse a DeviceInfo from its binary representation."""
-        unpacked = struct.unpack_from(cls.FORMAT, value)
+        unpacked = struct.unpack_from(cls.FORMAT, first_page)
         version: Tuple[int, int, int] = unpacked[:3]  # type: ignore
         serial, log_size, log_used = unpacked[3:]
-        algorithms = {_algorithm(a) for a in value[cls.LENGTH :]}
+        algorithms = {_algorithm(a) for a in first_page[cls.LENGTH :]}
+        part_number = None
+        if second_page:
+            part_number = second_page.decode("utf-8")
 
-        return cls(version, serial, log_size, log_used, algorithms)
+        return cls(version, serial, log_size, log_used, algorithms, part_number)
 
 
 def _calculate_iv(key: bytes, counter: int) -> bytes:
@@ -287,7 +295,13 @@ class YubiHsm:
 
         :return: Device information.
         """
-        return DeviceInfo.parse(self.send_cmd(COMMAND.DEVICE_INFO))
+        first_page = self.send_cmd(COMMAND.DEVICE_INFO)
+        device_info = DeviceInfo.parse(first_page)
+        if device_info.version >= (2, 4, 0):
+            # fetch next page
+            second_page = self.send_cmd(COMMAND.DEVICE_INFO, struct.pack("!B", 1))
+            device_info = DeviceInfo.parse(first_page, second_page)
+        return device_info
 
     def get_device_public_key(self) -> ec.EllipticCurvePublicKey:
         """Retrieve the device's public key.
@@ -706,6 +720,20 @@ class AuthSession:
         :return: The ID of the session.
         """
         return self._sid
+
+    @property
+    def version(self) -> Tuple[int, int, int]:
+        """Version
+
+        :return: The version of the YubiHSM.
+        """
+        return self._hsm.get_device_info().version
+
+    def require_version(self, min_version: Tuple[int, int, int]) -> None:
+        if self.version < min_version:
+            raise YubiHsmNotSupportedError(
+                "This action requires YubiHSM %d.%d.%d or later" % min_version
+            )
 
     def send_secure_cmd(self, cmd: COMMAND, data: bytes = b"") -> bytes:
         """Send a command over the encrypted session.

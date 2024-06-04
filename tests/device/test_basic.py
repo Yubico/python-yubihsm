@@ -13,7 +13,13 @@
 # limitations under the License.
 
 from yubihsm.core import MAX_MSG_SIZE
-from yubihsm.defs import ALGORITHM, CAPABILITY, OBJECT, COMMAND, ORIGIN
+from yubihsm.defs import (
+    ALGORITHM,
+    CAPABILITY,
+    OBJECT,
+    COMMAND,
+    ORIGIN,
+)
 from yubihsm.objects import (
     YhsmObject,
     AsymmetricKey,
@@ -188,13 +194,16 @@ class TestEcho:
 
 class TestFipsOptions:
     @pytest.fixture(scope="class", autouse=True)
-    def session2(self, info, session, connect_hsm):
+    def session2(self, session, connect_hsm):
         try:
             session.get_fips_mode()
             session.reset_device()
             sleep(5.0)
             hsm = connect_hsm()
-            return hsm.create_session_derived(1, "password")
+            new_session = hsm.create_session_derived(1, "password")
+            yield new_session
+            new_session.reset_device()
+            sleep(5.0)
         except YubiHsmDeviceError:
             pytest.skip("Non-FIPS YubiHSM")
 
@@ -203,24 +212,40 @@ class TestFipsOptions:
         session2.set_fips_mode(True)
         assert session2.get_fips_mode()
 
-    def test_fips_mode_disables_algorithms(self, session2):
+    def test_fips_mode_disables_algorithms(self, session2, info):
         session2.set_fips_mode(True)
         enabled = session2.get_enabled_algorithms()
-        assert not any(
-            enabled[alg]
-            for alg in (
-                ALGORITHM.RSA_PKCS1_SHA1,
-                ALGORITHM.RSA_PSS_SHA1,
-                ALGORITHM.EC_ECDSA_SHA1,
-                ALGORITHM.EC_ED25519,
+        if info.version < (2, 4, 0):
+            assert not any(
+                enabled[alg]
+                for alg in (
+                    ALGORITHM.RSA_PKCS1_SHA1,
+                    ALGORITHM.RSA_PSS_SHA1,
+                    ALGORITHM.EC_ECDSA_SHA1,
+                    ALGORITHM.EC_ED25519,
+                )
             )
-        )
+        else:
+            assert not any(
+                enabled[alg]
+                for alg in (
+                    ALGORITHM.RSA_PKCS1_SHA1,
+                    ALGORITHM.RSA_PSS_SHA1,
+                    ALGORITHM.EC_K256,
+                    ALGORITHM.EC_ECDSA_SHA1,
+                    ALGORITHM.RSA_PKCS1_DECRYPT,
+                )
+            )
 
-    def test_enabling_algorithms_disable_fips_mode(self, session2):
+    def test_enabling_algorithms_disable_fips_mode(self, session2, info):
         session2.set_fips_mode(True)
-        session2.set_enabled_algorithms(
-            {
-                ALGORITHM.RSA_PKCS1_SHA1: True,
-            }
-        )
-        assert not session2.get_fips_mode()
+        if info.version < (2, 4, 0):
+            session2.set_enabled_algorithms(
+                {
+                    ALGORITHM.RSA_PKCS1_SHA1: True,
+                }
+            )
+            assert not session2.get_fips_mode()
+        else:
+            with pytest.raises(YubiHsmDeviceError):
+                session2.set_enabled_algorithms({ALGORITHM.RSA_PKCS1_SHA1: True})
