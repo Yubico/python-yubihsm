@@ -434,8 +434,15 @@ class TestAsymmetricWrap:
             key.public_key(),
         )
 
-        import_wrapkey = WrapKey.put_asymmetric(
-            session, 0, label, 1, CAPABILITY.IMPORT_WRAPPED, delegated_capabilities, key
+        import_wrapkey = WrapKey.put(
+            session,
+            0,
+            label,
+            1,
+            CAPABILITY.IMPORT_WRAPPED,
+            ALGORITHM.RSA_2048,
+            delegated_capabilities,
+            key,
         )
         return export_wrapkey, import_wrapkey
 
@@ -607,12 +614,13 @@ class TestAsymmetricWrap:
             public_exponent=0x10001, key_size=2048, backend=default_backend()
         )
 
-        wrapkey = WrapKey.put_asymmetric(
+        wrapkey = WrapKey.put(
             session,
             0,
             "Test Get Public Key",
             1,
             CAPABILITY.EXPORT_WRAPPED,
+            ALGORITHM.RSA_2048,
             CAPABILITY.NONE,
             key,
         )

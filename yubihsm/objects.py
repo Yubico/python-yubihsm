@@ -879,9 +879,14 @@ class WrapKey(YhsmObject):
         capabilities: CAPABILITY,
         algorithm: ALGORITHM,
         delegated_capabilities: CAPABILITY,
-        key: bytes,
+        key: Union[bytes, rsa.RSAPrivateKeyWithSerialization],
     ) -> "WrapKey":
         """Import a wrap key into the YubiHSM.
+
+        Asymmetric keys can be imported by using the cryptography API. You can
+        then pass a
+        :class:`~cryptography.hazmat.primitives.asymmetric.rsa.RSAPrivateKey`
+        as `key`.
 
         :param session: The session to import via.
         :param object_id: The ID to set for the object. Set to 0 to let the YubiHSM
@@ -892,7 +897,7 @@ class WrapKey(YhsmObject):
         :param algorithm: The algorithm to use for the wrap key.
         :param delegated_capabilities: The set of capabilities that the WrapKey can give
             to objects that it imports.
-        :param key: The raw encryption key corresponding to the algorithm.
+        :param key: The encryption key corresponding to the algorithm.
         :return: A reference to the newly created object.
         """
         if algorithm not in [
@@ -905,11 +910,25 @@ class WrapKey(YhsmObject):
         ]:
             raise ValueError("Invalid algorithm")
 
-        if len(key) != algorithm.to_key_size():
-            raise ValueError(
-                "Key length (%d) not matching algorithm (%s)"
-                % (len(key), algorithm.name)
-            )
+        if isinstance(key, rsa.RSAPrivateKeyWithSerialization):
+            rsa_numbers = key.private_numbers()
+            if rsa_numbers.public_numbers.e != RSA_PUBLIC_EXPONENT:
+                raise ValueError("Unsupported public exponent")
+            if key.key_size not in RSA_SIZES:
+                raise ValueError("Unsupported key size")
+            key_data = int.to_bytes(
+                rsa_numbers.p, key.key_size // 8 // 2, "big"
+            ) + int.to_bytes(rsa_numbers.q, key.key_size // 8 // 2, "big")
+            algo = getattr(ALGORITHM, "RSA_%d" % key.key_size)
+            if algo != algorithm:
+                raise ValueError("Key does not match algorithm (%s)" % algorithm.name)
+        else:
+            if len(key) != algorithm.to_key_size():
+                raise ValueError(
+                    "Key length (%d) not matching algorithm (%s)"
+                    % (len(key), algorithm.name)
+                )
+            key_data = key
 
         msg = struct.pack(
             "!H%dsHQBQ" % LABEL_LENGTH,
@@ -920,58 +939,8 @@ class WrapKey(YhsmObject):
             algorithm,
             delegated_capabilities,
         )
-        msg += key
+        msg += key_data
         return cls._from_command(session, COMMAND.PUT_WRAP_KEY, msg)
-
-    @classmethod
-    def put_asymmetric(
-        cls,
-        session: "core.AuthSession",
-        object_id: int,
-        label: str,
-        domains: int,
-        capabilities: CAPABILITY,
-        delegated_capabilities: CAPABILITY,
-        key: rsa.RSAPrivateKeyWithSerialization,
-    ) -> "WrapKey":
-        """Import an asymmetric wrap key into the YubiHSM.
-
-        The RSA key can be created by using the cryptography API. You can
-        then pass a
-        :class:`~cryptography.hazmat.primitives.asymmetric.rsa.RSAPrivateKey`
-        as `key`.
-
-        :param session: The session to import via.
-        :param object_id: The ID to set for the object. Set to 0 to let the YubiHSM
-            designate an ID.
-        :param label: A text label to give the object.
-        :param domains: The set of domains to assign the object to.
-        :param capabilities: The set of capabilities to give the object.
-        :param delegated_capabilities: The set of capabilities that the WrapKey can give
-            to objects that it imports.
-        :param key: The private key to import.
-        :return: A reference to the newly created object.
-        """
-        rsa_numbers = key.private_numbers()
-        if rsa_numbers.public_numbers.e != RSA_PUBLIC_EXPONENT:
-            raise ValueError("Unsupported public exponent")
-        if key.key_size not in RSA_SIZES:
-            raise ValueError("Unsupported key size")
-        serialized = int.to_bytes(
-            rsa_numbers.p, key.key_size // 8 // 2, "big"
-        ) + int.to_bytes(rsa_numbers.q, key.key_size // 8 // 2, "big")
-        algo = getattr(ALGORITHM, "RSA_%d" % key.key_size)
-
-        return cls.put(
-            session,
-            object_id,
-            label,
-            domains,
-            capabilities,
-            algo,
-            delegated_capabilities,
-            serialized,
-        )
 
     def get_public_key(self) -> rsa.RSAPublicKey:
         """Get the public key of the wrapkey pair."""
