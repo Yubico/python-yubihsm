@@ -820,7 +820,7 @@ class WrapKey(YhsmObject):
         - :class:`~yubihsm.defs.ALGORITHM.AES256_CCM_WRAP`
         - :class:`~yubihsm.defs.ALGORITHM.RSA_2048`
         - :class:`~yubihsm.defs.ALGORITHM.RSA_3072`
-        - :class:`~yubihsm.defs.ALGORITHM.RSA_40956`
+        - :class:`~yubihsm.defs.ALGORITHM.RSA_4096`
     """
 
     object_type = OBJECT.WRAP_KEY
@@ -847,7 +847,6 @@ class WrapKey(YhsmObject):
         :param algorithm: The algorithm to use for the wrap key.
         :return: A reference to the newly created object.
         """
-
         if algorithm not in [
             ALGORITHM.AES128_CCM_WRAP,
             ALGORITHM.AES192_CCM_WRAP,
@@ -916,12 +915,12 @@ class WrapKey(YhsmObject):
                 raise ValueError("Unsupported public exponent")
             if key.key_size not in RSA_SIZES:
                 raise ValueError("Unsupported key size")
-            key_data = int.to_bytes(
-                rsa_numbers.p, key.key_size // 8 // 2, "big"
-            ) + int.to_bytes(rsa_numbers.q, key.key_size // 8 // 2, "big")
             algo = getattr(ALGORITHM, "RSA_%d" % key.key_size)
             if algo != algorithm:
                 raise ValueError("Key does not match algorithm (%s)" % algorithm.name)
+            key_data = int.to_bytes(
+                rsa_numbers.p, key.key_size // 8 // 2, "big"
+            ) + int.to_bytes(rsa_numbers.q, key.key_size // 8 // 2, "big")
         else:
             if len(key) != algorithm.to_key_size():
                 raise ValueError(
@@ -944,7 +943,6 @@ class WrapKey(YhsmObject):
 
     def get_public_key(self) -> rsa.RSAPublicKey:
         """Get the public key of the wrapkey pair."""
-
         msg = struct.pack("!HB", self.id, self.object_type)
         ret = self.session.send_secure_cmd(COMMAND.GET_PUBLIC_KEY, msg)
         raw_key = ret[1:]
@@ -975,7 +973,7 @@ class WrapKey(YhsmObject):
         """Exports an object under wrap.
 
         :param obj: The object to export.
-        :seed: (optional) Export key with seed. Only applicable
+        :param seed: (optional) Export key with seed. Only applicable
             for ed25519 keys.
         :return: The encrypted object data.
         """
@@ -1006,13 +1004,12 @@ class WrapKey(YhsmObject):
     ) -> YhsmObject:
         """Imports an object previously exported under asymmetric wrap.
 
-        :wrapped_obj: The encrypted object data.
-        :oaep_hash: (optional) OAEP label.
-        :oaep_hash: The hash algorithm to use for OAEP label.
-        :mgf_hash: The hash algorithm to use for MGF1.
+        :param wrapped_obj: The encrypted object data.
+        :param oaep_hash: (optional) OAEP label.
+        :param oaep_hash: The hash algorithm to use for OAEP label.
+        :param mgf_hash: The hash algorithm to use for MGF1.
         :return: A reference to the imported object.
         """
-
         digest = hashes.Hash(oaep_hash, backend=default_backend())
         digest.update(oaep_label)
 
@@ -1037,22 +1034,25 @@ class WrapKey(YhsmObject):
         oaep_hash: hashes.HashAlgorithm = hashes.SHA256(),
         mgf_hash: hashes.HashAlgorithm = hashes.SHA256(),
     ) -> YhsmObject:
-        """Unwrap an (a)symmetric key object.
+        """Unwrap an (a)symmetric key into a YubiHSM key object.
+
+        Asymmetric keys are expected to have been serialized as
+        PKCS#8.
 
         :param object_id: The ID to set for the object. Set to 0 to let the YubiHSM
             designate an ID.
-        :object_type: The key object type (`OBJECT.ASYMMETRIC_KEY`
+        :param object_type: The key object type (`OBJECT.ASYMMETRIC_KEY`
             or `OBJECT.SYMMETRIC_KEY`).
         :param label: A text label to give the object.
         :param domains: The set of domains to assign the object to.
         :param capabilities: The set of capabilities to give the object.
-        :param algorithm: The algorithm to use for the wrap key.
-        :wrapped: The wrapped key object.
-        :oaep_label: (optional) OAEP label.
-        :oaep_hash: The hash algorithm to use for OAEP label.
-        :mgf_hash: The hash algorithm to use for MGF1.
+        :param algorithm: The algorithm of the key.
+        :param wrapped: The wrapped key object.
+        :param oaep_label: (optional) OAEP label.
+        :param oaep_hash: The hash algorithm to use for OAEP label.
+        :param mgf_hash: The hash algorithm to use for MGF1.
+        :return: A reference to the imported key object.
         """
-
         digest = hashes.Hash(oaep_hash, backend=default_backend())
         digest.update(oaep_label)
 
@@ -1120,7 +1120,6 @@ class PublicWrapKey(YhsmObject):
         :param public_key: The public key to import.
         :return: A reference to the newly created object.
         """
-
         public_numbers = public_key.public_numbers()
         if public_numbers.e != RSA_PUBLIC_EXPONENT:
             raise ValueError("Unsupported public exponent")
@@ -1150,16 +1149,15 @@ class PublicWrapKey(YhsmObject):
         oaep_hash: hashes.HashAlgorithm = hashes.SHA256(),
         mgf_hash: hashes.HashAlgorithm = hashes.SHA256(),
     ) -> bytes:
-        """Exports an object under asymmetric wrap.
+        """Exports an object under wrap.
 
-        :obj: The object to export.
-        :algorithm: The algorithm for the ephemeral key.
-        :oaep_hash: The hash algorithm to use for OAEP label.
-        :mgf_hash: The hash algorithm to use for MGF1.
-        :oaep_label: (optional) OAEP label.
-        :return: The encrypted data.
+        :param obj: The object to export.
+        :param algorithm: The algorithm to use for the ephemeral key.
+        :param oaep_hash: The hash algorithm to use for OAEP label.
+        :param mgf_hash: The hash algorithm to use for MGF1.
+        :param oaep_label: (optional) OAEP label.
+        :return: The encrypted object data.
         """
-
         digest = hashes.Hash(oaep_hash, backend=default_backend())
         digest.update(oaep_label)
 
@@ -1191,14 +1189,13 @@ class PublicWrapKey(YhsmObject):
     ) -> bytes:
         """Wrap an (a)symmetric key object.
 
-        :key: The (a)symmetric key object to wrap.
-        :algorithm: The algorithm for the ephemeral key.
-        :oaep_hash: The hash algorithm to use for OAEP label.
-        :mgf_hash: The hash algorithm to use for MGF1.
-        :oaep_label: (optional) OAEP label.
+        :param key: The (a)symmetric key object to wrap.
+        :param algorithm: The algorithm for the ephemeral key.
+        :param oaep_hash: The hash algorithm to use for OAEP label.
+        :param mgf_hash: The hash algorithm to use for MGF1.
+        :param oaep_label: (optional) OAEP label.
         :return: The encrypted data.
         """
-
         digest = hashes.Hash(oaep_hash, backend=default_backend())
         digest.update(oaep_label)
 
