@@ -16,7 +16,7 @@ from yubihsm.defs import ALGORITHM, CAPABILITY, ERROR, ORIGIN, OBJECT
 from yubihsm.objects import AsymmetricKey, SymmetricKey, WrapKey, Opaque, PublicWrapKey
 from yubihsm.exceptions import YubiHsmDeviceError
 
-from cryptography.hazmat.primitives.asymmetric import ec, rsa
+from cryptography.hazmat.primitives.asymmetric import ec, rsa, ed25519
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.backends import default_backend
 import os
@@ -147,6 +147,55 @@ def test_export_wrap(session):
 
     asymkey = wrapkey.import_wrapped(wrapped)
     assert isinstance(asymkey, AsymmetricKey)
+
+
+def test_export_ed25519(session):
+    wrapkey = WrapKey.put(
+        session,
+        0,
+        "Test Export ED25519 ",
+        1,
+        CAPABILITY.EXPORT_WRAPPED | CAPABILITY.IMPORT_WRAPPED,
+        ALGORITHM.AES192_CCM_WRAP,
+        CAPABILITY.SIGN_EDDSA | CAPABILITY.EXPORTABLE_UNDER_WRAP,
+        os.urandom(24),
+    )
+
+    edkey = ed25519.Ed25519PrivateKey.generate()
+
+    asymkey = AsymmetricKey.put(
+        session,
+        0,
+        "Test Export ED25519",
+        0xFFFF,
+        CAPABILITY.SIGN_EDDSA | CAPABILITY.EXPORTABLE_UNDER_WRAP,
+        edkey,
+    )
+    origin = asymkey.get_info().origin
+    assert origin == ORIGIN.IMPORTED
+
+    data = os.urandom(64)
+    resp = asymkey.sign_eddsa(data)
+
+    edkey.public_key().verify(resp, data)
+
+    wrapped = wrapkey.export_wrapped(asymkey)
+    wrapped_with_seed = wrapkey.export_wrapped(asymkey, True)
+
+    asymkey.delete()
+
+    for w in [wrapped, wrapped_with_seed]:
+        asymkey = wrapkey.import_wrapped(w)
+
+        data = os.urandom(64)
+        resp = asymkey.sign_eddsa(data)
+
+        edkey.public_key().verify(resp, data)
+
+        origin = asymkey.get_info().origin
+        assert origin == ORIGIN.IMPORTED_WRAPPED | ORIGIN.IMPORTED
+
+        asymkey.delete()
 
 
 def test_wrap_data(session):
