@@ -13,7 +13,13 @@
 # limitations under the License.
 
 from yubihsm.defs import ALGORITHM, CAPABILITY, ERROR, ORIGIN, OBJECT
-from yubihsm.objects import AsymmetricKey, SymmetricKey, WrapKey, Opaque, PublicWrapKey
+from yubihsm.objects import (
+    AsymmetricKey,
+    SymmetricKey,
+    WrapKey,
+    Opaque,
+    PublicWrapKey,
+)
 from yubihsm.exceptions import YubiHsmDeviceError
 
 from cryptography.hazmat.primitives.asymmetric import ec, rsa, ed25519
@@ -153,7 +159,7 @@ def test_export_ed25519(session):
     wrapkey = WrapKey.put(
         session,
         0,
-        "Test Export ED25519 ",
+        "Test Export ED25519",
         1,
         CAPABILITY.EXPORT_WRAPPED | CAPABILITY.IMPORT_WRAPPED,
         ALGORITHM.AES192_CCM_WRAP,
@@ -465,8 +471,9 @@ class TestAsymmetricWrap:
     def generate_wrap_keys(
         self,
         session,
-        capabilities,
-        delegated_capabilities,
+        export_capabilities,
+        export_delegated_capabilities,
+        import_delegated_capabilities,
         label,
     ):
         key = rsa.generate_private_key(
@@ -478,8 +485,8 @@ class TestAsymmetricWrap:
             0,
             label,
             1,
-            CAPABILITY.EXPORT_WRAPPED | capabilities,
-            CAPABILITY.EXPORTABLE_UNDER_WRAP | delegated_capabilities,
+            CAPABILITY.EXPORT_WRAPPED | export_capabilities,
+            CAPABILITY.EXPORTABLE_UNDER_WRAP | export_delegated_capabilities,
             key.public_key(),
         )
 
@@ -490,7 +497,7 @@ class TestAsymmetricWrap:
             1,
             CAPABILITY.IMPORT_WRAPPED,
             ALGORITHM.RSA_2048,
-            delegated_capabilities,
+            import_delegated_capabilities,
             key,
         )
         return export_wrapkey, import_wrapkey
@@ -498,6 +505,7 @@ class TestAsymmetricWrap:
     def test_wrap_asymmetric_key(self, session):
         export_wrapkey, import_wrapkey = self.generate_wrap_keys(
             session,
+            CAPABILITY.SIGN_ECDSA,
             CAPABILITY.SIGN_ECDSA,
             CAPABILITY.SIGN_ECDSA,
             "Test Asymmetric Key",
@@ -558,7 +566,8 @@ class TestAsymmetricWrap:
         export_wrapkey, import_wrapkey = self.generate_wrap_keys(
             session,
             CAPABILITY.ENCRYPT_ECB | CAPABILITY.DECRYPT_ECB,
-            CAPABILITY.ENCRYPT_ECB | CAPABILITY.DECRYPT_ECB,
+            CAPABILITY.DECRYPT_ECB | CAPABILITY.ENCRYPT_ECB,
+            CAPABILITY.DECRYPT_ECB,
             "Test Wrap Symmetric Key",
         )
 
@@ -610,6 +619,7 @@ class TestAsymmetricWrap:
     def test_export_wrap_rsa(self, session):
         export_wrapkey, import_wrapkey = self.generate_wrap_keys(
             session,
+            CAPABILITY.SIGN_ECDSA,
             CAPABILITY.SIGN_ECDSA,
             CAPABILITY.SIGN_ECDSA | CAPABILITY.EXPORTABLE_UNDER_WRAP,
             "Test Export RSA",

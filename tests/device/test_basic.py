@@ -130,14 +130,14 @@ class TestListObjects:
 
 
 class TestVarious:
-    def test_device_info(self, hsm, info):
+    def test_device_info(self, hsm):
         device_info = hsm.get_device_info()
         assert len(device_info.version) == 3
         assert device_info.serial > 0
         assert device_info.log_used > 0
         assert device_info.log_size >= device_info.log_used
         assert len(device_info.supported_algorithms) >= 47
-        if info.version > (2, 4, 0):
+        if device_info.version > (2, 4, 0):
             assert isinstance(device_info.part_number, str)
 
     def test_get_pseudo_random(self, session):
