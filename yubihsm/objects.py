@@ -978,7 +978,6 @@ class WrapKey(YhsmObject):
         :return: The encrypted object data.
         """
         if seed:
-            self.session.require_version((2, 4, 0))
             msg = struct.pack("!HBHB", self.id, obj.object_type, obj.id, 1)
         else:
             msg = struct.pack("!HBH", self.id, obj.object_type, obj.id)

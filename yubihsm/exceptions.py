@@ -48,7 +48,3 @@ class YubiHsmInvalidResponseError(YubiHsmError):
 
 class YubiHsmAuthenticationError(YubiHsmError):
     """Authentication failed."""
-
-
-class YubiHsmNotSupportedError(YubiHsmError):
-    """Operation not supported"""

@@ -24,7 +24,6 @@ from .exceptions import (
     YubiHsmInvalidResponseError,
     YubiHsmAuthenticationError,
     YubiHsmConnectionError,
-    YubiHsmNotSupportedError,
 )
 
 from cryptography.hazmat.backends import default_backend
@@ -720,20 +719,6 @@ class AuthSession:
         :return: The ID of the session.
         """
         return self._sid
-
-    @property
-    def version(self) -> Tuple[int, int, int]:
-        """Version
-
-        :return: The version of the YubiHSM.
-        """
-        return self._hsm.get_device_info().version
-
-    def require_version(self, min_version: Tuple[int, int, int]) -> None:
-        if self.version < min_version:
-            raise YubiHsmNotSupportedError(
-                "This action requires YubiHSM %d.%d.%d or later" % min_version
-            )
 
     def send_secure_cmd(self, cmd: COMMAND, data: bytes = b"") -> bytes:
         """Send a command over the encrypted session.

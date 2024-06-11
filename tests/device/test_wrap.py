@@ -155,55 +155,6 @@ def test_export_wrap(session):
     assert isinstance(asymkey, AsymmetricKey)
 
 
-def test_export_ed25519(session):
-    wrapkey = WrapKey.put(
-        session,
-        0,
-        "Test Export ED25519",
-        1,
-        CAPABILITY.EXPORT_WRAPPED | CAPABILITY.IMPORT_WRAPPED,
-        ALGORITHM.AES192_CCM_WRAP,
-        CAPABILITY.SIGN_EDDSA | CAPABILITY.EXPORTABLE_UNDER_WRAP,
-        os.urandom(24),
-    )
-
-    edkey = ed25519.Ed25519PrivateKey.generate()
-
-    asymkey = AsymmetricKey.put(
-        session,
-        0,
-        "Test Export ED25519",
-        0xFFFF,
-        CAPABILITY.SIGN_EDDSA | CAPABILITY.EXPORTABLE_UNDER_WRAP,
-        edkey,
-    )
-    origin = asymkey.get_info().origin
-    assert origin == ORIGIN.IMPORTED
-
-    data = os.urandom(64)
-    resp = asymkey.sign_eddsa(data)
-
-    edkey.public_key().verify(resp, data)
-
-    wrapped = wrapkey.export_wrapped(asymkey)
-    wrapped_with_seed = wrapkey.export_wrapped(asymkey, True)
-
-    asymkey.delete()
-
-    for w in [wrapped, wrapped_with_seed]:
-        asymkey = wrapkey.import_wrapped(w)
-
-        data = os.urandom(64)
-        resp = asymkey.sign_eddsa(data)
-
-        edkey.public_key().verify(resp, data)
-
-        origin = asymkey.get_info().origin
-        assert origin == ORIGIN.IMPORTED_WRAPPED | ORIGIN.IMPORTED
-
-        asymkey.delete()
-
-
 def test_wrap_data(session):
     w_id = random.randint(1, 0xFFFE)
     key_label = "Key in List 0x%04x" % w_id
@@ -692,3 +643,51 @@ class TestAsymmetricWrap:
             encoding=serialization.Encoding.PEM,
             format=serialization.PublicFormat.SubjectPublicKeyInfo,
         )
+
+    def test_export_ed25519(self, session):
+        wrapkey = WrapKey.put(
+            session,
+            0,
+            "Test Export ED25519",
+            1,
+            CAPABILITY.EXPORT_WRAPPED | CAPABILITY.IMPORT_WRAPPED,
+            ALGORITHM.AES192_CCM_WRAP,
+            CAPABILITY.SIGN_EDDSA | CAPABILITY.EXPORTABLE_UNDER_WRAP,
+            os.urandom(24),
+        )
+
+        edkey = ed25519.Ed25519PrivateKey.generate()
+
+        asymkey = AsymmetricKey.put(
+            session,
+            0,
+            "Test Export ED25519",
+            0xFFFF,
+            CAPABILITY.SIGN_EDDSA | CAPABILITY.EXPORTABLE_UNDER_WRAP,
+            edkey,
+        )
+        origin = asymkey.get_info().origin
+        assert origin == ORIGIN.IMPORTED
+
+        data = os.urandom(64)
+        resp = asymkey.sign_eddsa(data)
+
+        edkey.public_key().verify(resp, data)
+
+        wrapped = wrapkey.export_wrapped(asymkey)
+        wrapped_with_seed = wrapkey.export_wrapped(asymkey, True)
+
+        asymkey.delete()
+
+        for w in [wrapped, wrapped_with_seed]:
+            asymkey = wrapkey.import_wrapped(w)
+
+            data = os.urandom(64)
+            resp = asymkey.sign_eddsa(data)
+
+            edkey.public_key().verify(resp, data)
+
+            origin = asymkey.get_info().origin
+            assert origin == ORIGIN.IMPORTED_WRAPPED | ORIGIN.IMPORTED
+
+            asymkey.delete()
