@@ -481,9 +481,9 @@ class TestAsymmetricWrap:
 
         pub.verify(resp, data, ec.ECDSA(hashes.SHA256()))
 
-        wrapped = export_wrapkey.wrap_key_rsa(asymkey)
+        wrapped = export_wrapkey.export_raw_key(asymkey)
 
-        wrapped2 = export_wrapkey.wrap_key_rsa(asymkey)
+        wrapped2 = export_wrapkey.export_raw_key(asymkey)
 
         assert wrapped != wrapped2
 
@@ -491,7 +491,7 @@ class TestAsymmetricWrap:
 
         pytest.raises(YubiHsmDeviceError, asymkey.get_public_key)
 
-        asymkey = import_wrapkey.unwrap_key_rsa(
+        asymkey = import_wrapkey.import_raw_key(
             0,
             OBJECT.ASYMMETRIC_KEY,
             "Test Wrap Asymmetric Key",
@@ -541,15 +541,15 @@ class TestAsymmetricWrap:
 
         assert pt == symkey.decrypt_ecb(ct)
 
-        wrapped = export_wrapkey.wrap_key_rsa(symkey)
+        wrapped = export_wrapkey.export_raw_key(symkey)
 
-        wrapped2 = export_wrapkey.wrap_key_rsa(symkey)
+        wrapped2 = export_wrapkey.export_raw_key(symkey)
 
         assert wrapped != wrapped2
 
         symkey.delete()
 
-        symkey = import_wrapkey.unwrap_key_rsa(
+        symkey = import_wrapkey.import_raw_key(
             0,
             OBJECT.SYMMETRIC_KEY,
             "Test Wrap Symmetric Key",

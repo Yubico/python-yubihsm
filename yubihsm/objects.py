@@ -616,7 +616,7 @@ class AsymmetricKey(YhsmObject):
         raw_key = ret[1:]
         if algo in [ALGORITHM.RSA_2048, ALGORITHM.RSA_3072, ALGORITHM.RSA_4096]:
             num = int.from_bytes(raw_key, "big")
-            return rsa.RSAPublicNumbers(e=0x10001, n=num).public_key(
+            return rsa.RSAPublicNumbers(e=RSA_PUBLIC_EXPONENT, n=num).public_key(
                 backend=default_backend()
             )
         elif algo in [
@@ -947,7 +947,7 @@ class WrapKey(YhsmObject):
         ret = self.session.send_secure_cmd(COMMAND.GET_PUBLIC_KEY, msg)
         raw_key = ret[1:]
         num = int.from_bytes(raw_key, "big")
-        return rsa.RSAPublicNumbers(e=0x10001, n=num).public_key(
+        return rsa.RSAPublicNumbers(e=RSA_PUBLIC_EXPONENT, n=num).public_key(
             backend=default_backend()
         )
 
@@ -1020,7 +1020,7 @@ class WrapKey(YhsmObject):
         object_type, object_id = struct.unpack("!BH", ret)
         return YhsmObject._create(object_type, self.session, object_id)
 
-    def unwrap_key_rsa(
+    def import_raw_key(
         self,
         object_id: int,
         object_type: OBJECT,
@@ -1033,7 +1033,7 @@ class WrapKey(YhsmObject):
         mgf_hash: hashes.HashAlgorithm = hashes.SHA256(),
         oaep_label: bytes = b"",
     ) -> YhsmObject:
-        """Unwrap an (a)symmetric key into a YubiHSM key object.
+        """Import an (a)symmetric key previously exported under wrap.
 
         Asymmetric keys are expected to have been serialized as
         PKCS#8.
@@ -1207,7 +1207,7 @@ class PublicWrapKey(YhsmObject):
 
         return self.session.send_secure_cmd(COMMAND.EXPORT_WRAPPED_RSA, msg)
 
-    def wrap_key_rsa(
+    def export_raw_key(
         self,
         key: Union[AsymmetricKey, "SymmetricKey"],
         algorithm: ALGORITHM = ALGORITHM.AES256,
@@ -1215,7 +1215,7 @@ class PublicWrapKey(YhsmObject):
         mgf_hash: hashes.HashAlgorithm = hashes.SHA256(),
         oaep_label: bytes = b"",
     ) -> bytes:
-        """Wraps an (a)symmetric key object.
+        """Export an (a)symmetric key object under wrap.
 
         This command wraps only the raw key material of the key object.
         Asymmetric keys are serialized as PKCS#8.
