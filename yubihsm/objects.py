@@ -1005,8 +1005,8 @@ class WrapKey(YhsmObject):
         """Imports an object previously exported under asymmetric wrap.
 
         :param wrapped_obj: The encrypted object data.
-        :param oaep_hash: The hash algorithm to use for OAEP label.
-        :param mgf_hash: The hash algorithm to use for MGF1.
+        :param oaep_hash: (optional) The hash algorithm to use for OAEP label.
+        :param mgf_hash: (optional) The hash algorithm to use for MGF1.
         :param oaep_label: (optional) OAEP label.
         :return: A reference to the imported object.
         """
@@ -1048,8 +1048,8 @@ class WrapKey(YhsmObject):
         :param capabilities: The set of capabilities to give the object.
         :param algorithm: The algorithm of the key.
         :param wrapped: The wrapped key object.
-        :param oaep_hash: The hash algorithm to use for OAEP label.
-        :param mgf_hash: The hash algorithm to use for MGF1.
+        :param oaep_hash: (optional) The hash algorithm to use for OAEP label.
+        :param mgf_hash: (optional) The hash algorithm to use for MGF1.
         :param oaep_label: (optional) OAEP label.
         :return: A reference to the imported key object.
         """
@@ -1192,9 +1192,9 @@ class PublicWrapKey(YhsmObject):
         """Exports an object under wrap.
 
         :param obj: The object to export.
-        :param algorithm: The algorithm to use for the ephemeral key.
-        :param oaep_hash: The hash algorithm to use for OAEP label.
-        :param mgf_hash: The hash algorithm to use for MGF1.
+        :param algorithm: (optional) The algorithm to use for the ephemeral key.
+        :param oaep_hash: (optional) The hash algorithm to use for OAEP label.
+        :param mgf_hash: (optional) The hash algorithm to use for MGF1.
         :param oaep_label: (optional) OAEP label.
         :return: The encrypted object data.
         """
@@ -1222,9 +1222,9 @@ class PublicWrapKey(YhsmObject):
         Asymmetric keys are serialized as PKCS#8.
 
         :param key: The (a)symmetric key object to wrap.
-        :param algorithm: The algorithm for the ephemeral key.
-        :param oaep_hash: The hash algorithm to use for OAEP label.
-        :param mgf_hash: The hash algorithm to use for MGF1.
+        :param algorithm: (optional) The algorithm for the ephemeral key.
+        :param oaep_hash: (optional) The hash algorithm to use for OAEP label.
+        :param mgf_hash: (optional) The hash algorithm to use for MGF1.
         :param oaep_label: (optional) OAEP label.
         :return: The encrypted key.
         """
