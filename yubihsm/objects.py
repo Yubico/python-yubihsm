@@ -162,7 +162,7 @@ class YhsmObject:
             raise YubiHsmInvalidResponseError()
 
     def delete(self) -> None:
-        """Deletes the object from the YubiHSM.
+        """Delete the object from the YubiHSM.
 
         .. warning:: This action in irreversible.
         """
@@ -178,7 +178,7 @@ class YhsmObject:
         seq: Optional[int] = None,
     ) -> "YhsmObject":
         """
-        Creates instance of `object_type`.
+        Create instance of `object_type`.
 
         When object type is not recognized, _create constructs an
         instance of `_UnknownYhsmObject`.
@@ -814,6 +814,10 @@ class AsymmetricKey(YhsmObject):
 class WrapKey(YhsmObject):
     """Used to import and export other objects under wrap.
 
+    Asymmetric wrapkeys are only used for importing wrapped objects.
+    To export objects under asymmetric wrap, use
+    :class:`~yubihsm.objects.PublicWrapKey`.
+
     Supported algorithms:
         - :class:`~yubihsm.defs.ALGORITHM.AES128_CCM_WRAP`
         - :class:`~yubihsm.defs.ALGORITHM.AES192_CCM_WRAP`
@@ -970,7 +974,7 @@ class WrapKey(YhsmObject):
         return self.session.send_secure_cmd(COMMAND.UNWRAP_DATA, msg)
 
     def export_wrapped(self, obj: YhsmObject, seed: bool = False) -> bytes:
-        """Exports an object under wrap.
+        """Export an object under wrap.
 
         :param obj: The object to export.
         :param seed: (optional) Export key with seed. Only applicable
@@ -984,7 +988,7 @@ class WrapKey(YhsmObject):
         return self.session.send_secure_cmd(COMMAND.EXPORT_WRAPPED, msg)
 
     def import_wrapped(self, wrapped_obj: bytes) -> YhsmObject:
-        """Imports an object previously exported under wrap.
+        """Import an object previously exported under wrap.
 
         :param wraped_obj: The encrypted object data.
         :return: A reference to the imported object.
@@ -1001,7 +1005,7 @@ class WrapKey(YhsmObject):
         mgf_hash: hashes.HashAlgorithm = hashes.SHA256(),
         oaep_label: bytes = b"",
     ) -> YhsmObject:
-        """Imports an object previously exported under asymmetric wrap.
+        """Import an object previously exported under asymmetric wrap.
 
         :param wrapped_obj: The encrypted object data.
         :param oaep_hash: (optional) The hash algorithm to use for OAEP label.
@@ -1033,7 +1037,7 @@ class WrapKey(YhsmObject):
         mgf_hash: hashes.HashAlgorithm = hashes.SHA256(),
         oaep_label: bytes = b"",
     ) -> YhsmObject:
-        """Import an (a)symmetric key previously exported under wrap.
+        """Import an (a)symmetric key previously exported under asymmetric wrap.
 
         Asymmetric keys are expected to have been serialized as
         PKCS#8.
@@ -1188,7 +1192,7 @@ class PublicWrapKey(YhsmObject):
         mgf_hash: hashes.HashAlgorithm = hashes.SHA256(),
         oaep_label: bytes = b"",
     ) -> bytes:
-        """Exports an object under wrap.
+        """Export an object under asymmetric wrap.
 
         :param obj: The object to export.
         :param algorithm: (optional) The algorithm to use for the ephemeral key.
@@ -1215,7 +1219,7 @@ class PublicWrapKey(YhsmObject):
         mgf_hash: hashes.HashAlgorithm = hashes.SHA256(),
         oaep_label: bytes = b"",
     ) -> bytes:
-        """Export an (a)symmetric key object under wrap.
+        """Export an (a)symmetric key object under asymmetric wrap.
 
         This command wraps only the raw key material of the key object.
         Asymmetric keys are serialized as PKCS#8.
@@ -1348,8 +1352,7 @@ class HmacKey(YhsmObject):
         return self.session.send_secure_cmd(COMMAND.SIGN_HMAC, msg)
 
     def verify_hmac(self, signature: bytes, data: bytes) -> bool:
-        """
-        Verify an HMAC signature.
+        """Verify an HMAC signature.
 
         :param signature: The signature to verify.
         :param data: The data to verify the signature against.

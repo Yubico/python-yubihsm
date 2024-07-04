@@ -316,7 +316,7 @@ class YubiHsm:
         )
 
     def init_session(self, auth_key_id: int) -> "SymmetricAuth":
-        """Initiates the symmetric authentication process for establishing
+        """Initiate the symmetric authentication process for establishing
         an authenticated session with the YubiHSM.
 
         :param auth_key_id: The ID of the Authentication key used to
@@ -328,7 +328,7 @@ class YubiHsm:
     def init_session_asymmetric(
         self, auth_key_id: int, epk_oce: bytes
     ) -> "AsymmetricAuth":
-        """Initiates the asymmetric authentication process for establishing
+        """Initiate the asymmetric authentication process for establishing
         an authenticated session with the YubiHSM.
 
         :param auth_key_id: The ID of the Authentication key used to
@@ -341,7 +341,7 @@ class YubiHsm:
     def create_session(
         self, auth_key_id: int, key_enc: bytes, key_mac: bytes
     ) -> "AuthSession":
-        """Creates an authenticated session with the YubiHSM.
+        """Create an authenticated session with the YubiHSM.
 
         See also create_session_derived, which derives K-ENC and K-MAC from a
         password.
@@ -355,7 +355,7 @@ class YubiHsm:
         return SymmetricAuth.create_session(self, auth_key_id, key_enc, key_mac)
 
     def create_session_derived(self, auth_key_id: int, password: str) -> "AuthSession":
-        """Creates an authenticated session with the YubiHSM.
+        """Create an authenticated session with the YubiHSM.
 
         Uses a supplied password to derive the keys K-ENC and K-MAC.
 
@@ -373,7 +373,7 @@ class YubiHsm:
         private_key: ec.EllipticCurvePrivateKey,
         public_key: Optional[ec.EllipticCurvePublicKey] = None,
     ) -> "AuthSession":
-        """Creates an authenticated session with the YubiHSM.
+        """Create an authenticated session with the YubiHSM.
 
         :param auth_key_id: The ID of the Authentication key used to
             authenticate the session.
@@ -434,7 +434,7 @@ class SymmetricAuth:
         hsm: YubiHsm,
         auth_key_id: int,
     ) -> "SymmetricAuth":
-        """Initiates the mutual symmetric session authentication process.
+        """Initiate the mutual symmetric session authentication process.
 
         :param hsm: The YubiHSM connection.
         :param auth_key_id: The ID of the Authentication key used to
@@ -456,7 +456,7 @@ class SymmetricAuth:
     def create_session(
         cls, hsm: YubiHsm, auth_key_id: int, key_enc: bytes, key_mac: bytes
     ) -> "AuthSession":
-        """Constructs an authenticated session.
+        """Construct an authenticated session.
 
         :param hsm: The YubiHSM connection.
         :param auth_key_id: The ID of the Authentication key used to
@@ -476,7 +476,7 @@ class SymmetricAuth:
     def authenticate(
         self, key_senc: bytes, key_smac: bytes, key_srmac: bytes
     ) -> "AuthSession":
-        """Constructs an authenticated session.
+        """Construct an authenticated session.
 
         :param key_senc: `S-ENC` used for data confidentiality.
         :param key_smac: `S-MAC` used for data and protocol integrity.
@@ -544,7 +544,7 @@ class AsymmetricAuth:
         auth_key_id: int,
         epk_oce: bytes,
     ) -> "AsymmetricAuth":
-        """Initiates the mutual asymmetric session authentication process.
+        """Initiate the mutual asymmetric session authentication process.
 
         :param hsm: The YubiHSM connection.
         :param auth_key_id: The ID of the Authentication key used to
@@ -573,7 +573,7 @@ class AsymmetricAuth:
         private_key: ec.EllipticCurvePrivateKey,
         public_key: ec.EllipticCurvePublicKey,
     ) -> "AuthSession":
-        """Constructs an authenticated session.
+        """Construct an authenticated session.
 
         :param hsm: The YubiHSM connection.
         :param auth_key_id: The ID of the Authentication key used to
@@ -622,7 +622,7 @@ class AsymmetricAuth:
     def authenticate(
         self, key_senc: bytes, key_smac: bytes, key_srmac: bytes
     ) -> "AuthSession":
-        """Constructs an authenticated session.
+        """Construct an authenticated session.
 
         :param key_senc: `S-ENC` used for data confidentiality.
         :param key_smac: `S-MAC` used for data and protocol integrity.
@@ -799,7 +799,7 @@ class AuthSession:
         return self.send_secure_cmd(COMMAND.GET_PSEUDO_RANDOM, msg)
 
     def reset_device(self) -> None:
-        """Performs a factory reset of the YubiHSM.
+        """Perform a factory reset of the YubiHSM.
 
         Resets and reboots the YubiHSM, deletes all Objects and restores the
         default Authkey.
@@ -844,7 +844,7 @@ class AuthSession:
         return LogData(boot, auth, logs)
 
     def set_log_index(self, index: int) -> None:
-        """Clears logs to free up space for use with forced audit.
+        """Clear logs to free up space for use with forced audit.
 
         :param index: The log entry index to clear up to (inclusive).
         """

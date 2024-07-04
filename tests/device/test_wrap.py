@@ -459,7 +459,7 @@ class TestAsymmetricWrap:
             CAPABILITY.SIGN_ECDSA,
             CAPABILITY.SIGN_ECDSA,
             CAPABILITY.SIGN_ECDSA,
-            "Test Asymmetric Key",
+            "Test Wrap Asymmetric Key",
         )
 
         asymkey = AsymmetricKey.generate(

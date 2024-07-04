@@ -28,7 +28,7 @@ class HttpBackend(YhsmBackend):
         url: str = "http://localhost:12345",
         timeout: Optional[Union[Tuple[int, int], int]] = None,
     ):
-        """Constructs a new HttpBackend, connecting to the given URL.
+        """Construct a new HttpBackend, connecting to the given URL.
 
         The URL should be a http(s) URL to a running YubiHSM connector.
         By default, the backend will attempt to connect to a connector running
