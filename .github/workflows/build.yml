@@ -10,12 +10,18 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
         python: ['3.8', '3.9', '3.10', '3.11', '3.12', 'pypy3.9']
-        architecture: [x86, x64]
+        architecture: [x86, x64, arm64]
         exclude:
           - os: ubuntu-latest
             architecture: x86
+          - os: ubuntu-latest
+            architecture: arm64
           - os: macos-latest
             architecture: x86
+          - os: macos-latest
+            architecture: x64
+          - os: windows-latest
+            architecture: arm64
           - os: windows-latest
             python: pypy3.9
           - os: macos-latest
@@ -23,10 +29,10 @@ jobs:
 
     name: ${{ matrix.os }} Py ${{ matrix.python }} ${{ matrix.architecture }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python }}
           architecture: ${{ matrix.architecture }}
@@ -55,10 +61,10 @@ jobs:
 
     name: Device tests ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: 3.x
 
@@ -95,10 +101,10 @@ jobs:
     name: Build Python source .tar.gz
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: 3.x
 
@@ -109,7 +115,7 @@ jobs:
           poetry build
 
       - name: Upload source package
-        uses: actions/upload-artifact@v1
+        uses: actions/upload-artifact@v4
         with:
           name: python-yubihsm-sdist
           path: dist
@@ -119,10 +125,10 @@ jobs:
     name: Build sphinx documentation
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: 3.8
 
@@ -136,7 +142,7 @@ jobs:
         run: poetry run make -C docs/ html
 
       - name: Upload documentation
-        uses: actions/upload-artifact@v1
+        uses: actions/upload-artifact@v4
         with:
           name: python-yubihsm-docs
           path: docs/_build/html
