@@ -619,6 +619,30 @@ class TestAsymmetricWrap:
         import_wrapkey.delete()
         export_wrapkey.delete()
 
+    def test_export_using_private_wrapkey(self, session):
+        _, private_wrapkey = self.generate_wrap_keys(
+            session,
+            CAPABILITY.SIGN_ECDSA,
+            CAPABILITY.SIGN_ECDSA,
+            CAPABILITY.SIGN_ECDSA | CAPABILITY.EXPORTABLE_UNDER_WRAP,
+            "Test Export Using Private Wrapkey",
+        )
+
+        asymkey = AsymmetricKey.generate(
+            session,
+            0,
+            "Test Export Using Private Wrapkey",
+            0xFFFF,
+            CAPABILITY.SIGN_ECDSA | CAPABILITY.EXPORTABLE_UNDER_WRAP,
+            ALGORITHM.EC_P256,
+        )
+
+        with pytest.raises(YubiHsmDeviceError) as context:
+            # The (private) wrap key is only used for importing
+            # wrapped objects.
+            private_wrapkey.export_wrapped(asymkey)
+        assert context.value.code == ERROR.INVALID_DATA
+
     def test_get_public_key(self, session):
         key = rsa.generate_private_key(
             public_exponent=0x10001, key_size=2048, backend=default_backend()
