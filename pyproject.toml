@@ -15,9 +15,9 @@ classifiers = [
 	"Topic :: Software Development :: Libraries"
 ]
 include = [
-  "COPYING",
-  "NEWS",
-  "README.adoc",
+  { path = "COPYING", format = "sdist" },
+  { path = "NEWS", format = "sdist" },
+  { path = "README.adoc", format = "sdist" },
   "tests/",
 ]
 
