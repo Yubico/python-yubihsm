@@ -13,13 +13,7 @@
 # limitations under the License.
 
 from yubihsm.core import MAX_MSG_SIZE
-from yubihsm.defs import (
-    ALGORITHM,
-    CAPABILITY,
-    OBJECT,
-    COMMAND,
-    ORIGIN,
-)
+from yubihsm.defs import ALGORITHM, CAPABILITY, OBJECT, COMMAND, ORIGIN, FipsStatus
 from yubihsm.objects import (
     YhsmObject,
     AsymmetricKey,
@@ -198,7 +192,7 @@ class TestFipsOptions:
     @pytest.fixture(scope="class", autouse=True)
     def session2(self, session, connect_hsm):
         try:
-            session.get_fips_mode()
+            session.get_fips_status()
             session.reset_device()
             sleep(5.0)
             hsm = connect_hsm()
@@ -209,10 +203,13 @@ class TestFipsOptions:
         except YubiHsmDeviceError:
             pytest.skip("Non-FIPS YubiHSM")
 
-    def test_set_in_fips_mode(self, session2):
-        assert not session2.get_fips_mode()
+    def test_set_in_fips_mode(self, session2, info):
+        assert session2.get_fips_status() == FipsStatus.OFF
         session2.set_fips_mode(True)
-        assert session2.get_fips_mode()
+        if info.version < (2, 4, 0):
+            assert session2.get_fips_status() == FipsStatus.ON
+        else:
+            assert session2.get_fips_status() == FipsStatus.PENDING
 
     def test_fips_mode_disables_algorithms(self, session2, info):
         session2.set_fips_mode(True)
@@ -239,15 +236,17 @@ class TestFipsOptions:
                 )
             )
 
-    def test_enabling_algorithms_disable_fips_mode(self, session2, info):
+    def test_enabling_algorithms_in_fips_mode(self, session2, info):
         session2.set_fips_mode(True)
         if info.version < (2, 4, 0):
+            # For YubiHSM FW < 2.4.0, enabling dissallowed algorithms
+            # disables FIPS mode.
             session2.set_enabled_algorithms(
                 {
                     ALGORITHM.RSA_PKCS1_SHA1: True,
                 }
             )
-            assert not session2.get_fips_mode()
+            assert session2.get_fips_mode() == FipsStatus.OFF
         else:
             with pytest.raises(YubiHsmDeviceError):
                 session2.set_enabled_algorithms({ALGORITHM.RSA_PKCS1_SHA1: True})

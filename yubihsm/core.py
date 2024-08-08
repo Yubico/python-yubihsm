@@ -15,7 +15,16 @@
 """Core classes for YubiHSM communication."""
 
 from . import utils
-from .defs import COMMAND, OBJECT, ALGORITHM, LIST_FILTER, OPTION, AUDIT, ERROR
+from .defs import (
+    COMMAND,
+    OBJECT,
+    ALGORITHM,
+    LIST_FILTER,
+    OPTION,
+    AUDIT,
+    ERROR,
+    FipsStatus,
+)
 from .backends import get_backend, YhsmBackend
 from .objects import YhsmObject, _label_pack, LABEL_LENGTH
 from .exceptions import (
@@ -36,6 +45,7 @@ from dataclasses import dataclass, astuple
 from typing import Optional, Sequence, Mapping, Tuple, ClassVar, Set, NamedTuple
 import os
 import struct
+import warnings
 
 
 KEY_ENC = 0x04
@@ -976,13 +986,23 @@ class AuthSession:
         """
         self.put_option(OPTION.FIPS_MODE, struct.pack("!B", mode))
 
+    def get_fips_status(self) -> FipsStatus:
+        """Get the current FIPS status.
+
+        YubiHSM2 FIPS only.
+
+        :return: The FipsStatus value.
+        """
+        return FipsStatus(self.get_option(OPTION.FIPS_MODE)[0])
+
     def get_fips_mode(self) -> bool:
-        """Get the current setting for FIPS compliant mode.
+        """Get the current setting for FIPS mode.
 
         YubiHSM2 FIPS only.
 
         :return: True if in FIPS mode, False if not.
         """
+        warnings.warn("Deprecated, use get_fips_status instead", DeprecationWarning)
         return bool(self.get_option(OPTION.FIPS_MODE)[0])
 
     def __repr__(self):

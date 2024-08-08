@@ -321,6 +321,15 @@ class AUDIT(IntEnum):
     FIXED = 0x02
 
 
+@unique
+class FipsStatus(IntEnum):
+    """Values for FIPS status"""
+
+    OFF = 0x00
+    ON = 0x01
+    PENDING = 0x03
+
+
 class _enum_prop:
     # Static property for use with enums.
     def __init__(self, getter):
