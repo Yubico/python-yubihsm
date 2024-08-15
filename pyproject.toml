@@ -32,7 +32,7 @@ http = ["requests"]
 usb = ["pyusb"]
 
 [tool.poetry.dev-dependencies]
-pytest = "^7.1"
+pytest = "^8.0"
 Sphinx = {version = "^7.1", python = ">=3.8"}
 sphinx-rtd-theme = {version = "^1.2.2", python = ">=3.8"}
 sphinx-autodoc-typehints = {version = "^1.2.4", python = ">=3.8"}
