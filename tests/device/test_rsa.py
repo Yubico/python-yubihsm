@@ -375,7 +375,7 @@ def test_import_invalid_public_exponent(session):
 
 def test_import_invalid_key_size(session):
     key = rsa.generate_private_key(
-        public_exponent=0x10001, key_size=512, backend=default_backend()
+        public_exponent=0x10001, key_size=1024, backend=default_backend()
     )
 
     with pytest.raises(ValueError):
