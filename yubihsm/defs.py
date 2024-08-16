@@ -322,7 +322,7 @@ class AUDIT(IntEnum):
 
 
 @unique
-class FipsStatus(IntEnum):
+class FIPS_STATUS(IntEnum):
     """Values for FIPS status"""
 
     OFF = 0x00

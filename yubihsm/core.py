@@ -23,7 +23,7 @@ from .defs import (
     OPTION,
     AUDIT,
     ERROR,
-    FipsStatus,
+    FIPS_STATUS,
 )
 from .backends import get_backend, YhsmBackend
 from .objects import YhsmObject, _label_pack, LABEL_LENGTH
@@ -986,14 +986,14 @@ class AuthSession:
         """
         self.put_option(OPTION.FIPS_MODE, struct.pack("!B", mode))
 
-    def get_fips_status(self) -> FipsStatus:
+    def get_fips_status(self) -> FIPS_STATUS:
         """Get the current FIPS status.
 
         YubiHSM2 FIPS only.
 
         :return: The FipsStatus value.
         """
-        return FipsStatus(self.get_option(OPTION.FIPS_MODE)[0])
+        return FIPS_STATUS(self.get_option(OPTION.FIPS_MODE)[0])
 
     def get_fips_mode(self) -> bool:
         """Get the current setting for FIPS mode.

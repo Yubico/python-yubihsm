@@ -13,7 +13,7 @@
 # limitations under the License.
 
 from yubihsm.core import MAX_MSG_SIZE
-from yubihsm.defs import ALGORITHM, CAPABILITY, OBJECT, COMMAND, ORIGIN, FipsStatus
+from yubihsm.defs import ALGORITHM, CAPABILITY, OBJECT, COMMAND, ORIGIN, FIPS_STATUS
 from yubihsm.objects import (
     YhsmObject,
     AsymmetricKey,
@@ -204,12 +204,12 @@ class TestFipsOptions:
             pytest.skip("Non-FIPS YubiHSM")
 
     def test_set_in_fips_mode(self, session2, info):
-        assert session2.get_fips_status() == FipsStatus.OFF
+        assert session2.get_fips_status() == FIPS_STATUS.OFF
         session2.set_fips_mode(True)
         if info.version < (2, 4, 0):
-            assert session2.get_fips_status() == FipsStatus.ON
+            assert session2.get_fips_status() == FIPS_STATUS.ON
         else:
-            assert session2.get_fips_status() == FipsStatus.PENDING
+            assert session2.get_fips_status() == FIPS_STATUS.PENDING
 
     def test_fips_mode_disables_algorithms(self, session2, info):
         session2.set_fips_mode(True)
@@ -246,7 +246,7 @@ class TestFipsOptions:
                     ALGORITHM.RSA_PKCS1_SHA1: True,
                 }
             )
-            assert session2.get_fips_mode() == FipsStatus.OFF
+            assert session2.get_fips_status() == FIPS_STATUS.OFF
         else:
             with pytest.raises(YubiHsmDeviceError):
                 session2.set_enabled_algorithms({ALGORITHM.RSA_PKCS1_SHA1: True})
