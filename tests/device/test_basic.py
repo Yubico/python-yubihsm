@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from yubihsm.core import MAX_MSG_SIZE
 from yubihsm.defs import ALGORITHM, CAPABILITY, OBJECT, COMMAND, ORIGIN, FIPS_STATUS
 from yubihsm.objects import (
     YhsmObject,
@@ -141,8 +140,9 @@ class TestVarious:
         assert len(data2) == 10
         assert data != data2
 
-    def test_send_too_big(self, hsm):
-        buf = os.urandom(MAX_MSG_SIZE - 3 + 1)  # Message 1 byte too large
+    def test_send_too_big(self, hsm, session):
+        max_msg_size = hsm._msg_buf_size - 1
+        buf = os.urandom(max_msg_size - 3 + 1)  # Message 1 byte too large
         with pytest.raises(YubiHsmInvalidRequestError):
             hsm.send_cmd(COMMAND.ECHO, buf)
 

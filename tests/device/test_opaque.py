@@ -66,7 +66,7 @@ def test_put_too_big(session):
             1,
             CAPABILITY.NONE,
             ALGORITHM.OPAQUE_DATA,
-            os.urandom(1976),
+            os.urandom(3064),
         )
 
     # Make sure our session is still working

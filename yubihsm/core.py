@@ -54,8 +54,6 @@ KEY_RMAC = 0x07
 CARD_CRYPTOGRAM = 0x00
 HOST_CRYPTOGRAM = 0x01
 
-MAX_MSG_SIZE = 2048 - 1
-
 
 def _derive(key: bytes, t: int, context: bytes, L: int = 0x80) -> bytes:
     # this only supports aes128
@@ -272,6 +270,12 @@ class YubiHsm:
         """
         self._backend: YhsmBackend = backend
 
+        # Initialize the message buffer size to 2048 bytes. This may be updated
+        # depending on the YubiHSM FW version (in 2.4.0 or higher the
+        # buffer size is 3136) in get_device_info.
+        self._msg_buf_size = 2048
+        self.get_device_info()
+
     def __enter__(self):
         return self
 
@@ -285,7 +289,7 @@ class YubiHsm:
             self._backend = _ClosedBackend()
 
     def _transceive(self, msg: bytes) -> bytes:
-        if len(msg) > MAX_MSG_SIZE:
+        if len(msg) > self._msg_buf_size - 1:
             raise YubiHsmInvalidRequestError("Message too long.")
         return self._backend.transceive(msg)
 
@@ -307,6 +311,8 @@ class YubiHsm:
         first_page = self.send_cmd(COMMAND.DEVICE_INFO)
         device_info = DeviceInfo.parse(first_page)
         if device_info.version >= (2, 4, 0):
+            # Update maximum message buffer size
+            self._msg_buf_size = 3136
             # fetch next page
             second_page = self.send_cmd(COMMAND.DEVICE_INFO, struct.pack("!B", 1))
             device_info = DeviceInfo.parse(first_page, second_page)

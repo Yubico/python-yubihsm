@@ -54,6 +54,7 @@ def get_mocked_session(patch):
     """
     mocked_backend = get_backend()
     mocked_backend.transceive.side_effect = [
+        _TRANSCEIVE_DEVICE_INFO,  # get_device_info is called during initialization
         b"\x83\x00\x11\x00\x05MV1\xc9\x18o\x802%\xed\x8a2$\xf2\xcf",
         b"\x84\x00\x00",
     ]
@@ -266,9 +267,12 @@ class TestYubiHsm(unittest.TestCase):
         expect_enc = b"\t\x0bG\xdb\xedYVT\x90\x1d\xee\x1c\xc6U\xe4 "
         expect_mac = b"Y/\xd4\x83\xf7Y\xe2\x99\t\xa0LE\x05\xd2\xce\n"
 
-        # Note: backend doesn't do anything here; it's just required by the
-        # function's signature
-        hsm = YubiHsm(backend=None)
+        # Note: get_device_info gets called during initialization
+        # which is why we mock the transceive function.
+        backend = get_backend()
+        backend.transceive.return_value = _TRANSCEIVE_DEVICE_INFO
+
+        hsm = YubiHsm(backend)
         hsm.create_session_derived(auth_key_id, password)
 
         hsm.create_session.assert_called_once_with(auth_key_id, expect_enc, expect_mac)
@@ -284,7 +288,12 @@ class TestYubiHsm(unittest.TestCase):
         hsm = YubiHsm(backend)
 
         info = hsm.get_device_info()
-        hsm._backend.transceive.assert_called_once_with(b"\x06\x00\x00")
+        hsm._backend.transceive.assert_has_calls(
+            [
+                call(b"\x06\x00\x00"),  # first call during YubiHSM::__init__
+                call(b"\x06\x00\x00"),
+            ]
+        )
 
         self.assertEqual(info.version, (2, 0, 0))
         self.assertEqual(info.serial, 7550140)
