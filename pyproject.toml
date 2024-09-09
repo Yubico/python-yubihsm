@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "yubihsm"
-version = "3.1.0"
+version = "3.1.1.dev0"
 description = "Library for communication with a YubiHSM 2 over HTTP or USB."
 authors = ["Dain Nilsson <dain@yubico.com>"]
 license = "APACHE-2.0"
