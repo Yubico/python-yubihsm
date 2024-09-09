@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "yubihsm"
-version = "3.0.1.dev0"
+version = "3.1.0"
 description = "Library for communication with a YubiHSM 2 over HTTP or USB."
 authors = ["Dain Nilsson <dain@yubico.com>"]
 license = "APACHE-2.0"
@@ -32,7 +32,7 @@ http = ["requests"]
 usb = ["pyusb"]
 
 [tool.poetry.dev-dependencies]
-pytest = "^7.1"
+pytest = "^8.0"
 Sphinx = {version = "^7.1", python = ">=3.8"}
 sphinx-rtd-theme = {version = "^1.2.2", python = ">=3.8"}
 sphinx-autodoc-typehints = {version = "^1.2.4", python = ">=3.8"}

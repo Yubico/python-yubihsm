@@ -38,6 +38,17 @@ def turn_on_logging(session, info):
             COMMAND.SESSION_MESSAGE,
         ]
 
+        if info.version < (2, 4, 0):
+            ignored_cmds.extend(
+                [
+                    COMMAND.PUT_PUBLIC_WRAP_KEY,
+                    COMMAND.WRAP_KEY_RSA,
+                    COMMAND.UNWRAP_KEY_RSA,
+                    COMMAND.EXPORT_WRAPPED_RSA,
+                    COMMAND.IMPORT_WRAPPED_RSA,
+                ]
+            )
+
         session.set_command_audit(
             {cmd: AUDIT.ON for cmd in COMMAND if cmd not in ignored_cmds}
         )

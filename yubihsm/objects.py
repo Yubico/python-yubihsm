@@ -162,7 +162,7 @@ class YhsmObject:
             raise YubiHsmInvalidResponseError()
 
     def delete(self) -> None:
-        """Deletes the object from the YubiHSM.
+        """Delete the object from the YubiHSM.
 
         .. warning:: This action in irreversible.
         """
@@ -178,7 +178,7 @@ class YhsmObject:
         seq: Optional[int] = None,
     ) -> "YhsmObject":
         """
-        Creates instance of `object_type`.
+        Create instance of `object_type`.
 
         When object type is not recognized, _create constructs an
         instance of `_UnknownYhsmObject`.
@@ -616,7 +616,7 @@ class AsymmetricKey(YhsmObject):
         raw_key = ret[1:]
         if algo in [ALGORITHM.RSA_2048, ALGORITHM.RSA_3072, ALGORITHM.RSA_4096]:
             num = int.from_bytes(raw_key, "big")
-            return rsa.RSAPublicNumbers(e=0x10001, n=num).public_key(
+            return rsa.RSAPublicNumbers(e=RSA_PUBLIC_EXPONENT, n=num).public_key(
                 backend=default_backend()
             )
         elif algo in [
@@ -814,10 +814,17 @@ class AsymmetricKey(YhsmObject):
 class WrapKey(YhsmObject):
     """Used to import and export other objects under wrap.
 
+    Asymmetric wrapkeys are only used for importing wrapped objects.
+    To export objects under asymmetric wrap, use
+    :class:`~yubihsm.objects.PublicWrapKey`.
+
     Supported algorithms:
         - :class:`~yubihsm.defs.ALGORITHM.AES128_CCM_WRAP`
         - :class:`~yubihsm.defs.ALGORITHM.AES192_CCM_WRAP`
         - :class:`~yubihsm.defs.ALGORITHM.AES256_CCM_WRAP`
+        - :class:`~yubihsm.defs.ALGORITHM.RSA_2048`
+        - :class:`~yubihsm.defs.ALGORITHM.RSA_3072`
+        - :class:`~yubihsm.defs.ALGORITHM.RSA_4096`
     """
 
     object_type = OBJECT.WRAP_KEY
@@ -844,11 +851,13 @@ class WrapKey(YhsmObject):
         :param algorithm: The algorithm to use for the wrap key.
         :return: A reference to the newly created object.
         """
-
         if algorithm not in [
             ALGORITHM.AES128_CCM_WRAP,
             ALGORITHM.AES192_CCM_WRAP,
             ALGORITHM.AES256_CCM_WRAP,
+            ALGORITHM.RSA_2048,
+            ALGORITHM.RSA_3072,
+            ALGORITHM.RSA_4096,
         ]:
             raise ValueError("Invalid algorithm")
 
@@ -873,9 +882,14 @@ class WrapKey(YhsmObject):
         capabilities: CAPABILITY,
         algorithm: ALGORITHM,
         delegated_capabilities: CAPABILITY,
-        key: bytes,
+        key: Union[bytes, rsa.RSAPrivateKey],
     ) -> "WrapKey":
         """Import a wrap key into the YubiHSM.
+
+        Asymmetric keys can be imported using the cryptography API. You can
+        then pass a
+        :class:`~cryptography.hazmat.primitives.asymmetric.rsa.RSAPrivateKey`
+        as `key`.
 
         :param session: The session to import via.
         :param object_id: The ID to set for the object. Set to 0 to let the YubiHSM
@@ -886,21 +900,38 @@ class WrapKey(YhsmObject):
         :param algorithm: The algorithm to use for the wrap key.
         :param delegated_capabilities: The set of capabilities that the WrapKey can give
             to objects that it imports.
-        :param key: The raw encryption key corresponding to the algorithm.
+        :param key: The encryption key corresponding to the algorithm.
         :return: A reference to the newly created object.
         """
         if algorithm not in [
             ALGORITHM.AES128_CCM_WRAP,
             ALGORITHM.AES192_CCM_WRAP,
             ALGORITHM.AES256_CCM_WRAP,
+            ALGORITHM.RSA_2048,
+            ALGORITHM.RSA_3072,
+            ALGORITHM.RSA_4096,
         ]:
             raise ValueError("Invalid algorithm")
 
-        if len(key) != algorithm.to_key_size():
-            raise ValueError(
-                "Key length (%d) not matching algorithm (%s)"
-                % (len(key), algorithm.name)
-            )
+        if isinstance(key, rsa.RSAPrivateKeyWithSerialization):
+            rsa_numbers = key.private_numbers()
+            if rsa_numbers.public_numbers.e != RSA_PUBLIC_EXPONENT:
+                raise ValueError("Unsupported public exponent")
+            if key.key_size not in RSA_SIZES:
+                raise ValueError("Unsupported key size")
+            algo = getattr(ALGORITHM, "RSA_%d" % key.key_size)
+            if algo != algorithm:
+                raise ValueError("Key does not match algorithm (%s)" % algorithm.name)
+            key_data = int.to_bytes(
+                rsa_numbers.p, key.key_size // 8 // 2, "big"
+            ) + int.to_bytes(rsa_numbers.q, key.key_size // 8 // 2, "big")
+        else:
+            if len(key) != algorithm.to_key_size():
+                raise ValueError(
+                    "Key length (%d) not matching algorithm (%s)"
+                    % (len(key), algorithm.name)
+                )
+            key_data = key
 
         msg = struct.pack(
             "!H%dsHQBQ" % LABEL_LENGTH,
@@ -911,8 +942,18 @@ class WrapKey(YhsmObject):
             algorithm,
             delegated_capabilities,
         )
-        msg += key
+        msg += key_data
         return cls._from_command(session, COMMAND.PUT_WRAP_KEY, msg)
+
+    def get_public_key(self) -> rsa.RSAPublicKey:
+        """Get the public key of the wrapkey pair."""
+        msg = struct.pack("!HB", self.id, self.object_type)
+        ret = self.session.send_secure_cmd(COMMAND.GET_PUBLIC_KEY, msg)
+        raw_key = ret[1:]
+        num = int.from_bytes(raw_key, "big")
+        return rsa.RSAPublicNumbers(e=RSA_PUBLIC_EXPONENT, n=num).public_key(
+            backend=default_backend()
+        )
 
     def wrap_data(self, data: bytes) -> bytes:
         """Wrap (encrypt) arbitrary data.
@@ -932,17 +973,22 @@ class WrapKey(YhsmObject):
         msg = struct.pack("!H", self.id) + data
         return self.session.send_secure_cmd(COMMAND.UNWRAP_DATA, msg)
 
-    def export_wrapped(self, obj: YhsmObject) -> bytes:
-        """Exports an object under wrap.
+    def export_wrapped(self, obj: YhsmObject, seed: bool = False) -> bytes:
+        """Export an object under wrap.
 
         :param obj: The object to export.
+        :param seed: (optional) Export key with seed. Only applicable
+            for ed25519 key objects.
         :return: The encrypted object data.
         """
-        msg = struct.pack("!HBH", self.id, obj.object_type, obj.id)
+        if seed:
+            msg = struct.pack("!HBHB", self.id, obj.object_type, obj.id, 1)
+        else:
+            msg = struct.pack("!HBH", self.id, obj.object_type, obj.id)
         return self.session.send_secure_cmd(COMMAND.EXPORT_WRAPPED, msg)
 
     def import_wrapped(self, wrapped_obj: bytes) -> YhsmObject:
-        """Imports an object previously exported under wrap.
+        """Import an object previously exported under wrap.
 
         :param wraped_obj: The encrypted object data.
         :return: A reference to the imported object.
@@ -951,6 +997,249 @@ class WrapKey(YhsmObject):
         ret = self.session.send_secure_cmd(COMMAND.IMPORT_WRAPPED, msg)
         object_type, object_id = struct.unpack("!BH", ret)
         return YhsmObject._create(object_type, self.session, object_id)
+
+    def import_wrapped_rsa(
+        self,
+        wrapped_obj: bytes,
+        oaep_hash: hashes.HashAlgorithm = hashes.SHA256(),
+        mgf_hash: hashes.HashAlgorithm = hashes.SHA256(),
+        oaep_label: bytes = b"",
+    ) -> YhsmObject:
+        """Import an object previously exported under asymmetric wrap.
+
+        :param wrapped_obj: The encrypted object data.
+        :param oaep_hash: (optional) The hash algorithm to use for OAEP label.
+        :param mgf_hash: (optional) The hash algorithm to use for MGF1.
+        :param oaep_label: (optional) OAEP label.
+        :return: A reference to the imported object.
+        """
+        digest = hashes.Hash(oaep_hash, backend=default_backend())
+        digest.update(oaep_label)
+
+        hash = getattr(ALGORITHM, "RSA_OAEP_%s" % oaep_hash.name.upper())
+        mgf = getattr(ALGORITHM, "RSA_MGF1_%s" % mgf_hash.name.upper())
+
+        msg = struct.pack("!HBB", self.id, hash, mgf) + wrapped_obj + digest.finalize()
+        ret = self.session.send_secure_cmd(COMMAND.IMPORT_WRAPPED_RSA, msg)
+        object_type, object_id = struct.unpack("!BH", ret)
+        return YhsmObject._create(object_type, self.session, object_id)
+
+    def import_raw_key(
+        self,
+        object_id: int,
+        object_type: OBJECT,
+        label: str,
+        domains: int,
+        capabilities: CAPABILITY,
+        algorithm: ALGORITHM,
+        wrapped: bytes,
+        oaep_hash: hashes.HashAlgorithm = hashes.SHA256(),
+        mgf_hash: hashes.HashAlgorithm = hashes.SHA256(),
+        oaep_label: bytes = b"",
+    ) -> YhsmObject:
+        """Import an (a)symmetric key previously exported under asymmetric wrap.
+
+        Asymmetric keys are expected to have been serialized as
+        PKCS#8.
+
+        :param object_id: The ID to set for the object. Set to 0 to let the YubiHSM
+            designate an ID.
+        :param object_type: The key object type (`OBJECT.ASYMMETRIC_KEY`
+            or `OBJECT.SYMMETRIC_KEY`).
+        :param label: A text label to give the object.
+        :param domains: The set of domains to assign the object to.
+        :param capabilities: The set of capabilities to give the object.
+        :param algorithm: The algorithm of the key.
+        :param wrapped: The wrapped key object.
+        :param oaep_hash: (optional) The hash algorithm to use for OAEP label.
+        :param mgf_hash: (optional) The hash algorithm to use for MGF1.
+        :param oaep_label: (optional) OAEP label.
+        :return: A reference to the imported key object.
+        """
+        digest = hashes.Hash(oaep_hash, backend=default_backend())
+        digest.update(oaep_label)
+
+        hash = getattr(ALGORITHM, "RSA_OAEP_%s" % oaep_hash.name.upper())
+        mgf = getattr(ALGORITHM, "RSA_MGF1_%s" % mgf_hash.name.upper())
+
+        msg = (
+            struct.pack(
+                "!HBH%dsHQBBB" % LABEL_LENGTH,
+                self.id,
+                object_type,
+                object_id,
+                _label_pack(label),
+                domains,
+                capabilities,
+                algorithm,
+                hash,
+                mgf,
+            )
+            + wrapped
+            + digest.finalize()
+        )
+        ret = self.session.send_secure_cmd(COMMAND.UNWRAP_KEY_RSA, msg)
+        object_type, object_id = struct.unpack("!BH", ret)
+        return YhsmObject._create(object_type, self.session, object_id)
+
+
+class PublicWrapKey(YhsmObject):
+    """Used to export other objects under wrap using the public key of an
+    asymmetric key pair.
+
+    The algorithm used for wrapping is CKM_RSA_AES_KEY_WRAP,
+    as specified in PKCS#11.
+
+    Supported algorithms:
+    - :class:`~yubihsm.defs.ALGORITHM.RSA_2048`
+    - :class:`~yubihsm.defs.ALGORITHM.RSA_3072`
+    - :class:`~yubihsm.defs.ALGORITHM.RSA_4096`
+    """
+
+    object_type = OBJECT.PUBLIC_WRAP_KEY
+
+    @classmethod
+    def put(
+        cls,
+        session: "core.AuthSession",
+        object_id: int,
+        label: str,
+        domains: int,
+        capabilities: CAPABILITY,
+        delegated_capabilities: CAPABILITY,
+        public_key: rsa.RSAPublicKey,
+    ) -> "PublicWrapKey":
+        """Import a public RSA wrapkey into the YubiHSM.
+
+        The RSA public key can be supplied using the cryptography API. You can
+        then pass a
+        :class:`~cryptography.hazmat.primitives.asymmetric.rsa.RSAPublicKey`
+        as `public_key`.
+
+        :param session: The session to import via.
+        :param object_id: The ID to set for the object. Set to 0 to let the YubiHSM
+            designate an ID.
+        :param label: A text label to give the object.
+        :param domains: The set of domains to assign the object to.
+        :param capabilities: The set of capabilities to give the object.
+        :param delegated_capabilities: The set of capabilities that the WrapKey can give
+            to objects that it imports.
+        :param public_key: The public key to import.
+        :return: A reference to the newly created object.
+        """
+        algorithm = getattr(ALGORITHM, "RSA_%d" % public_key.key_size)
+        if algorithm not in [
+            ALGORITHM.RSA_2048,
+            ALGORITHM.RSA_3072,
+            ALGORITHM.RSA_4096,
+        ]:
+            raise ValueError("Invalid algorithm")
+
+        public_numbers = public_key.public_numbers()
+        if public_numbers.e != RSA_PUBLIC_EXPONENT:
+            raise ValueError("Unsupported public exponent")
+        serialized = public_numbers.n.to_bytes((public_key.key_size + 7) // 8, "big")
+
+        msg = (
+            struct.pack(
+                "!H%dsHQBQ" % LABEL_LENGTH,
+                object_id,
+                _label_pack(label),
+                domains,
+                capabilities,
+                algorithm,
+                delegated_capabilities,
+            )
+            + serialized
+        )
+
+        return cls._from_command(session, COMMAND.PUT_PUBLIC_WRAP_KEY, msg)
+
+    def _rsa_wrap_cmd_data(
+        self,
+        obj: YhsmObject,
+        algorithm: ALGORITHM,
+        oaep_hash: hashes.HashAlgorithm,
+        mgf_hash: hashes.HashAlgorithm,
+        oaep_label: bytes,
+    ) -> bytes:
+        digest = hashes.Hash(oaep_hash, backend=default_backend())
+        digest.update(oaep_label)
+
+        hash = getattr(ALGORITHM, "RSA_OAEP_%s" % oaep_hash.name.upper())
+        mgf = getattr(ALGORITHM, "RSA_MGF1_%s" % mgf_hash.name.upper())
+
+        msg = (
+            struct.pack(
+                "!HBHBBB",
+                self.id,
+                obj.object_type,
+                obj.id,
+                algorithm,
+                hash,
+                mgf,
+            )
+            + digest.finalize()
+        )
+
+        return msg
+
+    def export_wrapped_rsa(
+        self,
+        obj: YhsmObject,
+        algorithm: ALGORITHM = ALGORITHM.AES256,
+        oaep_hash: hashes.HashAlgorithm = hashes.SHA256(),
+        mgf_hash: hashes.HashAlgorithm = hashes.SHA256(),
+        oaep_label: bytes = b"",
+    ) -> bytes:
+        """Export an object under asymmetric wrap.
+
+        :param obj: The object to export.
+        :param algorithm: (optional) The algorithm to use for the ephemeral key.
+        :param oaep_hash: (optional) The hash algorithm to use for OAEP label.
+        :param mgf_hash: (optional) The hash algorithm to use for MGF1.
+        :param oaep_label: (optional) OAEP label.
+        :return: The encrypted object data.
+        """
+        msg = self._rsa_wrap_cmd_data(
+            obj,
+            algorithm,
+            oaep_hash,
+            mgf_hash,
+            oaep_label,
+        )
+
+        return self.session.send_secure_cmd(COMMAND.EXPORT_WRAPPED_RSA, msg)
+
+    def export_raw_key(
+        self,
+        key: Union[AsymmetricKey, "SymmetricKey"],
+        algorithm: ALGORITHM = ALGORITHM.AES256,
+        oaep_hash: hashes.HashAlgorithm = hashes.SHA256(),
+        mgf_hash: hashes.HashAlgorithm = hashes.SHA256(),
+        oaep_label: bytes = b"",
+    ) -> bytes:
+        """Export an (a)symmetric key object under asymmetric wrap.
+
+        This command wraps only the raw key material of the key object.
+        Asymmetric keys are serialized as PKCS#8.
+
+        :param key: The (a)symmetric key object to wrap.
+        :param algorithm: (optional) The algorithm for the ephemeral key.
+        :param oaep_hash: (optional) The hash algorithm to use for OAEP label.
+        :param mgf_hash: (optional) The hash algorithm to use for MGF1.
+        :param oaep_label: (optional) OAEP label.
+        :return: The encrypted key.
+        """
+        msg = self._rsa_wrap_cmd_data(
+            key,
+            algorithm,
+            oaep_hash,
+            mgf_hash,
+            oaep_label,
+        )
+
+        return self.session.send_secure_cmd(COMMAND.WRAP_KEY_RSA, msg)
 
 
 class HmacKey(YhsmObject):
@@ -1063,8 +1352,7 @@ class HmacKey(YhsmObject):
         return self.session.send_secure_cmd(COMMAND.SIGN_HMAC, msg)
 
     def verify_hmac(self, signature: bytes, data: bytes) -> bool:
-        """
-        Verify an HMAC signature.
+        """Verify an HMAC signature.
 
         :param signature: The signature to verify.
         :param data: The data to verify the signature against.

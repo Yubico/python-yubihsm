@@ -15,7 +15,16 @@
 """Core classes for YubiHSM communication."""
 
 from . import utils
-from .defs import COMMAND, OBJECT, ALGORITHM, LIST_FILTER, OPTION, AUDIT, ERROR
+from .defs import (
+    COMMAND,
+    OBJECT,
+    ALGORITHM,
+    LIST_FILTER,
+    OPTION,
+    AUDIT,
+    ERROR,
+    FIPS_STATUS,
+)
 from .backends import get_backend, YhsmBackend
 from .objects import YhsmObject, _label_pack, LABEL_LENGTH
 from .exceptions import (
@@ -36,6 +45,7 @@ from dataclasses import dataclass, astuple
 from typing import Optional, Sequence, Mapping, Tuple, ClassVar, Set, NamedTuple
 import os
 import struct
+import warnings
 
 
 KEY_ENC = 0x04
@@ -43,8 +53,6 @@ KEY_MAC = 0x06
 KEY_RMAC = 0x07
 CARD_CRYPTOGRAM = 0x00
 HOST_CRYPTOGRAM = 0x01
-
-MAX_MSG_SIZE = 2048 - 1
 
 
 def _derive(key: bytes, t: int, context: bytes, L: int = 0x80) -> bytes:
@@ -118,6 +126,7 @@ class DeviceInfo:
     :ivar log_size: Log entry storage capacity.
     :ivar log_used: Log entries currently stored.
     :ivar supported_algorithms: List of supported algorithms.
+    :ivar part_number: Chip designator.
     """
 
     FORMAT: ClassVar[str] = "!BBBIBB"
@@ -128,16 +137,22 @@ class DeviceInfo:
     log_size: int
     log_used: int
     supported_algorithms: Set[ALGORITHM]
+    part_number: Optional[str]
 
     @classmethod
-    def parse(cls, value: bytes) -> "DeviceInfo":
+    def parse(
+        cls, first_page: bytes, second_page: Optional[bytes] = None
+    ) -> "DeviceInfo":
         """Parse a DeviceInfo from its binary representation."""
-        unpacked = struct.unpack_from(cls.FORMAT, value)
+        unpacked = struct.unpack_from(cls.FORMAT, first_page)
         version: Tuple[int, int, int] = unpacked[:3]  # type: ignore
         serial, log_size, log_used = unpacked[3:]
-        algorithms = {_algorithm(a) for a in value[cls.LENGTH :]}
+        algorithms = {_algorithm(a) for a in first_page[cls.LENGTH :]}
+        part_number = None
+        if second_page:
+            part_number = second_page.decode("utf-8")
 
-        return cls(version, serial, log_size, log_used, algorithms)
+        return cls(version, serial, log_size, log_used, algorithms, part_number)
 
 
 def _calculate_iv(key: bytes, counter: int) -> bytes:
@@ -255,6 +270,12 @@ class YubiHsm:
         """
         self._backend: YhsmBackend = backend
 
+        # Initialize the message buffer size to 2048 bytes. This may be updated
+        # depending on the YubiHSM FW version (in 2.4.0 or higher the
+        # buffer size is 3136) in get_device_info.
+        self._msg_buf_size = 2048
+        self.get_device_info()
+
     def __enter__(self):
         return self
 
@@ -268,7 +289,7 @@ class YubiHsm:
             self._backend = _ClosedBackend()
 
     def _transceive(self, msg: bytes) -> bytes:
-        if len(msg) > MAX_MSG_SIZE:
+        if len(msg) > self._msg_buf_size - 1:
             raise YubiHsmInvalidRequestError("Message too long.")
         return self._backend.transceive(msg)
 
@@ -287,7 +308,15 @@ class YubiHsm:
 
         :return: Device information.
         """
-        return DeviceInfo.parse(self.send_cmd(COMMAND.DEVICE_INFO))
+        first_page = self.send_cmd(COMMAND.DEVICE_INFO)
+        device_info = DeviceInfo.parse(first_page)
+        if device_info.version >= (2, 4, 0):
+            # Update maximum message buffer size
+            self._msg_buf_size = 3136
+            # fetch next page
+            second_page = self.send_cmd(COMMAND.DEVICE_INFO, struct.pack("!B", 1))
+            device_info = DeviceInfo.parse(first_page, second_page)
+        return device_info
 
     def get_device_public_key(self) -> ec.EllipticCurvePublicKey:
         """Retrieve the device's public key.
@@ -303,7 +332,7 @@ class YubiHsm:
         )
 
     def init_session(self, auth_key_id: int) -> "SymmetricAuth":
-        """Initiates the symmetric authentication process for establishing
+        """Initiate the symmetric authentication process for establishing
         an authenticated session with the YubiHSM.
 
         :param auth_key_id: The ID of the Authentication key used to
@@ -315,7 +344,7 @@ class YubiHsm:
     def init_session_asymmetric(
         self, auth_key_id: int, epk_oce: bytes
     ) -> "AsymmetricAuth":
-        """Initiates the asymmetric authentication process for establishing
+        """Initiate the asymmetric authentication process for establishing
         an authenticated session with the YubiHSM.
 
         :param auth_key_id: The ID of the Authentication key used to
@@ -328,7 +357,7 @@ class YubiHsm:
     def create_session(
         self, auth_key_id: int, key_enc: bytes, key_mac: bytes
     ) -> "AuthSession":
-        """Creates an authenticated session with the YubiHSM.
+        """Create an authenticated session with the YubiHSM.
 
         See also create_session_derived, which derives K-ENC and K-MAC from a
         password.
@@ -342,7 +371,7 @@ class YubiHsm:
         return SymmetricAuth.create_session(self, auth_key_id, key_enc, key_mac)
 
     def create_session_derived(self, auth_key_id: int, password: str) -> "AuthSession":
-        """Creates an authenticated session with the YubiHSM.
+        """Create an authenticated session with the YubiHSM.
 
         Uses a supplied password to derive the keys K-ENC and K-MAC.
 
@@ -360,7 +389,7 @@ class YubiHsm:
         private_key: ec.EllipticCurvePrivateKey,
         public_key: Optional[ec.EllipticCurvePublicKey] = None,
     ) -> "AuthSession":
-        """Creates an authenticated session with the YubiHSM.
+        """Create an authenticated session with the YubiHSM.
 
         :param auth_key_id: The ID of the Authentication key used to
             authenticate the session.
@@ -421,7 +450,7 @@ class SymmetricAuth:
         hsm: YubiHsm,
         auth_key_id: int,
     ) -> "SymmetricAuth":
-        """Initiates the mutual symmetric session authentication process.
+        """Initiate the mutual symmetric session authentication process.
 
         :param hsm: The YubiHSM connection.
         :param auth_key_id: The ID of the Authentication key used to
@@ -443,7 +472,7 @@ class SymmetricAuth:
     def create_session(
         cls, hsm: YubiHsm, auth_key_id: int, key_enc: bytes, key_mac: bytes
     ) -> "AuthSession":
-        """Constructs an authenticated session.
+        """Construct an authenticated session.
 
         :param hsm: The YubiHSM connection.
         :param auth_key_id: The ID of the Authentication key used to
@@ -463,7 +492,7 @@ class SymmetricAuth:
     def authenticate(
         self, key_senc: bytes, key_smac: bytes, key_srmac: bytes
     ) -> "AuthSession":
-        """Constructs an authenticated session.
+        """Construct an authenticated session.
 
         :param key_senc: `S-ENC` used for data confidentiality.
         :param key_smac: `S-MAC` used for data and protocol integrity.
@@ -531,7 +560,7 @@ class AsymmetricAuth:
         auth_key_id: int,
         epk_oce: bytes,
     ) -> "AsymmetricAuth":
-        """Initiates the mutual asymmetric session authentication process.
+        """Initiate the mutual asymmetric session authentication process.
 
         :param hsm: The YubiHSM connection.
         :param auth_key_id: The ID of the Authentication key used to
@@ -560,7 +589,7 @@ class AsymmetricAuth:
         private_key: ec.EllipticCurvePrivateKey,
         public_key: ec.EllipticCurvePublicKey,
     ) -> "AuthSession":
-        """Constructs an authenticated session.
+        """Construct an authenticated session.
 
         :param hsm: The YubiHSM connection.
         :param auth_key_id: The ID of the Authentication key used to
@@ -609,7 +638,7 @@ class AsymmetricAuth:
     def authenticate(
         self, key_senc: bytes, key_smac: bytes, key_srmac: bytes
     ) -> "AuthSession":
-        """Constructs an authenticated session.
+        """Construct an authenticated session.
 
         :param key_senc: `S-ENC` used for data confidentiality.
         :param key_smac: `S-MAC` used for data and protocol integrity.
@@ -786,7 +815,7 @@ class AuthSession:
         return self.send_secure_cmd(COMMAND.GET_PSEUDO_RANDOM, msg)
 
     def reset_device(self) -> None:
-        """Performs a factory reset of the YubiHSM.
+        """Perform a factory reset of the YubiHSM.
 
         Resets and reboots the YubiHSM, deletes all Objects and restores the
         default Authkey.
@@ -831,7 +860,7 @@ class AuthSession:
         return LogData(boot, auth, logs)
 
     def set_log_index(self, index: int) -> None:
-        """Clears logs to free up space for use with forced audit.
+        """Clear logs to free up space for use with forced audit.
 
         :param index: The log entry index to clear up to (inclusive).
         """
@@ -963,13 +992,23 @@ class AuthSession:
         """
         self.put_option(OPTION.FIPS_MODE, struct.pack("!B", mode))
 
+    def get_fips_status(self) -> FIPS_STATUS:
+        """Get the current FIPS status.
+
+        YubiHSM2 FIPS only.
+
+        :return: The FipsStatus value.
+        """
+        return FIPS_STATUS(self.get_option(OPTION.FIPS_MODE)[0])
+
     def get_fips_mode(self) -> bool:
-        """Get the current setting for FIPS compliant mode.
+        """Get the current setting for FIPS mode.
 
         YubiHSM2 FIPS only.
 
         :return: True if in FIPS mode, False if not.
         """
+        warnings.warn("Deprecated, use get_fips_status instead", DeprecationWarning)
         return bool(self.get_option(OPTION.FIPS_MODE)[0])
 
     def __repr__(self):

@@ -12,12 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from yubihsm.defs import ALGORITHM, CAPABILITY, ERROR, ORIGIN
-from yubihsm.objects import AsymmetricKey, WrapKey, Opaque
+from yubihsm.defs import ALGORITHM, CAPABILITY, ERROR, ORIGIN, OBJECT
+from yubihsm.objects import (
+    AsymmetricKey,
+    SymmetricKey,
+    WrapKey,
+    Opaque,
+    PublicWrapKey,
+)
 from yubihsm.exceptions import YubiHsmDeviceError
 
-from cryptography.hazmat.primitives.asymmetric import ec
-from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.asymmetric import ec, rsa, ed25519
+from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.backends import default_backend
 import os
 import random
@@ -392,7 +398,8 @@ def test_import_invalid_key_size(session):
 
 
 def test_import_invalid_algorithm(session):
-    # Algorithm must be AES128_CCM_WRAP, AES192_CCM_WRAP or AES256_CCM_WRAP
+    # Algorithm must be AES128_CCM_WRAP, AES192_CCM_WRAP, AES256_CCM_WRAP,
+    # RSA_2048, RSA_3072 or RSA_4096
     with pytest.raises(ValueError):
         WrapKey.put(
             session,
@@ -404,3 +411,307 @@ def test_import_invalid_algorithm(session):
             CAPABILITY.NONE,
             os.urandom(16),
         )
+
+
+class TestAsymmetricWrap:
+    @pytest.fixture(autouse=True)
+    def prerequisites(self, info):
+        if info.version < (2, 4, 0):
+            pytest.skip("Asymmetric wrap requires 2.4.0")
+
+    def generate_wrap_keys(
+        self,
+        session,
+        export_capabilities,
+        export_delegated_capabilities,
+        import_delegated_capabilities,
+        label,
+    ):
+        key = rsa.generate_private_key(
+            public_exponent=0x10001, key_size=2048, backend=default_backend()
+        )
+
+        export_wrapkey = PublicWrapKey.put(
+            session,
+            0,
+            label,
+            1,
+            CAPABILITY.EXPORT_WRAPPED | export_capabilities,
+            CAPABILITY.EXPORTABLE_UNDER_WRAP | export_delegated_capabilities,
+            key.public_key(),
+        )
+
+        import_wrapkey = WrapKey.put(
+            session,
+            0,
+            label,
+            1,
+            CAPABILITY.IMPORT_WRAPPED,
+            ALGORITHM.RSA_2048,
+            import_delegated_capabilities,
+            key,
+        )
+        return export_wrapkey, import_wrapkey
+
+    def test_wrap_asymmetric_key(self, session):
+        export_wrapkey, import_wrapkey = self.generate_wrap_keys(
+            session,
+            CAPABILITY.SIGN_ECDSA,
+            CAPABILITY.SIGN_ECDSA,
+            CAPABILITY.SIGN_ECDSA,
+            "Test Wrap Asymmetric Key",
+        )
+
+        asymkey = AsymmetricKey.generate(
+            session,
+            0,
+            "Test Wrap Asymmetric Key",
+            0xFFFF,
+            CAPABILITY.SIGN_ECDSA | CAPABILITY.EXPORTABLE_UNDER_WRAP,
+            ALGORITHM.EC_P256,
+        )
+
+        origin = asymkey.get_info().origin
+        assert origin == ORIGIN.GENERATED
+
+        pub = asymkey.get_public_key()
+
+        data = os.urandom(64)
+        resp = asymkey.sign_ecdsa(data)
+
+        pub.verify(resp, data, ec.ECDSA(hashes.SHA256()))
+
+        wrapped = export_wrapkey.export_raw_key(asymkey)
+
+        wrapped2 = export_wrapkey.export_raw_key(asymkey)
+
+        assert wrapped != wrapped2
+
+        asymkey.delete()
+
+        pytest.raises(YubiHsmDeviceError, asymkey.get_public_key)
+
+        asymkey = import_wrapkey.import_raw_key(
+            0,
+            OBJECT.ASYMMETRIC_KEY,
+            "Test Wrap Asymmetric Key",
+            1,
+            CAPABILITY.SIGN_ECDSA,
+            ALGORITHM.EC_P256,
+            wrapped,
+        )
+
+        origin = asymkey.get_info().origin
+        assert origin == ORIGIN.IMPORTED_WRAPPED | ORIGIN.IMPORTED
+
+        data = os.urandom(64)
+        resp = asymkey.sign_ecdsa(data)
+        assert resp is not None
+
+        pub.verify(resp, data, ec.ECDSA(hashes.SHA256()))
+
+        import_wrapkey.delete()
+        export_wrapkey.delete()
+
+    def test_wrap_symmetric_key(self, session):
+        export_wrapkey, import_wrapkey = self.generate_wrap_keys(
+            session,
+            CAPABILITY.ENCRYPT_ECB | CAPABILITY.DECRYPT_ECB,
+            CAPABILITY.DECRYPT_ECB | CAPABILITY.ENCRYPT_ECB,
+            CAPABILITY.DECRYPT_ECB,
+            "Test Wrap Symmetric Key",
+        )
+
+        symkey = SymmetricKey.generate(
+            session,
+            0,
+            "Test Wrap Symmetric Key",
+            1,
+            CAPABILITY.ENCRYPT_ECB
+            | CAPABILITY.DECRYPT_ECB
+            | CAPABILITY.EXPORTABLE_UNDER_WRAP,
+            ALGORITHM.AES256,
+        )
+
+        origin = symkey.get_info().origin
+        assert origin == ORIGIN.GENERATED
+
+        pt = os.urandom(256)
+        ct = symkey.encrypt_ecb(pt)
+
+        assert pt == symkey.decrypt_ecb(ct)
+
+        wrapped = export_wrapkey.export_raw_key(symkey)
+
+        wrapped2 = export_wrapkey.export_raw_key(symkey)
+
+        assert wrapped != wrapped2
+
+        symkey.delete()
+
+        symkey = import_wrapkey.import_raw_key(
+            0,
+            OBJECT.SYMMETRIC_KEY,
+            "Test Wrap Symmetric Key",
+            1,
+            CAPABILITY.DECRYPT_ECB,
+            ALGORITHM.AES256,
+            wrapped,
+        )
+
+        origin = symkey.get_info().origin
+        assert origin == ORIGIN.IMPORTED_WRAPPED | ORIGIN.IMPORTED
+
+        assert pt == symkey.decrypt_ecb(ct)
+
+        import_wrapkey.delete()
+        export_wrapkey.delete()
+
+    def test_export_wrap_rsa(self, session):
+        export_wrapkey, import_wrapkey = self.generate_wrap_keys(
+            session,
+            CAPABILITY.SIGN_ECDSA,
+            CAPABILITY.SIGN_ECDSA,
+            CAPABILITY.SIGN_ECDSA | CAPABILITY.EXPORTABLE_UNDER_WRAP,
+            "Test Export RSA",
+        )
+
+        asymkey = AsymmetricKey.generate(
+            session,
+            0,
+            "Test Export RSA",
+            0xFFFF,
+            CAPABILITY.SIGN_ECDSA | CAPABILITY.EXPORTABLE_UNDER_WRAP,
+            ALGORITHM.EC_P256,
+        )
+
+        origin = asymkey.get_info().origin
+        assert origin == ORIGIN.GENERATED
+
+        pub = asymkey.get_public_key()
+
+        data = os.urandom(64)
+        resp = asymkey.sign_ecdsa(data)
+
+        pub.verify(resp, data, ec.ECDSA(hashes.SHA256()))
+
+        wrapped = export_wrapkey.export_wrapped_rsa(asymkey)
+
+        wrapped2 = export_wrapkey.export_wrapped_rsa(asymkey)
+
+        assert wrapped != wrapped2
+
+        asymkey.delete()
+
+        pytest.raises(YubiHsmDeviceError, asymkey.get_public_key)
+
+        asymkey = import_wrapkey.import_wrapped_rsa(wrapped)
+
+        origin = asymkey.get_info().origin
+        assert origin == ORIGIN.IMPORTED_WRAPPED | ORIGIN.GENERATED
+
+        data = os.urandom(64)
+        resp = asymkey.sign_ecdsa(data)
+        assert resp is not None
+
+        pub.verify(resp, data, ec.ECDSA(hashes.SHA256()))
+
+        import_wrapkey.delete()
+        export_wrapkey.delete()
+
+    def test_export_using_private_wrapkey(self, session):
+        _, private_wrapkey = self.generate_wrap_keys(
+            session,
+            CAPABILITY.SIGN_ECDSA,
+            CAPABILITY.SIGN_ECDSA,
+            CAPABILITY.SIGN_ECDSA | CAPABILITY.EXPORTABLE_UNDER_WRAP,
+            "Test Export Using Private Wrapkey",
+        )
+
+        asymkey = AsymmetricKey.generate(
+            session,
+            0,
+            "Test Export Using Private Wrapkey",
+            0xFFFF,
+            CAPABILITY.SIGN_ECDSA | CAPABILITY.EXPORTABLE_UNDER_WRAP,
+            ALGORITHM.EC_P256,
+        )
+
+        with pytest.raises(YubiHsmDeviceError) as context:
+            # The (private) wrap key is only used for importing
+            # wrapped objects.
+            private_wrapkey.export_wrapped(asymkey)
+        assert context.value.code == ERROR.INVALID_DATA
+
+    def test_get_public_key(self, session):
+        key = rsa.generate_private_key(
+            public_exponent=0x10001, key_size=2048, backend=default_backend()
+        )
+
+        wrapkey = WrapKey.put(
+            session,
+            0,
+            "Test Get Public Key",
+            1,
+            CAPABILITY.EXPORT_WRAPPED,
+            ALGORITHM.RSA_2048,
+            CAPABILITY.NONE,
+            key,
+        )
+
+        pub = wrapkey.get_public_key()
+        assert pub.public_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo,
+        ) == key.public_key().public_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo,
+        )
+
+    def test_export_ed25519(self, session):
+        wrapkey = WrapKey.put(
+            session,
+            0,
+            "Test Export ED25519",
+            1,
+            CAPABILITY.EXPORT_WRAPPED | CAPABILITY.IMPORT_WRAPPED,
+            ALGORITHM.AES192_CCM_WRAP,
+            CAPABILITY.SIGN_EDDSA | CAPABILITY.EXPORTABLE_UNDER_WRAP,
+            os.urandom(24),
+        )
+
+        edkey = ed25519.Ed25519PrivateKey.generate()
+
+        asymkey = AsymmetricKey.put(
+            session,
+            0,
+            "Test Export ED25519",
+            0xFFFF,
+            CAPABILITY.SIGN_EDDSA | CAPABILITY.EXPORTABLE_UNDER_WRAP,
+            edkey,
+        )
+        origin = asymkey.get_info().origin
+        assert origin == ORIGIN.IMPORTED
+
+        data = os.urandom(64)
+        resp = asymkey.sign_eddsa(data)
+
+        edkey.public_key().verify(resp, data)
+
+        wrapped = wrapkey.export_wrapped(asymkey)
+        wrapped_with_seed = wrapkey.export_wrapped(asymkey, True)
+
+        asymkey.delete()
+
+        for w in [wrapped, wrapped_with_seed]:
+            asymkey = wrapkey.import_wrapped(w)
+
+            data = os.urandom(64)
+            resp = asymkey.sign_eddsa(data)
+
+            edkey.public_key().verify(resp, data)
+
+            origin = asymkey.get_info().origin
+            assert origin == ORIGIN.IMPORTED_WRAPPED | ORIGIN.IMPORTED
+
+            asymkey.delete()
