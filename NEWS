@@ -1,4 +1,4 @@
-* Version 3.1.0 (unreleased)
+* Version 3.1.0 (released 2024-09-09)
  ** Support for asymmetric wrap (for FW 2.4+).
  ** Support for wrapping ed25519 keys with seed (for FW 2.4+).
  ** Deprectaded `get_fips_mode` (use `get_fips_status` instead).
