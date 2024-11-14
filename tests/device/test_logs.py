@@ -92,6 +92,8 @@ def test_full_log(session):
         last_digest = digest.finalize()[:16]
         assert last_digest == logs[i].digest
 
+    hmackey.delete()
+
 
 def test_wrong_chain(session):
     hmackey = HmacKey.generate(
@@ -117,6 +119,8 @@ def test_wrong_chain(session):
     wrong_line = replace(last_line, digest=os.urandom(16))
     with pytest.raises(YubiHsmInvalidResponseError):
         session.get_log_entries(wrong_line)
+
+    hmackey.delete()
 
 
 def test_forced_log(hsm, session):
@@ -159,6 +163,8 @@ def test_forced_log(hsm, session):
         resp = hmackey.sign_hmac(data)
         assert len(resp) == 32
         assert hmackey.verify_hmac(resp, data)
+
+    hmackey.delete()
 
 
 def test_logs_after_reset(hsm, connect_hsm, session, info):

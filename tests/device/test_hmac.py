@@ -48,6 +48,8 @@ def test_generate_hmac(session, algorithm, expect_len):
     assert resp != resp2
     assert hmackey.verify_hmac(resp2, data)
 
+    hmackey.delete()
+
     hmackey = HmacKey.generate(session, 0, "Generate HMAC", 1, caps, algorithm)
 
     resp = hmackey.sign_hmac(data)
@@ -198,6 +200,7 @@ def test_import_large_keys(session, vector):
 
     assert key.sign_hmac(vector["chal"]) == vector["exp_sha"]
     assert key.verify_hmac(vector["exp_sha"], vector["chal"])
+    key.delete()
 
 
 def test_import_invalid_algorithm(session):

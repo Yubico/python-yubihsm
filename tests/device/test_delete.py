@@ -107,7 +107,9 @@ def test_wrap_key(hsm, session):
 
 
 def test_hmac_key(hsm, session):
-    obj = HmacKey.put(session, 0, "Test delete HMAC", 1, CAPABILITY.SIGN_HMAC, b"key")
+    obj = HmacKey.put(
+        session, 0, "Test delete HMAC", 1, CAPABILITY.SIGN_HMAC, bytes(16)
+    )
     _test_delete(hsm, session, obj, CAPABILITY.DELETE_HMAC_KEY)
 
 
