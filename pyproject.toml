@@ -34,9 +34,9 @@ include = [
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.0"
-Sphinx = {version = "^7.1", python = ">=3.9"}
-sphinx-rtd-theme = {version = "^1.2.2", python = ">=3.9"}
-sphinx-autodoc-typehints = {version = "^1.2.4", python = ">=3.9"}
+Sphinx = {version = "^8.1", python = ">=3.10"}
+sphinx-rtd-theme = {version = "^3.0.1", python = ">=3.10"}
+sphinx-autoapi = {version = "^3.3.3", python = ">=3.10"}
 
 [build-system]
 requires = ["poetry-core>=2.0"]
