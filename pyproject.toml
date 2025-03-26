@@ -4,7 +4,7 @@ version = "3.1.1.dev0"
 description = "Library for communication with a YubiHSM 2 over HTTP or USB."
 authors = [{ name = "Dain Nilsson", email = "<dain@yubico.com>" }]
 readme = "README.adoc"
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 license = { file = "COPYING" }
 classifiers = [
   "Operating System :: OS Independent",
@@ -34,9 +34,9 @@ include = [
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.0"
-Sphinx = {version = "^7.1", python = ">=3.8"}
-sphinx-rtd-theme = {version = "^1.2.2", python = ">=3.8"}
-sphinx-autodoc-typehints = {version = "^1.2.4", python = ">=3.8"}
+Sphinx = {version = "^7.1", python = ">=3.9"}
+sphinx-rtd-theme = {version = "^1.2.2", python = ">=3.9"}
+sphinx-autodoc-typehints = {version = "^1.2.4", python = ">=3.9"}
 
 [build-system]
 requires = ["poetry-core>=2.0"]
