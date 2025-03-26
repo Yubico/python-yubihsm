@@ -1,19 +1,30 @@
-[tool.poetry]
+[project]
 name = "yubihsm"
 version = "3.1.1.dev0"
 description = "Library for communication with a YubiHSM 2 over HTTP or USB."
-authors = ["Dain Nilsson <dain@yubico.com>"]
-license = "APACHE-2.0"
-homepage = "https://developers.yubico.com/YubiHSM2/"
-repository = "https://github.com/Yubico/python-yubihsm"
+authors = [{ name = "Dain Nilsson", email = "<dain@yubico.com>" }]
+readme = "README.adoc"
+requires-python = ">=3.9"
+license = { file = "COPYING" }
 classifiers = [
-	"Operating System :: OS Independent",
-	"Programming Language :: Python",
-	"Development Status :: 5 - Production/Stable",
-	"License :: OSI Approved :: Apache Software License",
-	"Topic :: Security :: Cryptography",
-	"Topic :: Software Development :: Libraries"
+  "Operating System :: OS Independent",
+  "Programming Language :: Python",
+  "Development Status :: 5 - Production/Stable",
+  "License :: OSI Approved :: Apache Software License",
+  "Topic :: Security :: Cryptography",
+  "Topic :: Software Development :: Libraries"
 ]
+dependencies = ["cryptography (>=2.6, <47)"]
+
+[project.optional-dependencies]
+http = ["requests (>=2.0, <3.0)"]
+usb = ["pyusb (>=1.0, <2.0)"]
+
+[project.urls]
+Homepage = "https://developers.yubico.com/YubiHSM2/"
+Repository = "https://github.com/Yubico/python-yubihsm"
+
+[tool.poetry]
 include = [
   { path = "COPYING", format = "sdist" },
   { path = "NEWS", format = "sdist" },
@@ -21,24 +32,14 @@ include = [
   "tests/",
 ]
 
-[tool.poetry.dependencies]
-python = "^3.8"
-cryptography = ">=2.6"
-requests = {version = "^2.0", optional = true}
-pyusb = {version = "^1.0", optional = true}
-
-[tool.poetry.extras]
-http = ["requests"]
-usb = ["pyusb"]
-
-[tool.poetry.dev-dependencies]
+[tool.poetry.group.dev.dependencies]
 pytest = "^8.0"
-Sphinx = {version = "^7.1", python = ">=3.8"}
-sphinx-rtd-theme = {version = "^1.2.2", python = ">=3.8"}
-sphinx-autodoc-typehints = {version = "^1.2.4", python = ">=3.8"}
+Sphinx = {version = "^7.1", python = ">=3.9"}
+sphinx-rtd-theme = {version = "^1.2.2", python = ">=3.9"}
+sphinx-autodoc-typehints = {version = "^1.2.4", python = ">=3.9"}
 
 [build-system]
-requires = ["poetry-core>=1.0.0"]
+requires = ["poetry-core>=2.0"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.pytest.ini_options]
