@@ -14,7 +14,7 @@
 
 """Classes for interacting with objects on a YubiHSM."""
 
-from .defs import ALGORITHM, CAPABILITY, COMMAND, OBJECT, ORIGIN
+from .defs import Version, ALGORITHM, CAPABILITY, COMMAND, OBJECT, ORIGIN
 from .exceptions import YubiHsmInvalidResponseError
 from .utils import password_to_key
 from . import core
@@ -115,6 +115,68 @@ class ObjectInfo:
         data[7] = ORIGIN(data[7])
         data[8] = _label_unpack(data[8])
         return cls(*data)
+
+
+def _get_bytes(c: x509.Certificate, oid: int) -> bytes:
+    return c.extensions.get_extension_for_oid(
+        x509.oid.ObjectIdentifier(f"1.3.6.1.4.1.41482.4.{oid}")
+    ).value.public_bytes()
+
+
+def _get_int(c: x509.Certificate, oid: int) -> int:
+    return int.from_bytes(_get_bytes(c, oid)[2:], "big")
+
+
+@dataclass
+class AttestationExtensions:
+    """Parsed values from attestation certificate extensions.
+
+    This class parses the custom extensions available in an attestation certificate.
+    """
+
+    firmware_version: Version
+    serial: int
+    origin: ORIGIN
+    domains: int
+    capabilities: CAPABILITY
+    object_id: int
+    label: Union[str, bytes]
+    fips_certificate: Optional[int]
+    fips_approved: Optional[bool]
+
+    @classmethod
+    def parse(cls, certificate: x509.Certificate) -> "AttestationExtensions":
+        """Extracts the attributes from an an attestation certificate."""
+
+        version: Version = tuple(_get_bytes(certificate, 1)[-3:])  # type: ignore
+        serial = _get_int(certificate, 2)
+        origin = ORIGIN(_get_int(certificate, 3))
+        domains = _get_int(certificate, 4)
+        capabilities = CAPABILITY(_get_int(certificate, 5))
+        object_id = _get_int(certificate, 6)
+        label = _label_unpack(_get_bytes(certificate, 9)[2:])
+
+        # Available on YubiHSM FIPS only
+        try:
+            fips_certificate = _get_int(certificate, 10)
+        except x509.ExtensionNotFound:
+            fips_certificate = None
+        try:
+            fips_approved = bool(_get_int(certificate, 12))
+        except x509.ExtensionNotFound:
+            fips_approved = None
+
+        return cls(
+            version,
+            serial,
+            origin,
+            domains,
+            capabilities,
+            object_id,
+            label,
+            fips_certificate,
+            fips_approved,
+        )
 
 
 T_Object = TypeVar("T_Object", bound="YhsmObject")
