@@ -17,6 +17,10 @@
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives import hashes
 from enum import IntEnum, IntFlag, unique
+from typing import Tuple
+
+
+Version = Tuple[int, int, int]
 
 
 @unique
