@@ -26,7 +26,7 @@ import os
 class TestAuthenticationKey:
     def test_put_unicode_authkey(self, hsm, session):
         # UTF-8 encoded unicode password
-        password = b"\xF0\x9F\x98\x81\xF0\x9F\x98\x83\xF0\x9F\x98\x84".decode()
+        password = b"\xf0\x9f\x98\x81\xf0\x9f\x98\x83\xf0\x9f\x98\x84".decode()
 
         authkey = AuthenticationKey.put_derived(
             session,
