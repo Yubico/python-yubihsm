@@ -140,7 +140,7 @@ def test_fips_approved_attestation(session, connect_hsm):
         pytest.skip("Non-FIPS YubiHSM")
 
     try:
-        # Set inte FIPS approved mode
+        # Configure into FIPS approved mode
         session.reset_device()
         sleep(5.0)
         hsm = connect_hsm()
@@ -169,6 +169,6 @@ def test_fips_approved_attestation(session, connect_hsm):
         assert ext.fips_approved in (True, None)
 
     finally:
-        # Reset device to
+        # Reset device to get out of FIPS approved mode
         new_session.reset_device()
         sleep(5.0)

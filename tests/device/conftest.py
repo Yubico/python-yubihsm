@@ -1,8 +1,10 @@
 from yubihsm import YubiHsm
+from yubihsm.exceptions import YubiHsmDeviceError
 from time import sleep
 from functools import partial
 from . import DEFAULT_KEY
 import pytest
+from typing import List
 
 
 @pytest.fixture(scope="session")
@@ -26,6 +28,29 @@ def info(hsm):
 def session(hsm):
     with hsm.create_session_derived(1, DEFAULT_KEY) as session:
         yield session
+
+
+_logged_version: List[bool] = []
+
+
+@pytest.fixture(scope="module", autouse=True)
+def _hsm_info(info, session, request):
+    if not _logged_version:  # Run only once
+        name = "YubiHSM "
+        try:
+            session.get_fips_status()
+            name += "FIPS "
+        except YubiHsmDeviceError:
+            pass
+        name += "v" + (".".join(str(v) for v in info.version))
+
+        capmanager = request.config.pluginmanager.getplugin("capturemanager")
+        with capmanager.global_and_fixture_disabled():
+            print()
+            print()
+            print("ℹ️  Running tests on", name)
+            print()
+        _logged_version.append(True)
 
 
 @pytest.fixture(autouse=True, scope="session")
