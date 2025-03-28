@@ -47,6 +47,12 @@ class ERROR(IntEnum):
     ALGORITHM_DISABLED = 0x12
     COMMAND_UNEXECUTED = 0xFF
 
+    def __repr__(self):
+        return "<%s.%s: %s>" % (self.__class__.__name__, self._name_, hex(self))
+
+    def __str__(self):
+        return repr(self)
+
 
 @unique
 class COMMAND(IntEnum):
@@ -118,6 +124,12 @@ class COMMAND(IntEnum):
 
     ERROR = 0x7F
 
+    def __repr__(self):
+        return "<%s.%s: %s>" % (self.__class__.__name__, self._name_, hex(self))
+
+    def __str__(self):
+        return repr(self)
+
 
 @unique
 class ALGORITHM(IntEnum):
@@ -183,6 +195,9 @@ class ALGORITHM(IntEnum):
     AES_ECB = 53
     AES_CBC = 54
     AES_KWP = 55
+
+    def __str__(self):
+        return repr(self)
 
     def to_curve(self) -> ec.EllipticCurve:
         """Return a Cryptography EC curve instance for a given member.
@@ -290,6 +305,9 @@ class LIST_FILTER(IntEnum):
     ALGORITHM = 0x05
     LABEL = 0x06
 
+    def __str__(self):
+        return repr(self)
+
 
 @unique
 class OBJECT(IntEnum):
@@ -305,6 +323,12 @@ class OBJECT(IntEnum):
     SYMMETRIC_KEY = 0x08
     PUBLIC_WRAP_KEY = 0x09
 
+    def __repr__(self):
+        return "<%s.%s: %s>" % (self.__class__.__name__, self._name_, hex(self))
+
+    def __str__(self):
+        return repr(self)
+
 
 @unique
 class OPTION(IntEnum):
@@ -315,6 +339,12 @@ class OPTION(IntEnum):
     ALGORITHM_TOGGLE = 0x04
     FIPS_MODE = 0x05
 
+    def __repr__(self):
+        return "<%s.%s: %s>" % (self.__class__.__name__, self._name_, hex(self))
+
+    def __str__(self):
+        return repr(self)
+
 
 @unique
 class AUDIT(IntEnum):
@@ -324,6 +354,12 @@ class AUDIT(IntEnum):
     ON = 0x01
     FIXED = 0x02
 
+    def __repr__(self):
+        return "<%s.%s: %s>" % (self.__class__.__name__, self._name_, hex(self))
+
+    def __str__(self):
+        return repr(self)
+
 
 @unique
 class FIPS_STATUS(IntEnum):
@@ -332,6 +368,12 @@ class FIPS_STATUS(IntEnum):
     OFF = 0x00
     ON = 0x01
     PENDING = 0x03
+
+    def __repr__(self):
+        return "<%s.%s: %s>" % (self.__class__.__name__, self._name_, hex(self))
+
+    def __str__(self):
+        return repr(self)
 
 
 class _enum_prop:
@@ -404,6 +446,12 @@ class CAPABILITY(IntFlag):
     PUBLIC_WRAP_KEY_WRITE = 1 << 0x36
     PUBLIC_WRAP_KEY_DELETE = 1 << 0x37
 
+    def __repr__(self):
+        return "<%s.%s: %s>" % (self.__class__.__name__, self._name_, hex(self))
+
+    def __str__(self):
+        return repr(self)
+
     @_enum_prop
     def NONE(cls) -> "CAPABILITY":
         return cls(0)  # type: ignore
@@ -417,3 +465,9 @@ class ORIGIN(IntFlag):
     GENERATED = 0x01
     IMPORTED = 0x02
     IMPORTED_WRAPPED = 0x10  # Set in combination with GENERATED/IMPORTED
+
+    def __repr__(self):
+        return "<%s.%s: %s>" % (self.__class__.__name__, self._name_, hex(self))
+
+    def __str__(self):
+        return repr(self)
