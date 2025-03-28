@@ -28,11 +28,6 @@ import struct
 import pytest
 
 
-def foo():
-    bar: int = "hello"
-    return bar
-
-
 class Mode(Enum):
     IMPORT = 0
     GENERATE = 1
@@ -115,7 +110,7 @@ def test_ecdsa_sign(info, session, keypair, curve, hashtype):
 def test_derive_ecdh(session, keypair, curve):
     asymkey, public_key = keypair
 
-    ekey = ec.generate_private_key(curve, backend=default_backend())
+    ekey = ec.generate_private_key(curve(), backend=default_backend())
     secret = ekey.exchange(ec.ECDH(), public_key)
 
     resp = asymkey.derive_ecdh(ekey.public_key())
