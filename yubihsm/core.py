@@ -16,6 +16,7 @@
 
 from . import utils
 from .defs import (
+    Version,
     COMMAND,
     OBJECT,
     ALGORITHM,
@@ -132,7 +133,7 @@ class DeviceInfo:
     FORMAT: ClassVar[str] = "!BBBIBB"
     LENGTH: ClassVar[int] = struct.calcsize(FORMAT)
 
-    version: Tuple[int, int, int]
+    version: Version
     serial: int
     log_size: int
     log_used: int
@@ -145,7 +146,7 @@ class DeviceInfo:
     ) -> "DeviceInfo":
         """Parse a DeviceInfo from its binary representation."""
         unpacked = struct.unpack_from(cls.FORMAT, first_page)
-        version: Tuple[int, int, int] = unpacked[:3]  # type: ignore
+        version: Version = unpacked[:3]  # type: ignore
         serial, log_size, log_used = unpacked[3:]
         algorithms = {_algorithm(a) for a in first_page[cls.LENGTH :]}
         part_number = None
