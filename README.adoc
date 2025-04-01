@@ -44,6 +44,7 @@ that backend, and will avoid installing unneeded dependencies.
 from yubihsm import YubiHsm
 from yubihsm.defs import CAPABILITY, ALGORITHM
 from yubihsm.objects import AsymmetricKey
+from yubihsm.core import serialization    # importing this here allowed me to use it later
 
 # Connect to the YubiHSM via the connector using the default password:
 hsm = YubiHsm.connect('http://localhost:12345')
