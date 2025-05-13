@@ -34,6 +34,7 @@ from dataclasses import dataclass
 from typing import ClassVar, Union, Optional, TypeVar, NamedTuple, Type
 import copy
 import struct
+import gzip
 
 
 LABEL_LENGTH = 40
@@ -357,6 +358,7 @@ class Opaque(YhsmObject):
         domains: int,
         capabilities: CAPABILITY,
         certificate: x509.Certificate,
+        compress: bool = False,
     ) -> "Opaque":
         """Import an X509 certificate into the YubiHSM as an Opaque.
 
@@ -370,6 +372,8 @@ class Opaque(YhsmObject):
         :return: A reference to the newly created object.
         """
         encoded_cert = certificate.public_bytes(Encoding.DER)
+        if compress:
+            encoded_cert = gzip.compress(encoded_cert)
         return cls.put(
             session,
             object_id,
@@ -380,12 +384,15 @@ class Opaque(YhsmObject):
             encoded_cert,
         )
 
-    def get_certificate(self) -> x509.Certificate:
+    def get_certificate(self, decompress: bool = False) -> x509.Certificate:
         """Read an Opaque object from the YubiHSM, parsed as a certificate.
 
         :return: The certificate stored for the object.
         """
-        return x509.load_der_x509_certificate(self.get(), default_backend())
+        cert_data = self.get()
+        if decompress:
+            cert_data = gzip.decompress(cert_data)
+        return x509.load_der_x509_certificate(cert_data, default_backend())
 
 
 class AuthenticationKey(YhsmObject):
