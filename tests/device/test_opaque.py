@@ -124,8 +124,6 @@ def test_compressed_certificate(session):
         certificate,
         compress=True,
     )
-    assert certobj.get_certificate() == compressed_certobj.get_certificate(
-        decompress=True
-    )
+    assert certobj.get_certificate() == compressed_certobj.get_certificate()
     assert certobj.get() != compressed_certobj.get()
     assert len(certobj.get()) > len(compressed_certobj.get())

@@ -369,6 +369,7 @@ class Opaque(YhsmObject):
         :param domains: The set of domains to assign the object to.
         :param capabilities: The set of capabilities to give the object.
         :param certificate: A certificate to import.
+        :param compress: (optional) Compress the certificate.
         :return: A reference to the newly created object.
         """
         encoded_cert = certificate.public_bytes(Encoding.DER)
@@ -384,14 +385,17 @@ class Opaque(YhsmObject):
             encoded_cert,
         )
 
-    def get_certificate(self, decompress: bool = False) -> x509.Certificate:
+    def get_certificate(self) -> x509.Certificate:
         """Read an Opaque object from the YubiHSM, parsed as a certificate.
 
         :return: The certificate stored for the object.
         """
         cert_data = self.get()
-        if decompress:
+        try:
+            # Try to decompress cert
             cert_data = gzip.decompress(cert_data)
+        except gzip.BadGzipFile:
+            pass
         return x509.load_der_x509_certificate(cert_data, default_backend())
 
 
