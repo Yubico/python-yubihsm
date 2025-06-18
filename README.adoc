@@ -44,6 +44,7 @@ that backend, and will avoid installing unneeded dependencies.
 from yubihsm import YubiHsm
 from yubihsm.defs import CAPABILITY, ALGORITHM
 from yubihsm.objects import AsymmetricKey
+from cryptography.hazmat.primitives import serialization
 
 # Connect to the YubiHSM via the connector using the default password:
 hsm = YubiHsm.connect('http://localhost:12345')
@@ -63,7 +64,7 @@ key = AsymmetricKey.generate(  # Generate a new key object in the YubiHSM.
 pub_key = key.get_public_key()
 
 # Write the public key to a file:
-with open('public_key.pem', 'w') as f:
+with open('public_key.pem', 'wb') as f:
     f.write(pub_key.public_bytes(
         encoding=serialization.Encoding.PEM,
         format=serialization.PublicFormat.SubjectPublicKeyInfo
