@@ -25,6 +25,27 @@ import datetime
 import pytest
 
 
+def get_test_cert():
+    private_key = ec.generate_private_key(
+        ALGORITHM.EC_P256.to_curve(), default_backend()
+    )
+    name = x509.Name(
+        [x509.NameAttribute(x509.oid.NameOID.COMMON_NAME, "Test Certificate")]
+    )
+    one_day = datetime.timedelta(1, 0, 0)
+    certificate = (
+        x509.CertificateBuilder()
+        .subject_name(name)
+        .issuer_name(name)
+        .not_valid_before(datetime.datetime.today() - one_day)
+        .not_valid_after(datetime.datetime.today() + one_day)
+        .serial_number(int(uuid.uuid4()))
+        .public_key(private_key.public_key())
+        .sign(private_key, hashes.SHA256(), default_backend())
+    )
+    return certificate
+
+
 def test_put_empty(session):
     # Can't put an empty object
     with pytest.raises(ValueError):
@@ -74,27 +95,35 @@ def test_put_too_big(session):
 
 
 def test_certificate(session):
-    private_key = ec.generate_private_key(
-        ALGORITHM.EC_P256.to_curve(), default_backend()
-    )
-    name = x509.Name(
-        [x509.NameAttribute(x509.oid.NameOID.COMMON_NAME, "Test Certificate")]
-    )
-    one_day = datetime.timedelta(1, 0, 0)
-    certificate = (
-        x509.CertificateBuilder()
-        .subject_name(name)
-        .issuer_name(name)
-        .not_valid_before(datetime.datetime.today() - one_day)
-        .not_valid_after(datetime.datetime.today() + one_day)
-        .serial_number(int(uuid.uuid4()))
-        .public_key(private_key.public_key())
-        .sign(private_key, hashes.SHA256(), default_backend())
-    )
-
+    certificate = get_test_cert()
     certobj = Opaque.put_certificate(
         session, 0, "Test certificate Opaque", 1, CAPABILITY.NONE, certificate
     )
 
     assert certificate == certobj.get_certificate()
     certobj.delete()
+
+
+def test_compressed_certificate(session):
+    certificate = get_test_cert()
+
+    certobj = Opaque.put_certificate(
+        session,
+        0,
+        "Test certificate Opaque",
+        1,
+        CAPABILITY.NONE,
+        certificate,
+    )
+    compressed_certobj = Opaque.put_certificate(
+        session,
+        0,
+        "Test certificate Opaque Compressed",
+        1,
+        CAPABILITY.NONE,
+        certificate,
+        compress=True,
+    )
+    assert certobj.get_certificate() == compressed_certobj.get_certificate()
+    assert certobj.get() != compressed_certobj.get()
+    assert len(certobj.get()) > len(compressed_certobj.get())
