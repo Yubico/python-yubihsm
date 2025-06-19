@@ -45,7 +45,7 @@ jobs:
           architecture: ${{ matrix.architecture }}
 
       - name: Install the project
-        run: uv sync
+        run: uv sync --all-extras
 
       - name: Run pre-commit
         if: "!startsWith(matrix.python, 'pypy')"
@@ -146,7 +146,7 @@ jobs:
           python-version: 3.x
 
       - name: Install the project
-        run: uv sync --extra usb --extra http
+        run: uv sync --all-extras
 
       - name: Build sphinx documentation
         run: uv run make -C docs/ html
