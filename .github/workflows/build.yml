@@ -2,6 +2,8 @@ name: build
 
 on: [push, pull_request]
 
+permissions: read-all
+
 jobs:
   test:
     runs-on: ${{ matrix.os }}
