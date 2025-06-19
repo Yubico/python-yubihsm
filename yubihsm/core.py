@@ -14,40 +14,40 @@
 
 """Core classes for YubiHSM communication."""
 
-from . import utils
-from .defs import (
-    Version,
-    COMMAND,
-    OBJECT,
-    ALGORITHM,
-    LIST_FILTER,
-    OPTION,
-    AUDIT,
-    ERROR,
-    FIPS_STATUS,
-)
-from .backends import get_backend, YhsmBackend
-from .objects import YhsmObject, _label_pack, LABEL_LENGTH
-from .exceptions import (
-    YubiHsmDeviceError,
-    YubiHsmInvalidRequestError,
-    YubiHsmInvalidResponseError,
-    YubiHsmAuthenticationError,
-    YubiHsmConnectionError,
-)
+import os
+import struct
+import warnings
+from dataclasses import astuple, dataclass
+from hashlib import sha256
+from typing import ClassVar, Mapping, NamedTuple, Optional, Sequence, Set, Tuple
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import cmac, constant_time, hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives.kdf.x963kdf import X963KDF
-from hashlib import sha256
-from dataclasses import dataclass, astuple
-from typing import Optional, Sequence, Mapping, Tuple, ClassVar, Set, NamedTuple
-import os
-import struct
-import warnings
 
+from . import utils
+from .backends import YhsmBackend, get_backend
+from .defs import (
+    ALGORITHM,
+    AUDIT,
+    COMMAND,
+    ERROR,
+    FIPS_STATUS,
+    LIST_FILTER,
+    OBJECT,
+    OPTION,
+    Version,
+)
+from .exceptions import (
+    YubiHsmAuthenticationError,
+    YubiHsmConnectionError,
+    YubiHsmDeviceError,
+    YubiHsmInvalidRequestError,
+    YubiHsmInvalidResponseError,
+)
+from .objects import LABEL_LENGTH, YhsmObject, _label_pack
 
 KEY_ENC = 0x04
 KEY_MAC = 0x06
@@ -158,7 +158,9 @@ class DeviceInfo:
 
 def _calculate_iv(key: bytes, counter: int) -> bytes:
     encryptor = Cipher(
-        algorithms.AES(key), modes.ECB(), backend=default_backend()  # nosec ECB
+        algorithms.AES(key),
+        modes.ECB(),  # noqa: S305
+        backend=default_backend(),
     ).encryptor()
     return encryptor.update(int.to_bytes(counter, 16, "big")) + encryptor.finalize()
 

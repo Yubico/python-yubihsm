@@ -12,12 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from . import YhsmBackend
-from ..exceptions import YubiHsmConnectionError
-from requests.exceptions import RequestException
+from typing import Optional, Tuple, Union
 from urllib import parse
+
 import requests
-from typing import Optional, Union, Tuple
+from requests.exceptions import RequestException
+
+from ..exceptions import YubiHsmConnectionError
+from . import YhsmBackend
 
 
 class HttpBackend(YhsmBackend):

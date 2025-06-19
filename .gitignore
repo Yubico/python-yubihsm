@@ -1,4 +1,5 @@
 poetry.lock
+uv.lock
 build/
 dist/
 venv/

@@ -14,28 +14,28 @@
 
 """Classes for interacting with objects on a YubiHSM."""
 
-from .defs import Version, ALGORITHM, CAPABILITY, COMMAND, OBJECT, ORIGIN
-from .exceptions import YubiHsmInvalidResponseError
-from .utils import password_to_key
-from . import core
+import copy
+import gzip
+import struct
+from dataclasses import dataclass
+from typing import ClassVar, NamedTuple, Optional, Type, TypeVar, Union
 
-from cryptography.hazmat.backends import default_backend
 from cryptography import x509
+from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.asymmetric import rsa, ec, ed25519
+from cryptography.hazmat.primitives.asymmetric import ec, ed25519, rsa
+from cryptography.hazmat.primitives.asymmetric.utils import Prehashed
 from cryptography.hazmat.primitives.serialization import (
     Encoding,
-    PublicFormat,
-    PrivateFormat,
     NoEncryption,
+    PrivateFormat,
+    PublicFormat,
 )
-from cryptography.hazmat.primitives.asymmetric.utils import Prehashed
-from dataclasses import dataclass
-from typing import ClassVar, Union, Optional, TypeVar, NamedTuple, Type
-import copy
-import struct
-import gzip
 
+from . import core
+from .defs import ALGORITHM, CAPABILITY, COMMAND, OBJECT, ORIGIN, Version
+from .exceptions import YubiHsmInvalidResponseError
+from .utils import password_to_key
 
 LABEL_LENGTH = 40
 
@@ -1581,9 +1581,7 @@ class OtpAeadKey(YhsmObject):
             domains,
             capabilities,
             algorithm,
-        ) + struct.pack(
-            "<I", nonce_id
-        )  # nonce ID is stored in little-endian.
+        ) + struct.pack("<I", nonce_id)  # nonce ID is stored in little-endian.
         msg += key
         return cls._from_command(session, COMMAND.PUT_OTP_AEAD_KEY, msg)
 

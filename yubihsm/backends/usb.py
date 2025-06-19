@@ -12,12 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from . import YhsmBackend
-from ..exceptions import YubiHsmConnectionError
-import usb.core
-import usb.util
 from typing import Optional
 
+import usb.core
+import usb.util
+
+from ..exceptions import YubiHsmConnectionError
+from . import YhsmBackend
 
 YUBIHSM_VID = 0x1050
 YUBIHSM_PID = 0x0030
@@ -85,7 +86,5 @@ class UsbBackend(YhsmBackend):
         v_int = self._device.bcdDevice
         version = "{}.{}.{}".format((v_int >> 8) & 0xF, (v_int >> 4) & 0xF, v_int & 0xF)
         return (
-            "{0.__class__.__name__}("
-            "version={1}, "
-            "serial={0._device.serial_number})"
+            "{0.__class__.__name__}(version={1}, serial={0._device.serial_number})"
         ).format(self, version)

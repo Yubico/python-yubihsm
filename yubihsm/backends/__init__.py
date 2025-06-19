@@ -12,10 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from urllib import parse
-import re
 import abc
+import re
 from typing import Optional
+from urllib import parse
 
 
 class YhsmBackend(abc.ABC):
