@@ -12,12 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from . import YhsmBackend
-from ..exceptions import YubiHsmConnectionError
-import usb.core
-import usb.util
 from typing import Optional
 
+import usb.core
+import usb.util
+
+from ..exceptions import YubiHsmConnectionError
+from . import YhsmBackend
 
 YUBIHSM_VID = 0x1050
 YUBIHSM_PID = 0x0030
@@ -35,20 +36,20 @@ class UsbBackend(YhsmBackend):
         err = None
         for device in usb.core.find(
             find_all=True, idVendor=YUBIHSM_VID, idProduct=YUBIHSM_PID
-        ):
+        ):  # type: ignore
             try:
-                cfg = device.get_active_configuration()
+                cfg = device.get_active_configuration()  # type: ignore
             except usb.core.USBError:
                 cfg = None
 
-            if cfg is None or cfg.bConfigurationValue != 0x01:
+            if cfg is None or cfg.bConfigurationValue != 0x01:  # type: ignore
                 try:
-                    device.set_configuration(0x01)
+                    device.set_configuration(0x01)  # type: ignore
                 except usb.core.USBError as e:
                     err = YubiHsmConnectionError(e)
                     continue
 
-            if serial is None or int(device.serial_number) == serial:
+            if serial is None or int(device.serial_number) == serial:  # type: ignore
                 break
 
             usb.util.dispose_resources(device)
@@ -57,7 +58,7 @@ class UsbBackend(YhsmBackend):
 
         # Flush any data waiting to be read
         try:
-            device.read(0x81, 0xFFFF, 10)
+            device.read(0x81, 0xFFFF, 10)  # type: ignore
         except usb.core.USBError:
             pass  # Errors here are expected, and ignored
 
@@ -68,13 +69,13 @@ class UsbBackend(YhsmBackend):
 
     def transceive(self, msg):
         try:
-            sent = self._device.write(0x01, msg, self.timeout)
+            sent = self._device.write(0x01, msg, self.timeout)  # type: ignore
             if sent != len(msg):
                 raise YubiHsmConnectionError("Error sending data over USB.")
             if sent % 64 == 0:
-                if self._device.write(0x01, b"", self.timeout) != 0:
+                if self._device.write(0x01, b"", self.timeout) != 0:  # type: ignore
                     raise YubiHsmConnectionError("Error sending data over USB.")
-            return bytes(bytearray(self._device.read(0x81, 0xFFFF, self.timeout)))
+            return bytes(bytearray(self._device.read(0x81, 0xFFFF, self.timeout)))  # type: ignore
         except usb.core.USBError as e:
             raise YubiHsmConnectionError(e)
 
@@ -82,10 +83,8 @@ class UsbBackend(YhsmBackend):
         usb.util.dispose_resources(self._device)
 
     def __repr__(self):
-        v_int = self._device.bcdDevice
+        v_int = self._device.bcdDevice  # type: ignore
         version = "{}.{}.{}".format((v_int >> 8) & 0xF, (v_int >> 4) & 0xF, v_int & 0xF)
         return (
-            "{0.__class__.__name__}("
-            "version={1}, "
-            "serial={0._device.serial_number})"
+            "{0.__class__.__name__}(version={1}, serial={0._device.serial_number})"
         ).format(self, version)

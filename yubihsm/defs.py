@@ -14,11 +14,11 @@
 
 """Named constants used in YubiHSM commands."""
 
-from cryptography.hazmat.primitives.asymmetric import ec
-from cryptography.hazmat.primitives import hashes
 from enum import IntEnum, IntFlag, unique
 from typing import Tuple
 
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.asymmetric import ec
 
 Version = Tuple[int, int, int]
 

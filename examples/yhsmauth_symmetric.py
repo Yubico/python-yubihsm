@@ -15,9 +15,10 @@ Running this script requires a YubiKey with FW >= 5.4.3.
 Usage: python yhsmauth_symmetric.py
 """
 
-from yubihsm import YubiHsm
-from yubikit.hsmauth import HsmAuthSession, DEFAULT_MANAGEMENT_KEY
 from ykman import scripting as s
+from yubikit.hsmauth import DEFAULT_MANAGEMENT_KEY, HsmAuthSession
+
+from yubihsm import YubiHsm
 
 # Connect to a YubiKey
 yubikey = s.single()
@@ -34,8 +35,8 @@ hsm = YubiHsm.connect("yhusb://")
 credential = hsmauth.put_credential_derived(
     management_key=DEFAULT_MANAGEMENT_KEY,
     label="Default credential",
-    credential_password="1234",
-    derivation_password="password",
+    credential_password="1234",  # noqa: S106
+    derivation_password="password",  # noqa: S106
 )
 
 # Initiate mutual authentication process to YubiHSM
@@ -43,7 +44,9 @@ symmetric_auth = hsm.init_session(1)
 
 # Calculate session keys
 session_keys = hsmauth.calculate_session_keys_symmetric(
-    label=credential.label, context=symmetric_auth.context, credential_password="1234"
+    label=credential.label,
+    context=symmetric_auth.context,
+    credential_password="1234",  # noqa: S106
 )
 
 # Authenticate the session

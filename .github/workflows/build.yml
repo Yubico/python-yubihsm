@@ -2,6 +2,8 @@ name: build
 
 on: [push, pull_request]
 
+permissions: read-all
+
 jobs:
   test:
     runs-on: ${{ matrix.os }}
@@ -31,26 +33,28 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python }}
           architecture: ${{ matrix.architecture }}
 
-      - name: Install python dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install poetry
-          poetry install
+      - name: Install the project
+        run: uv sync --all-extras
 
       - name: Run pre-commit
         if: "!startsWith(matrix.python, 'pypy')"
         run: |
-          python -m pip install pre-commit
+          uv tool install pre-commit
           pre-commit run --all-files --verbose
 
       - name: Run unit tests
-        run: poetry run pytest -v -k "not device"
+        run: uv run pytest -v -k "not device"
 
   device_test:
     runs-on: ${{ matrix.os }}
@@ -63,16 +67,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: 3.x
 
-      - name: Install python dependencies
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install poetry
-          poetry install -E http
+      - name: Install the project
+        run: uv sync --extra http
 
       - name: Set up tunnel
         env:
@@ -90,7 +96,7 @@ jobs:
         if: ${{ env.BACKEND }}
         run: |
           echo Using backend $BACKEND
-          poetry run pytest -v --backend "$BACKEND" tests/device/
+          uv run pytest -v --backend "$BACKEND" tests/device/
 
       - name: Release HSM
         if: ${{ always() && env.BACKEND }}
@@ -103,16 +109,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: 3.x
 
       - name: Build source package
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install poetry
-          poetry build
+        run: uv build
 
       - name: Upload source package
         uses: actions/upload-artifact@v4
@@ -127,19 +135,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: 3.12
+          python-version: 3.x
 
-      - name: Install python dependencies
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install poetry
-          poetry install -E http -E usb
+      - name: Install the project
+        run: uv sync --all-extras
 
       - name: Build sphinx documentation
-        run: poetry run make -C docs/ html
+        run: uv run make -C docs/ html
 
       - name: Upload documentation
         uses: actions/upload-artifact@v4

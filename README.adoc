@@ -79,16 +79,19 @@ hsm.close()
 ----
 
 === Development
-For development of the library, `poetry` is used. To set up the dev
-environment, run this command in the root directory of the repository:
+This project uses https://docs.astral.sh/uv/[uv] for development.
+Follow the uv Getting Started guide to install and configure it.
 
- $ poetry install -E http -E usb
+When `uv` is installed and configured you can set up the dev environment for this project by running the following command in the root directory of the repository:
+
+  $ uv sync --all-extras
 
 ==== Pre-commit checks
 This project uses https://pre-commit.com to run several checks on the code
-prior to committing. To enable the hooks, run this command in the root
+prior to committing. To enable the hooks, run these commands in the root
 directory of the repository:
 
+  $ uv tool install pre-commit
   $ pre-commit install
 
 Once the hooks are installed, they will run automatically on any changed files
@@ -102,7 +105,7 @@ authentication key enabled (as is the case after performing a factory reset).
 
 WARNING: The YubiHSM under test will be factory reset by the tests!
 
- $ poetry run pytest
+ $ uv run pytest
 
 See pytest documentation for instructions on running a specific test.
 
@@ -110,7 +113,7 @@ By default the tests will connect to a yubihsm-connector running with the
 default settings on http://localhost:12345. To change this, use the `--backend`
 argument, eg:
 
- $ poetry run pytest --backend "yhusb://"
+ $ uv run pytest --backend "yhusb://"
 
 Access to the device requires proper permissions, so either use sudo or setup a
 udev rule. Sample udev configuration can be found
@@ -120,13 +123,13 @@ link:https://developers.yubico.com/YubiHSM2/Component_Reference/yubihsm-connecto
 
 To build the HTML documentation, run:
 
- $ poetry run make -C docs/ html
+ $ uv run make -C docs/ html
 
 The resulting output will be in docs/_build/html/.
 
 ==== Source releases for distribution
 Build a source release:
 
- $ poetry build
+ $ uv build
 
 The resulting .tar.gz and .whl will be created in `dist/`.

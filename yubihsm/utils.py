@@ -14,10 +14,11 @@
 
 """Various utility functions used throughout the library."""
 
+from typing import Tuple
+
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-from typing import Tuple
 
 
 def password_to_key(password: str) -> Tuple[bytes, bytes]:
