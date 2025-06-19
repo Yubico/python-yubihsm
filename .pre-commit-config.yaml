@@ -14,3 +14,7 @@ repos:
     - id: mypy
       exclude: ^docs/  # keep in sync with mypy.ini
       additional_dependencies: [types-requests]
+- repo: https://github.com/RobertCraigie/pyright-python
+  rev: v1.1.402
+  hooks:
+    - id: pyright

@@ -50,3 +50,8 @@ testpaths = ["tests"]
 [tool.ruff.lint]
 select = ["I", "S"]
 exclude = ["tests/*"]
+
+[tool.pyright]
+venvPath = "."
+venv = ".venv"
+exclude = ["tests/", "docs/", "examples/"]
