@@ -1250,6 +1250,16 @@ class PublicWrapKey(YhsmObject):
 
         return cls._from_command(session, COMMAND.PUT_PUBLIC_WRAP_KEY, msg)
 
+    def get_public_key(self) -> rsa.RSAPublicKey:
+        """Get the public wrapkey."""
+        msg = struct.pack("!HB", self.id, self.object_type)
+        ret = self.session.send_secure_cmd(COMMAND.GET_PUBLIC_KEY, msg)
+        raw_key = ret[1:]
+        num = int.from_bytes(raw_key, "big")
+        return rsa.RSAPublicNumbers(e=RSA_PUBLIC_EXPONENT, n=num).public_key(
+            backend=default_backend()
+        )
+
     def _rsa_wrap_cmd_data(
         self,
         obj: YhsmObject,
