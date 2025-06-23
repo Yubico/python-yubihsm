@@ -1,3 +1,9 @@
+* Version 3.1.1 (unreleased)
+ ** Support for compressing X509 certificates before import.
+ ** Changes relevant to maintainers
+ *** Switched package manager to uv.
+ *** Replaced Black, flake8 and bandit with ruff, and added pyright.
+
 * Version 3.1.0 (released 2024-09-09)
  ** Support for asymmetric wrap (for FW 2.4+).
  ** Support for wrapping ed25519 keys with seed (for FW 2.4+).

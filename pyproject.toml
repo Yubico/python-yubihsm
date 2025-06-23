@@ -1,6 +1,6 @@
 [project]
 name = "yubihsm"
-version = "3.1.1.dev0"
+version = "3.1.1"
 description = "Library for communication with a YubiHSM 2 over HTTP or USB."
 authors = [{ name = "Dain Nilsson", email = "<dain@yubico.com>" }]
 readme = "README.adoc"
