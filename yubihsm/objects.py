@@ -135,6 +135,12 @@ T_AttestationExtensions = TypeVar(
 
 @dataclass
 class AttestationExtensions:
+    """Base attestation extensions.
+
+    :ivar firmware_version: YubiHSM firmware version.
+    :ivar serial: YubiHSM serial number.
+    """
+
     firmware_version: Version
     serial: int
 
@@ -157,6 +163,11 @@ class AttestationExtensions:
 
 @dataclass
 class DeviceAttestationExtensions(AttestationExtensions):
+    """Device attestation extensions. Available on YubiHSM FIPS only.
+
+    :ivar fips_certificate: The FIPS certificate.
+    """
+
     fips_certificate: Optional[int]
 
     @classmethod
@@ -174,6 +185,17 @@ class DeviceAttestationExtensions(AttestationExtensions):
 
 @dataclass
 class KeyAttestationExtensions(AttestationExtensions):
+    """Key attestation extensions.
+
+    :ivar origin: The origin of the key.
+    :ivar domains: The set of domains assigned to the key object.
+    :ivar capabilities: The set of capabilities assigned to the key object.
+    :ivar object_id: The ID of the key object.
+    :ivar label: The label of the key object.
+    :ivar fips_approved: (available on YubiHSM FIPS >= 2.4.1 only) True if
+        the key attestation was generated in FIPS-approved mode.
+    """
+
     origin: ORIGIN
     domains: int
     capabilities: CAPABILITY

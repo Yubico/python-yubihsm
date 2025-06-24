@@ -1,5 +1,6 @@
 * Version 3.1.1 (unreleased)
  ** Support for compressing X509 certificates before import.
+ ** Simplified parsing of extensions in attestation certificates.
  ** Changes relevant to maintainers
  *** Switched package manager to uv.
  *** Replaced Black, flake8 and bandit with ruff, and added pyright.
