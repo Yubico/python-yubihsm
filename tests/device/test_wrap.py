@@ -664,30 +664,51 @@ class TestAsymmetricWrap:
         private_wrapkey.delete()
 
     def test_get_public_key(self, session):
-        key = rsa.generate_private_key(
+        import_key = rsa.generate_private_key(
+            public_exponent=0x10001, key_size=2048, backend=default_backend()
+        )
+        export_key = rsa.generate_private_key(
             public_exponent=0x10001, key_size=2048, backend=default_backend()
         )
 
-        wrapkey = WrapKey.put(
+        export_wrapkey = PublicWrapKey.put(
             session,
             0,
-            "Test Get Public Key",
+            "Test Get Public Key (PublicWrapKey)",
+            1,
+            CAPABILITY.EXPORT_WRAPPED,
+            CAPABILITY.EXPORTABLE_UNDER_WRAP,
+            export_key.public_key(),
+        )
+        import_wrapkey = WrapKey.put(
+            session,
+            0,
+            "Test Get Public Key (WrapKey)",
             1,
             CAPABILITY.EXPORT_WRAPPED,
             ALGORITHM.RSA_2048,
             CAPABILITY.NONE,
-            key,
+            import_key,
         )
 
-        pub = wrapkey.get_public_key()
-        assert pub.public_bytes(
+        import_pub = import_wrapkey.get_public_key()
+        export_pub = export_wrapkey.get_public_key()
+        assert import_pub.public_bytes(
             encoding=serialization.Encoding.PEM,
             format=serialization.PublicFormat.SubjectPublicKeyInfo,
-        ) == key.public_key().public_bytes(
+        ) == import_key.public_key().public_bytes(
             encoding=serialization.Encoding.PEM,
             format=serialization.PublicFormat.SubjectPublicKeyInfo,
         )
-        wrapkey.delete()
+        assert export_pub.public_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo,
+        ) == export_key.public_key().public_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo,
+        )
+        import_wrapkey.delete()
+        export_wrapkey.delete()
 
     def test_export_ed25519(self, session):
         wrapkey = WrapKey.put(
