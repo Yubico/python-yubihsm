@@ -1,4 +1,4 @@
-* Version 3.1.1 (unreleased)
+* Version 3.1.1 (released 2025-06-24)
  ** Support for compressing X509 certificates before import.
  ** Simplified parsing of extensions in attestation certificates.
  ** Changes relevant to maintainers
