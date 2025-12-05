@@ -211,7 +211,7 @@ def test_more_wrap_data(session):
         key.delete()
 
 
-def test_wrap_data_many(session):
+def test_wrap_data_many(session, info):
     key_label = "wrap key"
     raw_key = os.urandom(24)
     w_key = WrapKey.put(
@@ -235,16 +235,21 @@ def test_wrap_data_many(session):
         raw_key,
     )
 
+    if info.version >= (2, 5, 0):
+        code = ERROR.INSUFFICIENT_PERMISSIONS
+    else:
+        code = ERROR.INVALID_DATA
+
     for ln in range(1, 64):
         data = os.urandom(ln)
         wrap = w_key.wrap_data(data)
         with pytest.raises(YubiHsmDeviceError) as context:
             u_key.wrap_data(data)
-        assert context.value.code == ERROR.INVALID_DATA
+        assert context.value.code == code
         plain = u_key.unwrap_data(wrap)
         with pytest.raises(YubiHsmDeviceError) as context:
             w_key.unwrap_data(wrap)
-        assert context.value.code == ERROR.INVALID_DATA
+        assert context.value.code == code
         assert data == plain
 
     u_key.delete()
