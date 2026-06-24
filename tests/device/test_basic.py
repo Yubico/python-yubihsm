@@ -190,7 +190,8 @@ class TestEcho:
 
 class TestFipsOptions:
     @pytest.fixture(scope="class", autouse=True)
-    def session2(self, session, connect_hsm):
+    @classmethod
+    def session2(cls, session, connect_hsm):
         try:
             session.get_fips_status()
             session.reset_device()

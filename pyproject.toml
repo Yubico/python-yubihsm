@@ -4,7 +4,7 @@ version = "3.1.2-dev.0"
 description = "Library for communication with a YubiHSM 2 over HTTP or USB."
 authors = [{ name = "Dain Nilsson", email = "<dain@yubico.com>" }]
 readme = "README.adoc"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 license = { file = "COPYING" }
 classifiers = [
   "Operating System :: OS Independent",
@@ -14,14 +14,14 @@ classifiers = [
   "Topic :: Security :: Cryptography",
   "Topic :: Software Development :: Libraries"
 ]
-dependencies = ["cryptography (>=2.6, <47)"]
+dependencies = ["cryptography (>=2.6, <52)"]
 
 [dependency-groups]
 dev = [
     "pytest>=8.4.1",
-    "sphinx>=8.1.3 ; python_full_version >= '3.10'",
-    "sphinx-autoapi>=3.6.0 ; python_full_version >= '3.10'",
-    "sphinx-rtd-theme>=3.0.2 ; python_full_version >= '3.10'",
+    "sphinx>=8.1.3",
+    "sphinx-autoapi>=3.6.0",
+    "sphinx-rtd-theme>=3.0.2",
 ]
 
 [project.optional-dependencies]
