@@ -9,9 +9,10 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        python: ['3.9', '3.10', '3.11', '3.12', '3.13', 'pypy3.9']
+        python: ['3.11', '3.12', '3.13', '3.14', 'pypy3.11']
         architecture: [x86, x64, arm64]
         exclude:
           - os: ubuntu-latest
@@ -25,9 +26,12 @@ jobs:
           - os: windows-latest
             architecture: arm64
           - os: windows-latest
-            python: pypy3.9
+            architecture: x86
+          - os: windows-latest
+            python: pypy3.11
           - os: macos-latest
-            python: pypy3.9
+            python: pypy3.11
+
 
     name: ${{ matrix.os }} Py ${{ matrix.python }} ${{ matrix.architecture }}
     steps:
