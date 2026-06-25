@@ -26,8 +26,6 @@ jobs:
           - os: windows-latest
             architecture: arm64
           - os: windows-latest
-            architecture: x86
-          - os: windows-latest
             python: pypy3.11
           - os: macos-latest
             python: pypy3.11
@@ -51,7 +49,14 @@ jobs:
           architecture: ${{ matrix.architecture }}
 
       - name: Install the project
+        if: ${{ !(startsWith(matrix.os, 'windows') && matrix.architecture == 'x86') }}
         run: uv sync --all-extras
+
+      - name: Install the project (Windows x86)
+        if: ${{ startsWith(matrix.os, 'windows') && matrix.architecture == 'x86' }}
+        run: |
+          uv venv
+          uv pip install --group dev -c .github/constraints/windows-x86.txt -e ".[http,usb]"
 
       - name: Run pre-commit
         if: "!startsWith(matrix.python, 'pypy')"
@@ -60,7 +65,7 @@ jobs:
           pre-commit run --all-files --verbose
 
       - name: Run unit tests
-        run: uv run pytest -v -k "not device"
+        run: uv run --no-sync pytest -v -k "not device"
 
   device_test:
     runs-on: ${{ matrix.os }}
@@ -167,4 +172,3 @@ jobs:
         with:
           name: python-yubihsm-docs
           path: docs/_build/html
-
