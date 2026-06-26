@@ -1,4 +1,4 @@
-* Version 3.3.2 (released 2026-06-26)
+* Version 3.1.2 (released 2026-06-26)
  ** Bumped supported dependency versions (eg. latest cryptography).
  ** Dropped support for Python 3.9 (EoL).
 

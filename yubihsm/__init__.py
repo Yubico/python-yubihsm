@@ -28,4 +28,4 @@ from .core import YubiHsm  # noqa F401
 
 
 # TODO: Drop in next major, use importlib.metadata.version
-__version__ = "3.1.2"
+__version__ = "3.1.3-dev.0"
