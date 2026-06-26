@@ -1,3 +1,7 @@
+* Version 3.3.2 (released 2026-06-26)
+ ** Bumped supported dependency versions (eg. latest cryptography).
+ ** Dropped support for Python 3.9 (EoL).
+
 * Version 3.1.1 (released 2025-06-24)
  ** Support for compressing X509 certificates before import.
  ** Simplified parsing of extensions in attestation certificates.
