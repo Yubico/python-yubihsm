@@ -27,4 +27,5 @@ See :class:`~yubihsm.core.YubiHsm`.
 from .core import YubiHsm  # noqa F401
 
 
-__version__ = "3.1.2-dev.0"
+# TODO: Drop in next major, use importlib.metadata.version
+__version__ = "3.1.3-dev.0"
